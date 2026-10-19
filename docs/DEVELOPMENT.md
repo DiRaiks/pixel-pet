@@ -76,6 +76,7 @@ Quit the running pet first (menu: "Выйти", or `pkill -x PixelPet`). The app
 | Flag | Effect |
 |---|---|
 | `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: `lavender`, `mint`, `peach`, `mono`. Accessories: `none`, `glasses`, `headphones`, `cap` |
+| `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
 | `--with-claude` | Used with `--translate-text`: also runs "via Claude" |
@@ -89,6 +90,16 @@ Exporting sprites runs without a window, so it works alongside the running pet:
 ```bash
 build/PixelPet.app/Contents/MacOS/PixelPet --export-sprites /tmp/sprites mint headphones
 ```
+
+### README pictures
+
+The animations in the README are drawn by the app's own sprite code, so regenerate them after changing the art:
+
+```bash
+swift build && .build/debug/PixelPet --export-readme docs/images
+```
+
+They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alpha, and GitHub plays them. The two card screenshots (`ask-card.png`, `translate-card.png`) are taken by hand: quit the pet, launch it with `--keep-cards` plus `--ask` or `--translate-text`, and capture the card window with `screencapture -o -l <window id>`.
 
 ### Other aids
 

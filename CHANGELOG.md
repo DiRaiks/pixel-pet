@@ -4,7 +4,11 @@ The project was built in milestones; each was merged into `main` once it had bee
 
 ## Unreleased
 
+### Added
+- README pictures: animated states, looks, card screenshots and usage examples, generated with the new `--export-readme` flag.
+
 ### Fixed
+- **Quick question:** fenced code blocks in answers show as monospaced blocks. Before, they collapsed into one line that started with the language tag, like `bash git reset --soft HEAD~1`.
 - **Dragging:** the grabbing hand drawn over the cube is gone. It was left over from the prototype, and since you hold the cube by the middle it showed as a stray triangle above its head.
 
 ### Docs

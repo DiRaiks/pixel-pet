@@ -1,13 +1,57 @@
-# Pixel Pet
+<p align="center">
+  <img src="docs/images/showreel.png" width="240" alt="Pixel Pet: idle, hop, typing while agents work, alert when one waits, a somersault when a long task finishes">
+</p>
 
-A small pixel-art cube that lives on your macOS desktop, or in the MacBook notch. It keeps an eye on your Claude Code agents and shows how much of your subscription limit is left. It can answer a quick question and translate selected text.
+<h1 align="center">Pixel Pet</h1>
 
-- **Agents at a glance.** Each running Claude Code session appears as a small block next to the cube. The block is teal while the session works, amber while it waits for you, and red if it fails. The cube itself reacts too: it types on a keyboard while agents work, bounces with a "!" when one needs input, and jumps (or does a somersault after a long task) when a turn finishes.
-- **Limits.** The 5-hour and weekly usage show in the status panel and the menu bar. As the 5-hour window drains, the cube fades from the top down.
-- **Quick question (⌃⌥K).** Ask Claude in a card next to the cube. The answer streams in, and follow-ups continue the same conversation.
-- **Translate the selection (⌃⌥T).** Apple Translation works offline and is instant. A "via Claude" button sends the text to Claude instead.
-- **Home in the notch.** Drop the cube near the top of the screen and it slips into the notch, or into a small "burrow" on displays without one. From there it peeks out when something needs you.
-- **Desktop life.** Its eyes follow the cursor. It dozes off when you are away, yawns and rolls now and then, gets shy when you hover over it, and gets cross if you click it too much.
+<p align="center">
+  A pixel-art cube for your macOS desktop that keeps an eye on your Claude Code agents.<br>
+  It shows your limits, answers quick questions, translates the selection, and can hide in the MacBook notch.
+</p>
+
+<p align="center">
+  <img src="docs/images/looks.png" width="696" alt="Four skins (lavender, mint, peach, graphite) and three accessories (glasses, headphones, cap)">
+</p>
+
+## What it does
+
+<table>
+<tr>
+<td width="25%" align="center"><img src="docs/images/working.png" width="120" alt="Typing while agents work"></td>
+<td><b>Agents at a glance.</b> Each running Claude Code session is a small block next to the cube: teal while it works, amber while it waits for you, red if it fails. A dot on a block means subagents are running. The cube types on its keyboard while anything works.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/alert.png" width="120" alt="Bouncing with an exclamation mark"></td>
+<td><b>Knows when you are needed.</b> A permission prompt, a question or a plan to approve makes it bounce with a "!" until you answer.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/flip.png" width="120" alt="Somersault with confetti"></td>
+<td><b>Celebrates finished work.</b> A jump when a turn with real work ends, and a somersault with confetti after a task of 10 minutes or more.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/low-limit.png" width="120" alt="Pale and sweating with the body drained"></td>
+<td><b>Limits.</b> The 5-hour and weekly usage show in the status panel and the menu bar. As the 5-hour window drains, the cube empties from the top. Near the limit it turns pale and sweats.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/home.png" width="120" alt="Eyes glowing in the burrow, then peeking out"></td>
+<td><b>Home in the notch.</b> Drop it near the top of the screen and it slips into the notch, or into a small burrow on displays without one. From there only its eyes show, and it peeks out when something needs you.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
+<td><b>Desktop life.</b> Its eyes follow the cursor. It falls asleep when you are away, yawns and rolls now and then, gets shy when you hover over it, and gets cross if you click it too much.</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ask-card.png" alt="Quick question card with a streamed answer"></td>
+<td width="50%"><img src="docs/images/translate-card.png" alt="Translation card, English to Russian"></td>
+</tr>
+<tr>
+<td><b>Quick question, ⌃⌥K.</b> Ask Claude in a card next to the cube. The answer streams in, and follow-ups continue the same conversation.</td>
+<td><b>Translate the selection, ⌃⌥T.</b> Apple Translation works offline and takes about 0.2 s. "Через Claude" (via Claude) sends the text to Claude instead.</td>
+</tr>
+</table>
 
 The app runs entirely on your Mac. It never talks to the network itself; the only network access is through the Claude Code CLI you already use.
 
@@ -82,22 +126,24 @@ The menu-bar icon is a tiny cube with the number of active agents next to it. It
 
 States are listed in priority order; a higher one wins.
 
-| State | Meaning |
-|---|---|
-| Error (shakes, then dizzy) | An agent's turn failed within the last 3 seconds |
-| Alert (bounces with "!") | An agent is waiting for you: a permission prompt, a question, or a plan to approve |
-| Low limit (pale, sweating) | 5-hour usage is at 85% or more, or weekly usage at 90% or more |
-| Working (typing) | At least one agent is working |
-| Idle (breathing, blinking, looking around) | Nothing is going on |
-| Sleep (nightcap, Z bubble) | Idle, and you have been away longer than the sleep setting |
+| | State | Meaning |
+|---|---|---|
+| <img src="docs/images/error.png" width="80" alt=""> | **Error**: shakes, then gets dizzy | An agent's turn failed within the last 3 seconds |
+| <img src="docs/images/alert.png" width="80" alt=""> | **Alert**: bounces with "!" | An agent is waiting for you: a permission prompt, a question, or a plan to approve |
+| <img src="docs/images/low-limit.png" width="80" alt=""> | **Low limit**: pale, sweating | 5-hour usage is at 85% or more, or weekly usage at 90% or more |
+| <img src="docs/images/working.png" width="80" alt=""> | **Working**: typing | At least one agent is working |
+| <img src="docs/images/idle.png" width="80" alt=""> | **Idle**: breathes, blinks, looks around | Nothing is going on |
+| <img src="docs/images/sleep.png" width="80" alt=""> | **Sleep**: nightcap and a bubble | Idle, and you have been away longer than the sleep setting |
 
-On top of these, the cube plays one-off animations:
+On top of these, it plays one-off animations:
 
-- a jump when a turn with at least 20 s of work finishes;
-- a somersault with confetti after a turn of 10 minutes or more;
-- a hop when you click it or come back;
-- a landing when you drop it;
-- occasional idle fidgets: a yawn, or a roll.
+| <img src="docs/images/celebrate.png" width="80" alt=""> | <img src="docs/images/flip.png" width="80" alt=""> | <img src="docs/images/hop.png" width="80" alt=""> | <img src="docs/images/dragged.png" width="80" alt=""> |
+|:---:|:---:|:---:|:---:|
+| A turn with 20 s+ of work finished | A task of 10 min+ finished | You clicked it, or came back | Dragged, then dropped |
+| <img src="docs/images/yawn.png" width="80" alt=""> | <img src="docs/images/tumble.png" width="80" alt=""> | <img src="docs/images/shy.png" width="80" alt=""> | <img src="docs/images/angry.png" width="80" alt=""> |
+| Idle fidget: a yawn | Idle fidget: a roll | Cursor resting on it for 2 s | 5 clicks in 3 s |
+
+While a translation card is open, it talks along: <img src="docs/images/talk.png" width="48" alt="" align="center">
 
 At home only the eyes show. The cube peeks out for alerts and errors, and briefly for one-off events.
 
@@ -112,6 +158,43 @@ Agent blocks stack beside the cube, one per session:
 | Green flash | Just finished |
 | Dot on a block | Subagents are running |
 | Ellipsis on top | More than 4 sessions |
+
+### Examples
+
+**A typical session.** You start three Claude Code sessions and switch to your browser.
+
+1. Three teal blocks spin next to the cube, and it types on its keyboard. The menu bar shows `3`.
+2. One agent asks to run a command it has no permission for. Its block turns amber, and the cube bounces with a "!" until you answer.
+3. Twelve minutes later, the longest task finishes. Its block flashes green, and the cube does a somersault.
+4. You go for lunch. With nothing running, the cube falls asleep in its nightcap, and wakes with a hop when you are back.
+
+**Busy day, no distractions.** Press ⌃⌥P. The cube dives into the notch and stays there; only an error brings it out. Press ⌃⌥P again and it stays home but peeks out for alerts again. To bring it back to the desk, drag it out or use "Выпустить на стол" (Let out on the desk) in the menu.
+
+**Translate a paragraph.** Select text in any app and press ⌃⌥T. Text in your language goes to the other language, anything else comes into yours. With the defaults (Russian and English), English becomes Russian and Russian becomes English.
+
+**Quick question without a terminal.** Press ⌃⌥K, type the question, press Return. Ask a follow-up in the same card. "Новый" (New) starts a fresh conversation, and Esc closes the card.
+
+**Limits from the terminal too.** If you have no statusline of your own, connecting adds one for terminal sessions. It feeds the pet and prints a compact line:
+
+```text
+Opus · ctx 42% · 5h 18% · 7d 9%
+```
+
+**See what the hooks report.** Turn on the event log (menu: "Записывать события") and watch it while an agent runs:
+
+```bash
+tail -f ~/.pixelpet/events.log
+```
+
+```text
+2026-10-19 14:02:11.348 3f9c1a2b pixel-pet promptSubmitted
+2026-10-19 14:02:13.902 3f9c1a2b pixel-pet toolStarted Bash
+2026-10-19 14:02:15.117 3f9c1a2b pixel-pet toolFinished Bash
+2026-10-19 14:02:15.120 3f9c1a2b pixel-pet permissionRequested
+2026-10-19 14:03:40.551 3f9c1a2b pixel-pet stopped
+```
+
+Only session-id prefixes, project folder names and event names are logged.
 
 ### Settings
 
@@ -133,6 +216,25 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Accessibility | Shows the permission status, with a button to request it |
 
 With **Reduce Motion** turned on in macOS (Accessibility → Display), the cube stops jumping, throwing and shaking. Cards open without animation. Looping alarm states hold a single expressive frame instead of animating.
+
+Settings are stored in `~/.pixelpet/config.json`. You can edit it by hand while the app is not running:
+
+```json
+{
+  "accessory" : "headphones",
+  "askModel" : "haiku",
+  "desktopReactions" : true,
+  "doNotDisturb" : false,
+  "foreignLanguage" : "en",
+  "isHome" : false,
+  "nativeLanguage" : "ru",
+  "scale" : 4,
+  "skin" : "mint",
+  "sleepAfterMinutes" : 10
+}
+```
+
+Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/ARCHITECTURE.md#configuration).
 
 ## What it changes on your Mac
 

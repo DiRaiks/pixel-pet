@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: AppWindow<OnboardingView>?
     private var touch: TouchWatcher?
     private var power: PowerMonitor?
+    private var meetings: MeetingMonitor?
+    private var settingsModel: SettingsModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let exportArgs = CommandLine.arguments
@@ -149,6 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.start()
         agents.start()
         let settingsModel = SettingsModel(pet: pet, hooks: hooks)
+        self.settingsModel = settingsModel
         settingsModel.onWatchCodex = { [weak agents] on in agents?.setWatchingCodex(on) }
         let settings = AppWindow(title: "Pixel Pet — настройки", content: SettingsView(model: settingsModel))
         settings.onKey = { settingsModel.refresh() }
@@ -179,12 +182,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let power = PowerMonitor { [weak pet] reading in pet?.setPower(reading) }
         power.start()
         self.power = power
+        settingsModel.calendarCountProvider = { [weak self] in self?.meetings?.calendarCount ?? 0 }
+        settingsModel.onMeetingAlerts = { [weak self, weak settingsModel] on in
+            self?.setMeetingAlerts(on, askForAccess: true)
+            settingsModel?.refresh()
+        }
+        settingsModel.onRefresh = { [weak self] in self?.meetings?.reload() }
+        setMeetingAlerts(pet.config.meetingAlerts, askForAccess: false)
         setTouchHint(pet.config.touchHint)
         settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }
         let desktop = DesktopSensor(pet: pet)
         pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
         desktop.start()
         self.desktop = desktop
+    }
+
+    /// Calendar reminders on or off; turning them on asks for calendar access the first time.
+    private func setMeetingAlerts(_ on: Bool, askForAccess: Bool) {
+        guard on != (meetings != nil), let pet else { return }
+        if on {
+            let monitor = MeetingMonitor()
+            monitor.onPhase = { [weak pet] phase in pet?.setMeetingPhase(phase) }
+            monitor.onUpcoming = { [weak self] meeting in self?.agents?.status.nextMeeting = meeting }
+            monitor.onAccessChange = { [weak self] in self?.settingsModel?.refresh() }
+            meetings = monitor
+            monitor.start(askForAccess: askForAccess)
+        } else {
+            meetings?.stop()
+            meetings = nil
+        }
     }
 
     /// Follow the system log for a YubiKey waiting for a touch, or stop.

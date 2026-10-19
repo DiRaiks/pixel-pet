@@ -11,6 +11,7 @@ public enum MotionPolicy {
         case .touchKey, .touchKeyHome: 0     // holding the key up, pad lit
         case .question: 0     // "?" over a tilted head
         case .exhausted: 0    // lying spent, clock above
+        case .meetingNow: 0   // headset on, the alarm ringing
         default: nil
         }
     }

@@ -154,8 +154,22 @@ final class CardPanel<Content: View> {
 struct StatusPanelView: View {
     let model: StatusModel
 
+    private func meetingLine(_ meeting: Meeting) -> String {
+        let minutes = Int((meeting.start.timeIntervalSince(model.now) / 60).rounded(.up))
+        let when = minutes <= 0 ? "Звонок начинается" : "Звонок через \(minutes) мин"
+        return meeting.title.isEmpty ? when : "\(when): \(meeting.title)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if let meeting = model.nextMeeting {
+                Label {
+                    Text(meetingLine(meeting)).font(.callout).lineLimit(1)
+                } icon: {
+                    Image(systemName: "alarm")
+                }
+                Divider()
+            }
             LimitsSection(model: model)
             Divider()
             SessionsSection(model: model)

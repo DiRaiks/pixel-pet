@@ -32,6 +32,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// A break with a hookah when no agents work: a long draw, then smoke rings drifting up, or now and
     /// then one big cloud the pet vanishes into.
     case hookah, hookahCloud
+    /// A call coming up: headset on, an alarm clock ticking by its head (5 minutes before), then ringing
+    /// with the pet bouncing (the last minute).
+    case meetingSoon, meetingNow
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -82,6 +85,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .thrown: [50, 45, 45, 45, 45, 45, 45, 60]
         case .splatLeft, .splatRight: [60, 80, 150, 120, 120, 100, 100, 90, 90, 150]
         case .hookah, .hookahCloud: [300, 250, 250, 300, 500, 250] + Self.repeating(8, 220) + [400, 500]
+        case .meetingSoon: Self.repeating(12, 250)
+        case .meetingNow: Self.repeating(8, 90)
         case .dizzy: Self.repeating(6, 90) + Self.repeating(8, 120)
         }
     }

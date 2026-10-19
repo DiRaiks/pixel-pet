@@ -73,6 +73,8 @@ public enum SpriteFactory {
         case .splatRight: splat(i, look, &c)
         case .hookah: hookah(i, look, &c)
         case .hookahCloud: hookah(i, look, &c, cloud: true)
+        case .meetingSoon: meetingSoon(i, look, &c)
+        case .meetingNow: meetingNow(i, look, &c)
         case .splatLeft:
             var right = PixelCanvas()
             splat(i, look, &right)

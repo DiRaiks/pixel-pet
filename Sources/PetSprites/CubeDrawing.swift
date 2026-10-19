@@ -20,6 +20,8 @@ struct BodyStyle {
     var nightcap = false
     /// Red sweatband with its knot on the right, for long work.
     var headband = false
+    /// A call headset with a mic; it takes the place of a head accessory while it's on.
+    var headset = false
     /// Degrees clockwise, around the body's center.
     var rotation = 0.0
 
@@ -107,6 +109,16 @@ extension PixelCanvas {
             set(left + 7, top - 4, Palette.capRed)
             set(left + 8, top - 5, Palette.white); set(left + 9, top - 5, Palette.white)
             return
+        }
+        if s.headset {
+            let g = Palette.accessoryDark
+            fill(left + 1, top - 2, w - 2, 1, g)
+            set(left, top - 1, g); set(right, top - 1, g)
+            fill(left - 1, top + 3, 2, 5, g); fill(right, top + 3, 2, 5, g)
+            // Mic boom from the left cup toward the mouth.
+            for (x, y) in [(left, top + 8), (left + 1, top + 9), (left + 2, top + 9)] { set(x, y, g) }
+            set(left + 3, top + 9, Palette.capRed)
+            if s.accessory.isOnHead { return }
         }
         switch s.accessory {
         case .none: break

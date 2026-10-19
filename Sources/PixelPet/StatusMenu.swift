@@ -40,6 +40,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         .spawn: "Сабагенты", .recall: "Сабагенты вернулись", .compact: "Сжимает контекст",
         .tired: "Батарея садится", .plugIn: "Зарядка", .thrown: "Кувырок", .dizzy: "Кружится голова",
         .splatLeft: "Шлёп о левый край", .splatRight: "Шлёп о правый край", .hookah: "Кальян", .hookahCloud: "Кальян: облако",
+        .meetingSoon: "Скоро звонок", .meetingNow: "Звонок сейчас",
     ]
 
     init(pet: PetController, hooks: HookInstaller) {

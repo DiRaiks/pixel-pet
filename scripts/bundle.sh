@@ -31,6 +31,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>Чтобы кубик готовился к звонкам из вашего календаря. Названия встреч никуда не отправляются и не сохраняются.</string>
+    <key>NSCalendarsUsageDescription</key><string>Чтобы кубик готовился к звонкам из вашего календаря. Названия встреч никуда не отправляются и не сохраняются.</string>
 </dict>
 </plist>
 PLIST

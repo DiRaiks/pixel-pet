@@ -43,6 +43,10 @@
 <td><b>Touch your YubiKey.</b> When a GPG signature (a signed commit, for one) waits for the key's button, the cube pulls out a little YubiKey and holds it up with the pad blinking, then cheers with a check mark once you touch it.</td>
 </tr>
 <tr>
+<td align="center"><img src="docs/images/meeting.png" width="120" alt="Headset on, an alarm clock ringing"></td>
+<td><b>Calls coming up.</b> Turn on "Напоминать о звонках" and the cube reads your Mac's calendars: 5 minutes before a meeting with a call link it puts on a headset with an alarm clock ticking by its head, and in the last minute the clock rings. Off by default; macOS asks for calendar access when you turn it on.</td>
+</tr>
+<tr>
 <td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
 <td><b>Desktop life.</b> Its eyes follow the cursor. It falls asleep when you are away, yawns and rolls now and then, gets shy when you hover over it, and gets cross if you click it too much.</td>
 </tr>
@@ -249,6 +253,7 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Model for questions | haiku, sonnet or opus |
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
 | YubiKey | Show when the key waits for a touch (on by default) |
+| Calls | Remind about calls from the Mac's calendars (off by default); shows the access status and how many calendars it sees |
 | Event log | Writes to `~/.pixelpet/events.log` |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
 | Accessibility | Shows the permission status, with a button to request it |
@@ -285,6 +290,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
 | `~/.claude/settings.json` | One hook entry for each of 13 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/*-pixelpet-claude` | Quick-question sessions. Deleted when you start a new conversation, on quit and on launch |
+| Calendars | Read only, when call reminders are on: the next day of events, kept in memory (titles are shown in the status card, never written anywhere) |
 | System log | Read only, one message: the smart-card service's "Time extension received", through a filtered `log stream` that ends with the app |
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |
 | `$TMPDIR/pixelpet-claude` | Empty working folder for the pet's own `claude -p` runs |
@@ -317,6 +323,7 @@ Two things stay behind until you remove them yourself:
 - **Limits show "unknown".** The app finds limits by running a tiny `claude -p` request. Check that Claude Code is installed and signed in.
 - **A hotkey does nothing.** Hotkeys are global. If another app already owns the combination, Pixel Pet cannot register it; it only writes `hotkey N not registered` to the unified log.
 - **The cube doesn't show the YubiKey.** It reads the touch request from macOS's smart-card service, which GnuPG uses when it talks to the key through PC/SC (the usual setup on macOS). If `scdaemon` uses GnuPG's own CCID driver instead, nothing reaches the system log. FIDO2 touches (`sk-` SSH keys, passkeys) aren't shown yet.
+- **No call reminders.** The cube reads the calendars macOS itself knows about. Apps with their own sync (Notion Calendar, for one) don't put their events there: add the same Google or Microsoft account in System Settings → Internet Accounts with Calendars turned on. Settings → "Звонки" shows how many calendars the cube sees. Only events with a call link (Zoom, Meet, Teams, Webex, Jitsi, Whereby, FaceTime, Slack huddles) count, and not all-day, cancelled or declined ones.
 - **Translation says the language is not installed.** Use the download button in the card. Alternatively, open System Settings → General → Language & Region → Translation Languages.
 
 ## Documentation

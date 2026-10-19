@@ -12,6 +12,8 @@ final class StatusModel {
     var codexLimits: UsageLimits?
     /// Codex is followed (setting on): its limits and sessions get their own groups.
     var codexEnabled = false
+    /// The next call within the hour, when calendar reminders are on.
+    var nextMeeting: Meeting?
     var isProbing = false
     var hooksConnected = false
     var now = Date()

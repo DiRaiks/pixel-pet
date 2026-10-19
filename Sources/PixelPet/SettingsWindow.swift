@@ -37,6 +37,20 @@ final class SettingsModel {
     }
     @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
     var hookah = true { didSet { update { $0.hookah = hookah } } }
+    var meetingAlerts = false {
+        didSet {
+            guard !loading, meetingAlerts != oldValue else { return }
+            update { $0.meetingAlerts = meetingAlerts }
+            onMeetingAlerts?(meetingAlerts)
+        }
+    }
+    @ObservationIgnored var onMeetingAlerts: ((Bool) -> Void)?
+    /// Calendar access and how many calendars are visible, for the settings row.
+    var calendarAccess = MeetingMonitor.Access.notAsked
+    var calendarCount = 0
+    @ObservationIgnored var calendarCountProvider: (() -> Int)?
+    /// Settings opened or refocused: let the calendar monitor look at the permission again.
+    @ObservationIgnored var onRefresh: (() -> Void)?
     var touchHint = true {
         didSet {
             guard !loading, touchHint != oldValue else { return }
@@ -76,6 +90,10 @@ final class SettingsModel {
         watchCodex = c.watchCodex
         touchHint = c.touchHint
         hookah = c.hookah
+        meetingAlerts = c.meetingAlerts
+        onRefresh?()
+        calendarAccess = MeetingMonitor.access
+        calendarCount = calendarCountProvider?() ?? 0
         launchAtLogin = LaunchAtLogin.isEnabled
         hooksConnected = hooks.isInstalled
         statusLine = hooks.statusLineState
@@ -196,6 +214,32 @@ struct SettingsView: View {
                 }
                 Toggle("Журнал событий (~/.pixelpet/events.log)", isOn: $model.logEvents)
                     .help("Только id сессий, проекты и имена событий, без текстов")
+            }
+            Section("Звонки") {
+                Toggle("Напоминать о звонках", isOn: $model.meetingAlerts)
+                    .help("За 5 минут до встречи со ссылкой на звонок кубик надевает гарнитуру, в последнюю минуту звенит будильник")
+                if model.meetingAlerts {
+                    LabeledContent("Календари") {
+                        HStack {
+                            switch model.calendarAccess {
+                            case .granted:
+                                StatusDot(ok: model.calendarCount > 0)
+                                Text(model.calendarCount > 0 ? "видно: \(model.calendarCount)" : "ни одного: добавьте аккаунт в «Учётных записях интернета»")
+                                    .foregroundStyle(.secondary)
+                            case .denied:
+                                StatusDot(ok: false)
+                                Text("нет доступа").foregroundStyle(.secondary)
+                                Button("Открыть настройки…") { MeetingMonitor.openPrivacySettings() }
+                            case .limited:
+                                StatusDot(ok: false)
+                                Text("доступ ограничен: нужен полный").foregroundStyle(.secondary)
+                                Button("Открыть настройки…") { MeetingMonitor.openPrivacySettings() }
+                            case .notAsked:
+                                Text("спросим доступ").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
             Section("YubiKey") {
                 Toggle("Подсказывать касание ключа", isOn: $model.touchHint)

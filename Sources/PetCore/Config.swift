@@ -37,6 +37,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var touchHint = true
     /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
     public var hookah = true
+    /// Get ready for calls from the Mac's calendars (asks for calendar access when turned on).
+    public var meetingAlerts = false
     /// Last known Codex limits, like `lastLimits` for Claude.
     public var lastCodexLimits: UsageLimits?
 
@@ -63,6 +65,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
+        meetingAlerts = try c.decodeIfPresent(Bool.self, forKey: .meetingAlerts) ?? false
         lastCodexLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastCodexLimits)
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }

@@ -249,6 +249,13 @@ How the pet moves between the desk and home:
 - **Deciding.** `TouchWait` (PetCore) starts a wait after two signals within 1.2 s and ends it after 1.2 s of silence; signals dated in the future (clock set back) count as stale.
 - **Showing.** `PetController` puts `touchKey` (desk) or `touchKeyHome` (out of the hole) above every other resting state, even do-not-disturb, and cuts into whatever one-shot plays. When the wait ends it plays `touchDone`, unless the wait lasted 13 s or more: then gpg most likely timed out and there is nothing to celebrate. Under Reduce Motion the key is shown as a still frame.
 
+## Calls
+
+- **Reading.** `MeetingMonitor` (app target, only while `meetingAlerts` is on) asks for full calendar access the first time, then reads the next day of events from EventKit: again on `EKEventStoreChanged`, every 15 minutes, and at each phase boundary (wall-clock timer). All-day, cancelled and declined events are skipped; `MeetingLink` keeps only those with a call link in the URL, location or notes. Titles stay in memory.
+- **Deciding.** `MeetingPlan` (PetCore): `soon` from 5 to 1 minute before a call, `now` from 1 minute before to 1 minute after; `nextChange` says when to wake up; `upcoming` is the next call within the hour, for the status card.
+- **Showing.** `PetController` puts `meetingSoon` / `meetingNow` above working, resting and talking, below an agent that needs you, an error and the YubiKey. At home the last minute brings the pet out of the hole (not under do-not-disturb). The headset takes the place of a head accessory while it's on.
+- **Calendars macOS knows.** EventKit only sees calendars added to macOS; apps with their own sync (Notion Calendar) need the account added in Internet Accounts too.
+
 ## Translation and selection
 
 - **Reading the selection.** `SelectionReader` asks the focused element for `AXSelectedText`. If the app does not expose it, the reader sends ⌘C and restores the clipboard exactly. Restored items carry the nspasteboard.org marker types, so clipboard managers skip them.
@@ -289,6 +296,7 @@ How the pet moves between the desk and home:
 | `watchCodex` | true | Follow Codex sessions and limits |
 | `touchHint` | true | Show when a YubiKey waits for a touch |
 | `hookah` | true | Hookah breaks |
+| `meetingAlerts` | false | Get ready for calls from the Mac's calendars |
 | `lastCodexLimits` | — | Last known Codex limits |
 | `logEvents` | false | Write `~/.pixelpet/events.log` (ids, project and event names only; rotates at 1 MB) |
 | `lastLimits` | — | Last known limits |

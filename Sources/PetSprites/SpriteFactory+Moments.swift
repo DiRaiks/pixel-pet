@@ -253,4 +253,43 @@ extension SpriteFactory {
         c.fillBlend(x, y, w, h, (2...5).contains(k) ? Palette.smokeDense : Palette.smoke)
         c.fillBlend(x + 2, y - 2, w - 4, 2, Palette.smoke)
     }
+
+    /// A call in a few minutes: headset on, breathing, glancing up at an alarm clock ticking by its head.
+    static func meetingSoon(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        var s = BodyStyle(look: look)
+        s.headset = true
+        s.highlightShift = i % 8 < 4 ? 0 : 1
+        let glancing = (6...8).contains(i)
+        s.lookX = glancing ? 1 : 0; s.lookY = glancing ? -1 : 0
+        s.eyes = i == 10 ? .blink : .open
+        c.body(s)
+        alarmClock(&c, x: 18, y: 1, hand: i % 4, ringing: false)
+    }
+
+    /// The last minute: the clock shakes and rings, the pet bounces, eyes wide.
+    static func meetingNow(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        var s = BodyStyle(look: look)
+        s.headset = true
+        s.dy = [0, -1, -2, -1, 0, -1, -2, -1][i]
+        s.eyes = .wide; s.mouth = .open; s.blush = 3
+        c.body(s)
+        alarmClock(&c, x: 18 + (i % 2 == 0 ? -1 : 1), y: 1, hand: i % 4, ringing: true)
+    }
+
+    /// A twin-bell alarm clock floating over the head: round white face with a dark rim, brass bells on
+    /// top, a hand going round (`hand` 0...3), little legs; ringing adds lines either side.
+    static func alarmClock(_ c: inout PixelCanvas, x: Int, y: Int, hand: Int, ringing: Bool) {
+        let rim = Palette.accessoryDark
+        c.fill(x + 1, y, 5, 1, rim); c.fill(x + 1, y + 6, 5, 1, rim)
+        c.fill(x, y + 1, 1, 5, rim); c.fill(x + 6, y + 1, 1, 5, rim)
+        c.fill(x + 1, y + 1, 5, 5, Palette.white)
+        c.fill(x - 1, y - 1, 2, 2, Palette.crownGold); c.fill(x + 6, y - 1, 2, 2, Palette.crownGold)
+        c.set(x + 3, y + 3, rim)
+        let tip = [(3, 1), (5, 3), (3, 5), (1, 3)][hand]
+        c.set(x + (3 + tip.0) / 2, y + (3 + tip.1) / 2, rim)
+        c.set(x + tip.0, y + tip.1, rim)
+        c.set(x + 1, y + 7, rim); c.set(x + 5, y + 7, rim)
+        guard ringing else { return }
+        for dy in [1, 3, 5] { c.set(x - 3, y + dy, Palette.amber); c.set(x + 9, y + dy, Palette.amber) }
+    }
 }

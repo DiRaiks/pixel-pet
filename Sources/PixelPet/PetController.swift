@@ -32,6 +32,8 @@ final class PetController {
     private var lastAgentGlance = Date.distantPast
     /// What piles up on the desk as work goes on.
     private var workStage = WorkStage.fresh
+    /// A call coming up (from the calendar, when that's on).
+    private var meetingPhase = MeetingPlan.Phase.none
     /// The Mac's power (nil until read, or without a battery reading).
     private var power: PowerReading?
     /// Redraws the desk when the night lamp goes on or off.
@@ -253,9 +255,18 @@ final class PetController {
     private func resolvedRest() -> PetState {
         // The key waiting for a touch is what the user is waiting on right now, even under do-not-disturb.
         if touching { return config.isHome ? .touchKeyHome : .touchKey }
-        if config.isHome { return PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) }
+        if config.isHome {
+            let home = PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb)
+            // The last minute before a call: out of the hole to say so (not under do-not-disturb).
+            if home == .burrowed, meetingPhase == .now, !config.doNotDisturb { return .peekHold }
+            return home
+        }
         // Talking (translation card open) yields to errors and waiting agents.
         if talking && mood != .error && mood != .alert && mood != .question { return .talk }
+        // A call coming up beats working and resting, but not an agent that needs you or an error.
+        if meetingPhase != .none, mood != .error, mood != .alert, mood != .question {
+            return meetingPhase == .now ? .meetingNow : .meetingSoon
+        }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
         // Idle on a nearly flat battery: droopy instead.
@@ -465,6 +476,12 @@ final class PetController {
     }
 
     // MARK: Power and events
+
+    func setMeetingPhase(_ phase: MeetingPlan.Phase) {
+        guard phase != meetingPhase else { return }
+        meetingPhase = phase
+        applyRest()
+    }
 
     /// Battery level or power source changed.
     func setPower(_ reading: PowerReading) {

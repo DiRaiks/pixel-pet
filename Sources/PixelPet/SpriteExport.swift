@@ -114,6 +114,13 @@ enum ReadmeExport {
                              Look(skin: .vanilla, accessory: .crown), Look(skin: .night, accessory: .sunglasses),
                              Look(skin: .night, accessory: .propeller), Look(skin: .mono, accessory: .mustache)]
         write(lineup(pairs, scale: 3), to: directory.appendingPathComponent("pairs.png"))
+        let meeting = [Clip(state: .idle, seconds: 0.6), Clip(state: .meetingSoon, seconds: 3.0),
+                       Clip(state: .meetingNow, seconds: 1.8), Clip(state: .idle, seconds: 0.4)]
+        write(render(meeting, scale: 6), to: directory.appendingPathComponent("meeting.png"))
+        write(render([Clip(state: .meetingSoon, seconds: 3.0)], scale: 6), to: directory.appendingPathComponent("meeting-soon.png"))
+        write(render([Clip(state: .meetingNow, seconds: 2.16)], scale: 6), to: directory.appendingPathComponent("meeting-now.png"))
+        let meetingCap = meeting.map { var clip = $0; clip.look = Look(skin: .sky, accessory: .cap); return clip }
+        write(render(meetingCap, scale: 6), to: directory.appendingPathComponent("meeting-cap.png"))
         let hookahBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookah), Clip(state: .idle, seconds: 0.8)]
         write(render(hookahBreak, scale: 6), to: directory.appendingPathComponent("hookah.png"))
         let cloudBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookahCloud), Clip(state: .idle, seconds: 0.8)]
@@ -154,6 +161,7 @@ enum ReadmeExport {
             ("touch", [Clip(state: .idle, seconds: 0.6), Clip(state: .touchKey, seconds: 2.4), Clip(state: .touchDone),
                        Clip(state: .idle, seconds: 0.6)]),
             ("question", [Clip(state: .question, seconds: 2.6)]),
+            ("meeting", [Clip(state: .meetingSoon, seconds: 2.0), Clip(state: .meetingNow, seconds: 1.44)]),
             ("hookah", [Clip(state: .idle, seconds: 0.6), Clip(state: .hookah), Clip(state: .idle, seconds: 0.6)]),
             ("refill", [Clip(state: .idle, seconds: 0.6, drain: 10), Clip(state: .refill), Clip(state: .idle, seconds: 0.6)]),
             ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),

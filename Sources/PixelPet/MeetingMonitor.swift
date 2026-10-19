@@ -24,6 +24,8 @@ final class MeetingMonitor {
     private var observer: NSObjectProtocol?
     private var wake: DispatchWorkItem?
     private var meetings: [Meeting] = []
+    /// Calls waved away with a click, by start time; old ones are dropped as they pass.
+    private var dismissed: Set<Date> = []
     private var running = false
     private var lastAccess = MeetingMonitor.access
     private var pendingReload: DispatchWorkItem?
@@ -109,9 +111,17 @@ final class MeetingMonitor {
         }
     }
 
+    /// The pet was clicked while getting ready: no more reminder for this call.
+    func dismissCurrent() {
+        guard let call = MeetingPlan.current(for: meetings, now: Date(), dismissed: dismissed) else { return }
+        dismissed.insert(call.start)
+        update()
+    }
+
     private func update() {
         let now = Date()
-        onPhase?(MeetingPlan.phase(for: meetings, now: now))
+        dismissed = dismissed.filter { $0 > now.addingTimeInterval(-3600) }
+        onPhase?(MeetingPlan.phase(for: meetings, now: now, dismissed: dismissed))
         onUpcoming?(MeetingPlan.upcoming(meetings, now: now))
         wake?.cancel()
         let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.reload() } }

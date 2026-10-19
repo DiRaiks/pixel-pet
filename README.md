@@ -44,7 +44,7 @@
 </tr>
 <tr>
 <td align="center"><img src="docs/images/meeting.png" width="120" alt="Headset on, an alarm clock ringing"></td>
-<td><b>Calls coming up.</b> Turn on "Напоминать о звонках" and the cube reads your Mac's calendars: 5 minutes before a meeting with a call link it puts on a headset with an alarm clock ticking by its head, and in the last minute the clock rings. Off by default; macOS asks for calendar access when you turn it on.</td>
+<td><b>Calls coming up.</b> Turn on "Напоминать о звонках" and the cube reads your Mac's calendars: 5 minutes before a meeting with a call link it puts on a headset with an alarm clock ticking by its head, and in the last minute the clock rings. Click the cube to dismiss the reminder for that call. Off by default; macOS asks for calendar access when you turn it on.</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
@@ -107,6 +107,7 @@ Agent sessions that are already open get picked up as soon as they send their ne
 | Drag it out of home | A short tug is enough; it only goes back in if you let go right where it sat |
 | Hover over it for 2 s | It gets shy, at most once a minute. This happens only while it is idle on the desk with desktop reactions on and no card open |
 | Click it 5 times in 3 s | It gets cross |
+| Click it while it gets ready for a call | The reminder for that call goes away (the card doesn't open) |
 
 ### Hotkeys
 

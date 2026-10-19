@@ -67,6 +67,8 @@ final class PetController {
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
     var onTap: (() -> Void)?
+    /// A click while the pet gets ready for a call: dismiss that reminder (the card doesn't open).
+    var onDismissMeeting: (() -> Void)?
     var onDragStart: (() -> Void)?
     var anchorView: NSView { view }
 
@@ -734,6 +736,12 @@ final class PetController {
         view.onHover = { [weak self] inside in self?.hover(inside) }
         view.onClick = { [weak self] in
             guard let self else { return }
+            if restingState == .meetingSoon || restingState == .meetingNow, !config.isHome {
+                // "Got it": the headset comes off, a little hop, and the card stays shut this time.
+                onDismissMeeting?()
+                react(.hop)
+                return
+            }
             let now = Date()
             recentClicks = config.isHome ? [] : recentClicks.filter { now.timeIntervalSince($0) < Self.clickWindow } + [now]
             if recentClicks.count >= Self.clicksToAnnoy {

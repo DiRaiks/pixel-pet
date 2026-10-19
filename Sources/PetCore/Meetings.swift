@@ -43,14 +43,23 @@ public enum MeetingPlan {
     /// The status card mentions a call this far ahead.
     public static let mentionWithin: TimeInterval = 60 * 60
 
-    public static func phase(for meetings: [Meeting], now: Date) -> Phase {
+    /// `dismissed`: start times of calls the user waved away (a click on the pet).
+    public static func phase(for meetings: [Meeting], now: Date, dismissed: Set<Date> = []) -> Phase {
         var result = Phase.none
-        for m in meetings where m.hasCall {
+        for m in meetings where m.hasCall && !dismissed.contains(m.start) {
             let until = m.start.timeIntervalSince(now)
             if until <= nowBefore, until >= -nowAfter { return .now }
             if until <= soonBefore, until > nowBefore { result = .soon }
         }
         return result
+    }
+
+    /// The call the pet is getting ready for right now (soon or now), if any.
+    public static func current(for meetings: [Meeting], now: Date, dismissed: Set<Date> = []) -> Meeting? {
+        meetings.filter { m in
+            let until = m.start.timeIntervalSince(now)
+            return m.hasCall && !dismissed.contains(m.start) && until <= soonBefore && until >= -nowAfter
+        }.min { $0.start < $1.start }
     }
 
     /// The next moment the phase or the status card's mention changes.

@@ -66,6 +66,17 @@ import Testing
         #expect(MeetingPlan.nextChange(for: [meeting(in: 90)], now: now) == now.addingTimeInterval(30 * 60))
     }
 
+    /// A click on the pet dismisses the reminder for that one call; the next call still counts.
+    @Test func dismissedCallsAreSkipped() {
+        let first = meeting(in: 0.5), second = meeting(in: 30)
+        #expect(MeetingPlan.current(for: [first, second], now: now) == first)
+        let dismissed: Set<Date> = [first.start]
+        #expect(MeetingPlan.phase(for: [first, second], now: now, dismissed: dismissed) == .none)
+        #expect(MeetingPlan.phase(for: [first, second], now: now.addingTimeInterval(26 * 60), dismissed: dismissed) == .soon)
+        #expect(MeetingPlan.current(for: [first], now: now, dismissed: dismissed) == nil)
+        #expect(MeetingPlan.current(for: [second], now: now) == nil, "nothing to dismiss yet")
+    }
+
     @Test func onlyCallsCount() {
         #expect(MeetingPlan.phase(for: [meeting(in: 3, call: false)], now: now) == .none)
         #expect(MeetingPlan.phase(for: [meeting(in: 3, call: false), meeting(in: 0.5)], now: now) == .now)

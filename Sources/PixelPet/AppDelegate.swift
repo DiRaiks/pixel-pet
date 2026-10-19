@@ -206,11 +206,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             monitor.onPhase = { [weak pet] phase in pet?.setMeetingPhase(phase) }
             monitor.onUpcoming = { [weak self] meeting in self?.agents?.status.nextMeeting = meeting }
             monitor.onAccessChange = { [weak self] in self?.settingsModel?.refresh() }
+            pet.onDismissMeeting = { [weak monitor] in monitor?.dismissCurrent() }
             meetings = monitor
             monitor.start(askForAccess: askForAccess)
         } else {
             meetings?.stop()
             meetings = nil
+            pet.onDismissMeeting = nil
         }
     }
 

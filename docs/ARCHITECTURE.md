@@ -253,7 +253,7 @@ How the pet moves between the desk and home:
 
 - **Reading.** `MeetingMonitor` (app target, only while `meetingAlerts` is on) asks for full calendar access the first time, then reads the next day of events from EventKit: again on `EKEventStoreChanged`, every 15 minutes, and at each phase boundary (wall-clock timer). All-day, cancelled and declined events are skipped; `MeetingLink` keeps only those with a call link in the URL, location or notes. Titles stay in memory.
 - **Deciding.** `MeetingPlan` (PetCore): `soon` from 5 to 1 minute before a call, `now` from 1 minute before to 1 minute after; `nextChange` says when to wake up; `upcoming` is the next call within the hour, for the status card.
-- **Showing.** `PetController` puts `meetingSoon` / `meetingNow` above working, resting and talking, below an agent that needs you, an error and the YubiKey. At home the last minute brings the pet out of the hole (not under do-not-disturb). The headset takes the place of a head accessory while it's on.
+- **Showing.** `PetController` puts `meetingSoon` / `meetingNow` above working, resting and talking, below an agent that needs you, an error and the YubiKey. At home the last minute brings the pet out of the hole (not under do-not-disturb). The headset takes the place of a head accessory while it's on. A click on the pet in either state dismisses that call (`MeetingMonitor.dismissCurrent`, by start time; `MeetingPlan` skips dismissed calls) instead of opening the card.
 - **Calendars macOS knows.** EventKit only sees calendars added to macOS; apps with their own sync (Notion Calendar) need the account added in Internet Accounts too.
 
 ## Translation and selection

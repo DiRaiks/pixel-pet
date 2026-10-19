@@ -23,7 +23,7 @@ import PetCore
         #expect(idle.pixel(31, 0) == nil)
     }
 
-    @Test func idleBodyMatchesPrototypeGeometry() {
+    @Test func idleBodyKeepsItsGeometry() {
         let idle = SpriteFactory.frames(for: .idle)[0]
         // Body 16x14 at x0=8, y0=12; rounded corners are cut.
         #expect(idle.pixel(8, 12) == nil)

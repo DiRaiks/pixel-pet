@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import PetCore
+import PetSprites
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,6 +17,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: AppWindow<OnboardingView>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let exportArgs = CommandLine.arguments
+        if let i = exportArgs.firstIndex(of: "--export-sprites"), i + 1 < exportArgs.count {
+            let skin = i + 2 < exportArgs.count ? Skin.named(exportArgs[i + 2]) : .lavender
+            let accessory = i + 3 < exportArgs.count ? Accessory(rawValue: exportArgs[i + 3]) ?? .none : .none
+            SpriteExport.run(to: URL(fileURLWithPath: exportArgs[i + 1]), look: Look(skin: skin, accessory: accessory))
+            NSApp.terminate(nil)
+            return
+        }
         // One pet at a time: a second copy would fight over the socket and the screen.
         let me = NSRunningApplication.current
         if NSRunningApplication.runningApplications(withBundleIdentifier: me.bundleIdentifier ?? "")
@@ -32,7 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             NSLog("PixelPet: failed to refresh hook script: \(error.localizedDescription)")
         }
-        let pet = PetController(store: ConfigStore(), sprites: SpriteLibrary())
+        let store = ConfigStore()
+        // Sprites are drawn once, straight in the saved look.
+        let pet = PetController(store: store, sprites: SpriteLibrary(look: PetController.look(from: store.load())))
         let agents = AgentMonitor(pet: pet, hooks: hooks)
         let panel = StatusPanel(model: agents.status)
         let menu = StatusMenu(pet: pet, hooks: hooks)
@@ -72,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.onAsk = { [weak asker] in asker?.toggle() }
         menu.onTranslate = { [weak translator] in translator?.translateSelection() }
+        pet.isCardOpen = { [weak panel, weak translator, weak asker] in
+            (panel?.isShown ?? false) || (translator?.panel.isShown ?? false) || (asker?.panel.isShown ?? false)
+        }
         pet.onDragStart = { [weak translator, weak asker] in
             panel.close()
             translator?.panel.close()

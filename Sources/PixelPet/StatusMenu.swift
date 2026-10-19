@@ -32,7 +32,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private static let stateTitles: [PetState: String] = [
         .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
         .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
-        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .drop: "Приземление", .talk: "Отвечает",
+        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drop: "Приземление", .talk: "Отвечает",
     ]
 
     init(pet: PetController, hooks: HookInstaller) {

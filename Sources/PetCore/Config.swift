@@ -28,6 +28,9 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var sleepAfterMinutes = 10
     /// The welcome window has been seen.
     public var onboarded = false
+    /// Look: color skin and an optional accessory (see PetSprites `Skin` / `Accessory`).
+    public var skin = "lavender"
+    public var accessory = "none"
 
     public init() {}
 
@@ -47,6 +50,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
         desktopReactions = try c.decodeIfPresent(Bool.self, forKey: .desktopReactions) ?? true
         onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
+        skin = try c.decodeIfPresent(String.self, forKey: .skin) ?? "lavender"
+        accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }
 }

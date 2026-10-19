@@ -10,6 +10,9 @@ public struct PetPlayer: Sendable {
 
     public var state: PetState { oneShot ?? base }
 
+    /// Time until the current frame ends, for scheduling exactly one wake-up per frame.
+    public var timeToNextFrame: Double { max(0, state.durations[frame] - accumulator) }
+
     public init(base: PetState) {
         self.base = base
     }
@@ -35,8 +38,8 @@ public struct PetPlayer: Sendable {
     public mutating func advance(by seconds: Double) -> Bool {
         accumulator = min(accumulator + seconds, Self.maxCatchUp)
         var changed = false
-        while accumulator >= 1 / state.fps - 1e-9 {
-            accumulator -= 1 / state.fps
+        while accumulator >= state.durations[frame] - 1e-9 {
+            accumulator -= state.durations[frame]
             changed = true
             if frame + 1 < state.frameCount {
                 frame += 1

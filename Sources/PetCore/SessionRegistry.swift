@@ -47,7 +47,7 @@ public struct AgentSession: Equatable, Sendable {
     }
 }
 
-public enum AgentReaction: Equatable, Sendable { case finished, failed }
+public enum AgentReaction: Equatable, Sendable { case finished, finishedBig, failed }
 
 /// Live Claude Code sessions, rebuilt purely from hook events.
 public struct SessionRegistry: Sendable {
@@ -56,6 +56,8 @@ public struct SessionRegistry: Sendable {
     public static let silentWorkTimeout: TimeInterval = 5 * 60
     /// Only turns with at least this much active work earn a celebration; quick replies would make it noise.
     public static let celebrateAfter: TimeInterval = 20
+    /// A turn this long gets the somersault with confetti instead of the ordinary jump.
+    public static let bigFinishAfter: TimeInterval = 10 * 60
     static let interactiveTools: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
     static let waitingNotifications: Set<String> = ["permission_prompt", "elicitation_dialog"]
     static let endedMemory = 500
@@ -124,7 +126,14 @@ public struct SessionRegistry: Sendable {
             }
         case .stopped:
             // A turn that ends with a question isn't "done" yet: no celebration, wait for the reply instead.
-            if !s.askedUser, activeWork(s, now) >= Self.celebrateAfter { reaction = .finished }
+            if !s.askedUser {
+                let work = activeWork(s, now)
+                if work >= Self.bigFinishAfter {
+                    reaction = .finishedBig
+                } else if work >= Self.celebrateAfter {
+                    reaction = .finished
+                }
+            }
             becomeIdle(&s)
             s.finishedAt = now
             if s.askedUser { s.status = .waiting }

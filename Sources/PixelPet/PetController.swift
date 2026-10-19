@@ -16,6 +16,14 @@ final class PetController {
     /// The state the pet returns to after dragging: `mood` on the desk, its home version at home.
     private(set) var restingState = PetState.idle
     private var hoverPeek: DispatchWorkItem?
+    /// A status, translation or ask card is open (the pet stays calm under it).
+    var isCardOpen: () -> Bool = { false }
+    /// Desk-side reactions to the user: recent clicks (too many → cross), lingering cursor (→ shy).
+    private var recentClicks: [Date] = []
+    private var shyTimer: DispatchWorkItem?
+    private var lastShy = Date.distantPast
+    /// Rare idle fidgets (yawn, a roll) at random intervals, so the idle loop doesn't feel canned.
+    private var nextFidget = Date().addingTimeInterval(PetController.fidgetDelay())
     /// The pet "talks" while the translation card is open.
     private var talking = false
     /// When to doze off, and a live reading of how long the user has been away (sampled each time the
@@ -45,7 +53,6 @@ final class PetController {
     private let panel: PetPanel
     private let view: PetView
     private var timer: Timer?
-    private var timerState: PetState?
     private var lastTick = CACurrentMediaTime()
     /// Bumped whenever a flick animation starts or is cancelled, so stale completions don't persist.
     private var moveGeneration = 0
@@ -56,6 +63,7 @@ final class PetController {
         self.store = store
         self.sprites = sprites
         config = store.load()
+        sprites.setLook(Self.look(from: config))
         let side = Self.spriteSize * Double(config.scale)
         panel = PetPanel(size: NSSize(width: side, height: side))
         view = PetView(frame: NSRect(x: 0, y: 0, width: side, height: side))
@@ -168,17 +176,21 @@ final class PetController {
     }
 
     /// One-shots (hop, celebrate) become a quick peek at home, or nothing under do-not-disturb.
-    func react(_ oneShot: PetState) {
-        guard player.state != .dragged else { return }
+    /// Returns whether something was shown.
+    @discardableResult
+    func react(_ oneShot: PetState) -> Bool {
+        guard player.state != .dragged else { return false }
         let shown = config.isHome ? PetBrain.homeReaction(to: oneShot, doNotDisturb: config.doNotDisturb) : oneShot
-        guard let shown, !(config.isHome && (player.state == .peekHold || player.state == .dive)) else { return }
+        guard let shown, !(config.isHome && (player.state == .peekHold || player.state == .dive)) else { return false }
         if reduceMotion, !MotionPolicy.allowsOneShot(shown) {
-            if let cue = MotionPolicy.cue(for: shown) { hold(cue) }
-            return
+            guard let cue = MotionPolicy.cue(for: shown) else { return false }
+            hold(cue)
+            return true
         }
         player.play(shown)
         render()
         updateClock()
+        return true
     }
 
     private func hold(_ cue: MotionPolicy.Cue, for duration: TimeInterval = 1.5) {
@@ -280,6 +292,52 @@ final class PetController {
         updateClock()
     }
 
+    // MARK: Personality
+
+    static let clickWindow: TimeInterval = 3
+    static let clicksToAnnoy = 5
+    static let shyAfter: TimeInterval = 2
+    static let shyCooldown: TimeInterval = 60
+
+    /// 1.5–4 minutes between fidgets: rare enough to stay a surprise.
+    static func fidgetDelay() -> TimeInterval { Double.random(in: 90...240) }
+
+    private func maybeFidget() {
+        guard Date() >= nextFidget else { return }
+        nextFidget = Date().addingTimeInterval(Self.fidgetDelay())
+        // Only a pet idling on the desk fidgets; never over another animation, at home or with Reduce Motion.
+        guard !config.isHome, config.desktopReactions, player.state == .idle, restingState == .idle, !reduceMotion,
+              held == nil, glance == nil, !isCardOpen() else { return }
+        player.play(Int.random(in: 0..<3) == 0 ? .tumble : .yawn)
+        render()
+    }
+
+    /// The cursor resting on the pet for a while makes it shy (at most once a minute).
+    private func scheduleShy() {
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.player.state == .idle, self.config.desktopReactions, !self.isCardOpen(),
+                      Date().timeIntervalSince(self.lastShy) > Self.shyCooldown else { return }
+                if self.react(.shy) { self.lastShy = Date() }
+            }
+        }
+        shyTimer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.shyAfter, execute: work)
+    }
+
+    /// Skin and accessory changed in settings: redraw everything in the new look.
+    func setLook(skin: String, accessory: String) {
+        config.skin = skin
+        config.accessory = accessory
+        persist()
+        sprites.setLook(Self.look(from: config))
+        render()
+    }
+
+    static func look(from config: PetConfig) -> Look {
+        Look(skin: Skin.named(config.skin), accessory: Accessory(rawValue: config.accessory) ?? .none)
+    }
+
     // MARK: Home
 
     var isHome: Bool { config.isHome }
@@ -378,6 +436,9 @@ final class PetController {
     private func hover(_ inside: Bool) {
         hoverPeek?.cancel()
         hoverPeek = nil
+        shyTimer?.cancel()
+        shyTimer = nil
+        if inside, !config.isHome { scheduleShy() }
         guard inside, config.isHome, player.state == .burrowed else { return }
         // A short delay so passing the cursor over the menu bar doesn't trigger it.
         let work = DispatchWorkItem { [weak self] in
@@ -430,7 +491,14 @@ final class PetController {
         view.onHover = { [weak self] inside in self?.hover(inside) }
         view.onClick = { [weak self] in
             guard let self else { return }
-            react(.hop)
+            let now = Date()
+            recentClicks = config.isHome ? [] : recentClicks.filter { now.timeIntervalSince($0) < Self.clickWindow } + [now]
+            if recentClicks.count >= Self.clicksToAnnoy {
+                recentClicks.removeAll()
+                react(.angry)
+            } else {
+                react(.hop)
+            }
             onTap?()
         }
         view.onDragBegan = { [weak self] in
@@ -515,23 +583,32 @@ final class PetController {
     }
 
     /// Runs the frame timer only while the pet is visible, at the current state's frame rate.
-    private func updateClock() {
+    /// One wake-up per frame, exactly when the current frame ends (every frame has its own duration).
+    /// While agent cubes are on screen the clock also keeps their 10 Hz beat.
+    private func updateClock(fromTick: Bool = false) {
         // A frozen state under Reduce Motion has nothing to animate: no frame timer at all.
         let frozen = reduceMotion && MotionPolicy.stillFrame(for: player.state) != nil
-        guard isOnScreen, !frozen else {
-            timer?.invalidate()
-            timer = nil
-            timerState = nil
-            return
-        }
-        guard timerState != player.state else { return }
+        let wasRunning = timer != nil
         timer?.invalidate()
-        timerState = player.state
-        lastTick = CACurrentMediaTime()
-        let timer = Timer(timeInterval: 1 / player.state.fps, repeats: true) { [weak self] _ in
+        timer = nil
+        guard isOnScreen, !frozen else { return }
+        let now = CACurrentMediaTime()
+        if !fromTick {
+            if wasRunning {
+                // Account for time already spent in this frame, so outside calls never stretch it.
+                if player.advance(by: now - lastTick) { render() }
+            } else {
+                // Resuming after being hidden or occluded: no instant catch-up fidget either.
+                nextFidget = Date().addingTimeInterval(Self.fidgetDelay())
+            }
+            lastTick = now
+        }
+        let animatedCubes = !agents.isEmpty && !config.isHome && !reduceMotion
+        let delay = max(0.008, animatedCubes ? min(player.timeToNextFrame, 0.1) : player.timeToNextFrame)
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
-        timer.tolerance = 0.2 / player.state.fps
+        timer.tolerance = min(0.05, delay * 0.25)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
@@ -540,11 +617,10 @@ final class PetController {
         let now = CACurrentMediaTime()
         let changed = player.advance(by: now - lastTick)
         lastTick = now
-        if changed {
-            render()
-            if !agents.isEmpty, !config.isHome { renderAgents() }
-        }
-        updateClock()
+        if changed { render() }
+        if !agents.isEmpty, !config.isHome, !reduceMotion { renderAgents() }
+        maybeFidget()
+        updateClock(fromTick: true)
     }
 
     private func render() {

@@ -75,7 +75,11 @@ final class AgentMonitor {
         switch Inbound.parse(data, at: now) {
         case .hook(let event):
             if pet.config.logEvents { EventLog.append(event.logLine) }
-            if registry.apply(event, at: now) == .finished { pet.react(.celebrate) }
+            switch registry.apply(event, at: now) {
+            case .finished: pet.react(.celebrate)
+            case .finishedBig: pet.react(.flip)
+            case .failed, nil: break
+            }
         case .statusline(let snapshot):
             if pet.config.logEvents { EventLog.append(snapshot.logLine) }
             registry.apply(snapshot, at: now)

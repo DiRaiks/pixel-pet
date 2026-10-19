@@ -24,6 +24,8 @@ final class SettingsModel {
     var nativeLanguage = "ru" { didSet { update { $0.nativeLanguage = nativeLanguage } } }
     var foreignLanguage = "en" { didSet { update { $0.foreignLanguage = foreignLanguage } } }
     var askModel = "haiku" { didSet { update { $0.askModel = askModel } } }
+    var skin = "lavender" { didSet { if !loading, skin != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
+    var accessory = "none" { didSet { if !loading, accessory != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
     var logEvents = false { didSet { if !loading, logEvents != oldValue { pet.setLogEvents(logEvents) } } }
     var launchAtLogin = false
     var hooksConnected = false
@@ -50,6 +52,8 @@ final class SettingsModel {
         nativeLanguage = c.nativeLanguage
         foreignLanguage = c.foreignLanguage
         askModel = c.askModel
+        skin = c.skin
+        accessory = c.accessory
         logEvents = c.logEvents
         launchAtLogin = LaunchAtLogin.isEnabled
         hooksConnected = hooks.isInstalled
@@ -100,6 +104,12 @@ enum Choices {
         ("zh", "中文"), ("ja", "日本語"), ("ko", "한국어"),
     ]
     static let models = ["haiku", "sonnet", "opus"]
+    static let skins: [(name: String, title: String)] = [
+        ("lavender", "Лавандовый"), ("mint", "Мятный"), ("peach", "Персиковый"), ("mono", "Графитовый"),
+    ]
+    static let accessories: [(name: String, title: String)] = [
+        ("none", "Без аксессуара"), ("glasses", "Очки"), ("headphones", "Наушники"), ("cap", "Кепка"),
+    ]
     static let sleep: [(minutes: Int, title: String)] = [
         (0, "никогда"), (5, "через 5 мин"), (10, "через 10 мин"), (15, "через 15 мин"), (30, "через 30 мин"), (60, "через час"),
     ]
@@ -113,6 +123,12 @@ struct SettingsView: View {
             Section("Кубик") {
                 Picker("Размер", selection: $model.scale) {
                     ForEach(Array(PetConfig.scaleRange), id: \.self) { Text("×\($0)").tag($0) }
+                }
+                Picker("Цвет", selection: $model.skin) {
+                    ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
+                }
+                Picker("Аксессуар", selection: $model.accessory) {
+                    ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
                 }
                 Toggle("Не беспокоить (⌃⌥P)", isOn: $model.doNotDisturb)
                 Toggle("Реагировать на рабочий стол", isOn: $model.desktopReactions)

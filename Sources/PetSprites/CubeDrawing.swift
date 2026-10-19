@@ -1,14 +1,30 @@
-/// Drawing primitives ported from docs/prototype/sprites.html (scene, eyes, mouth, props).
+import Foundation
 
-enum Eyes { case open, half, blink, wide, happy, closed, worry, cross, glow, glowBlink }
-enum Mouth { case none, flat, smile, open, wobble }
+/// Drawing primitives for the cube: body with face, accessories and props.
+
+enum Eyes { case open, half, blink, wide, happy, closed, worry, cross, glow, glowBlink, squeeze, spiral, down, shy }
+enum Mouth { case none, flat, smile, open, wobble, yawn, pout, tiny }
+enum Brow { case angry }
 
 struct BodyStyle {
     var w = 16, h = 14, dx = 0, dy = 0, cx = 16, by = 26, ground = 27
     var eyes = Eyes.open, mouth = Mouth.flat, lookX = 0, lookY = 0
     var drain = -1
     var shadow = true
-    var fill = Palette.fill, highlight = Palette.highlight, shade = Palette.shade
+    var skin = Skin.lavender
+    var accessory = Accessory.none
+    var blush = 2
+    var brow: Brow?
+    /// Highlight drifts down a pixel on the in-breath: breathing without moving the outline.
+    var highlightShift = 0
+    var nightcap = false
+    /// Degrees clockwise, around the body's center.
+    var rotation = 0.0
+
+    init(look: Look) {
+        skin = look.skin
+        accessory = look.accessory
+    }
 }
 
 struct BodyFrame { let x0, y0, cx: Int }
@@ -17,6 +33,8 @@ struct BodyFrame { let x0, y0, cx: Int }
 func jsRound(_ v: Double) -> Int { Int((v + 0.5).rounded(.down)) }
 
 extension PixelCanvas {
+    /// The body is drawn on its own canvas (with a margin for ears of props) and then copied in,
+    /// rotated when asked, so face, blush and accessories turn with it.
     @discardableResult
     mutating func body(_ s: BodyStyle) -> BodyFrame {
         let cx = s.cx + s.dx, by = s.by + s.dy, x0 = cx - s.w / 2, y0 = by - s.h
@@ -24,57 +42,130 @@ extension PixelCanvas {
             let sw = max(4, s.w - 2 - jsRound(Double(s.ground - 1 - by) / 1.5))
             fill(s.cx + s.dx - sw / 2, s.ground, sw, 1, Palette.shadow)
         }
-        for y in 0..<s.h {
-            for x in 0..<s.w {
-                let edgeX = x == 0 || x == s.w - 1, edgeY = y == 0 || y == s.h - 1
-                if edgeX && edgeY { continue }
-                let inner = (x == 1 || x == s.w - 2) && (y == 1 || y == s.h - 2)
-                let color: RGBA
-                if edgeX || edgeY || inner { color = Palette.outline }
-                else if y <= s.drain { color = Palette.empty }
-                else if y == s.h - 2 { color = s.shade }
-                else if (y == 2 && (2...4).contains(x)) || (x == 2 && y == 3) { color = s.highlight }
-                else { color = s.fill }
-                set(x0 + x, y0 + y, color)
-            }
+        let m = 5
+        var local = PixelCanvas(width: s.w + 2 * m, height: s.h + 2 * m)
+        local.drawCube(s, at: m, face: s.rotation == 0)
+        if s.rotation == 0 {
+            blit(local, x: x0 - m, y: y0 - m)
+        } else {
+            let centerY = Double(by) - Double(s.h) / 2
+            blitRotated(local, centerX: Double(cx), centerY: centerY, degrees: s.rotation,
+                        sourceCenterX: Double(m) + Double(s.w) / 2, sourceCenterY: Double(m) + Double(s.h) / 2)
+            // A 1-pixel face falls apart when rotated; like hand-drawn spins, it stays upright on the turning body,
+            // on the same rows as without rotation (props and blush turn with the body).
+            let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
+            eyes(cx + s.lookX, ey, s.eyes, s.skin)
+            mouth(cx + s.lookX, min(ey + 4, by - 4), s.mouth, s.skin)
         }
-        let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
-        eyes(cx + s.lookX, ey, s.eyes)
-        mouth(cx + s.lookX, ey + 4, s.mouth)
         return BodyFrame(x0: x0, y0: y0, cx: cx)
     }
 
-    mutating func eyes(_ cx: Int, _ ey: Int, _ kind: Eyes) {
-        let pair = [cx - 4, cx + 2], wide = [cx - 5, cx + 2]
-        let e = Palette.eye
-        switch kind {
-        case .open: for x in pair { fill(x, ey, 2, 3, e); set(x, ey, Palette.glint) }
-        case .half: for x in pair { fill(x, ey + 1, 2, 2, e) }
-        case .blink: for x in pair { fill(x, ey + 2, 2, 1, e) }
-        case .wide: for x in wide { fill(x, ey - 1, 3, 4, e); set(x, ey - 1, Palette.glint) }
-        case .happy: for x in wide { set(x, ey + 2, e); set(x + 1, ey + 1, e); set(x + 2, ey + 2, e) }
-        case .closed: for x in wide { set(x, ey + 1, e); set(x + 1, ey + 2, e); set(x + 2, ey + 1, e) }
-        case .worry:
-            for x in pair { fill(x, ey + 1, 2, 2, e); set(x, ey + 1, Palette.glint) }
-            set(pair[0], ey - 1, e); set(pair[0] + 1, ey - 2, e)
-            set(pair[1], ey - 2, e); set(pair[1] + 1, ey - 1, e)
-        case .cross:
-            for x in wide {
-                set(x, ey, e); set(x + 2, ey, e); set(x + 1, ey + 1, e); set(x, ey + 2, e); set(x + 2, ey + 2, e)
+    private mutating func drawCube(_ s: BodyStyle, at m: Int, face: Bool) {
+        let k = s.skin, w = s.w, h = s.h, hl = s.highlightShift
+        for y in 0..<h {
+            for x in 0..<w {
+                let edgeX = x == 0 || x == w - 1, edgeY = y == 0 || y == h - 1
+                if edgeX && edgeY { continue }
+                let inner = (x == 1 || x == w - 2) && (y == 1 || y == h - 2)
+                let color: RGBA
+                if edgeX || edgeY || inner { color = k.outline }
+                else if y <= s.drain { color = k.empty }
+                else if y == h - 2 { color = k.shade2 }
+                else if y == h - 3 { color = k.shade }
+                else if x == w - 2 && y > 1 { color = k.rim }
+                else if (y == 2 + hl && (2...4).contains(x)) || ((x == 2 || x == 3) && y == 3 + hl) { color = k.highlight }
+                else { color = k.fill }
+                set(m + x, m + y, color)
             }
-        case .glow: for x in pair { fill(x, ey, 2, 2, Palette.glow) }
-        case .glowBlink: for x in pair { fill(x, ey + 1, 2, 1, Palette.glow) }
+        }
+        let cx = m + w / 2 + s.lookX
+        let ey = m + max(3, jsRound(Double(h) * 0.3)) + s.lookY
+        if face {
+            eyes(cx, ey, s.eyes, k)
+            // On a squashed body the mouth would fall onto (or below) the bottom edge; keep it inside.
+            mouth(cx, min(ey + 4, m + h - 4), s.mouth, k)
+        }
+        if s.blush > 0 {
+            fill(cx - 6, ey + 3, s.blush, 1, k.blush)
+            fill(cx + 6 - s.blush, ey + 3, s.blush, 1, k.blush)
+        }
+        if face, s.brow == .angry {
+            set(cx - 5, ey - 2, k.eye); set(cx - 4, ey - 1, k.eye)
+            set(cx + 4, ey - 2, k.eye); set(cx + 3, ey - 1, k.eye)
+        }
+        let left = m, right = m + w - 1, top = m
+        if s.nightcap {
+            fill(left + 1, top - 1, w - 7, 1, Palette.white)
+            fill(left + 3, top - 2, w - 9, 1, Palette.capRed)
+            fill(left + 5, top - 3, 3, 1, Palette.capRed)
+            set(left + 7, top - 4, Palette.capRed)
+            set(left + 8, top - 5, Palette.white); set(left + 9, top - 5, Palette.white)
+            return
+        }
+        switch s.accessory {
+        case .none: break
+        case .glasses:
+            let g = Palette.accessoryDark
+            for x in [cx - 5, cx + 1] {
+                fill(x, ey - 1, 4, 1, g); fill(x, ey + 3, 4, 1, g)
+                set(x, ey, g); set(x, ey + 1, g); set(x, ey + 2, g)
+                set(x + 3, ey, g); set(x + 3, ey + 1, g); set(x + 3, ey + 2, g)
+            }
+            fill(cx - 1, ey, 2, 1, g)
+        case .headphones:
+            let g = Palette.accessoryDark
+            fill(left + 1, top - 2, w - 2, 1, g)
+            set(left, top - 1, g); set(right, top - 1, g)
+            fill(left - 1, top + 3, 2, 5, g); fill(right, top + 3, 2, 5, g)
+        case .cap:
+            fill(left + 3, top - 2, w - 6, 2, Palette.capRed)
+            fill(left + 1, top - 1, w - 2, 1, Palette.capRed)
+            fill(right - 1, top - 1, 3, 1, Palette.capRed)
         }
     }
 
-    mutating func mouth(_ cx: Int, _ y: Int, _ kind: Mouth) {
-        let e = Palette.eye
+    mutating func eyes(_ cx: Int, _ ey: Int, _ kind: Eyes, _ k: Skin = .lavender) {
+        let pair = [cx - 4, cx + 2], wide = [cx - 5, cx + 2]
+        let e = k.eye
+        switch kind {
+        case .open:
+            for x in pair { fill(x, ey, 2, 3, e); set(x, ey, k.eyeShine); set(x + 1, ey + 2, k.eyeShine2) }
+        case .half: for x in pair { fill(x, ey + 1, 2, 2, e) }
+        case .blink: for x in pair { fill(x, ey + 2, 2, 1, e) }
+        case .wide: for x in wide { fill(x, ey - 1, 3, 4, e); set(x, ey - 1, k.eyeShine) }
+        case .happy: for x in wide { set(x, ey + 2, e); set(x + 1, ey + 1, e); set(x + 2, ey + 2, e) }
+        case .closed: for x in wide { set(x, ey + 1, e); set(x + 1, ey + 2, e); set(x + 2, ey + 1, e) }
+        case .worry:
+            for x in pair { fill(x, ey + 1, 2, 2, e); set(x, ey + 1, k.eyeShine) }
+            set(pair[0], ey - 1, e); set(pair[0] + 1, ey - 2, e)
+            set(pair[1], ey - 2, e); set(pair[1] + 1, ey - 1, e)
+        case .cross:
+            for x in wide { set(x, ey, e); set(x + 2, ey, e); set(x + 1, ey + 1, e); set(x, ey + 2, e); set(x + 2, ey + 2, e) }
+        case .glow: for x in pair { fill(x, ey, 2, 2, Palette.glow) }
+        case .glowBlink: for x in pair { fill(x, ey + 1, 2, 1, Palette.glow) }
+        case .squeeze:
+            for (i, x) in wide.enumerated() { set(x + (i == 0 ? 0 : 2), ey, e); set(x + 1, ey + 1, e); set(x + (i == 0 ? 0 : 2), ey + 2, e) }
+        case .spiral:
+            for x in wide {
+                fill(x, ey - 1, 3, 1, e); set(x + 2, ey, e); set(x, ey, e); set(x, ey + 1, e); fill(x, ey + 2, 3, 1, e)
+                set(x + 1, ey, k.eyeShine)
+            }
+        case .down: for x in pair { fill(x, ey + 1, 2, 2, e); set(x, ey + 2, k.eyeShine) }
+        case .shy: for x in pair { fill(x - 1, ey + 1, 2, 2, e); set(x - 1, ey + 1, k.eyeShine) }
+        }
+    }
+
+    mutating func mouth(_ cx: Int, _ y: Int, _ kind: Mouth, _ k: Skin = .lavender) {
+        let e = k.eye
         switch kind {
         case .none: break
         case .flat: fill(cx - 1, y, 2, 1, e)
         case .smile: set(cx - 2, y, e); fill(cx - 1, y + 1, 2, 1, e); set(cx + 1, y, e)
         case .open: fill(cx - 1, y, 2, 2, e)
         case .wobble: set(cx - 2, y + 1, e); set(cx - 1, y, e); set(cx, y + 1, e); set(cx + 1, y, e)
+        case .yawn: fill(cx - 2, y - 1, 4, 4, e); fill(cx - 1, y + 1, 2, 1, k.blush)
+        case .pout: fill(cx - 1, y, 2, 2, e)
+        case .tiny: set(cx, y, e)
         }
     }
 
@@ -95,5 +186,12 @@ extension PixelCanvas {
 
     mutating func zee(_ x: Int, _ y: Int, _ color: RGBA) {
         fill(x, y, 3, 1, color); set(x + 1, y + 1, color); fill(x, y + 2, 3, 1, color)
+    }
+
+    mutating func circle(_ cx: Int, _ cy: Int, radius r: Int, _ color: RGBA) {
+        for i in 0..<16 {
+            let t = Double(i) / 16 * 2 * .pi
+            set(cx + jsRound(cos(t) * Double(r)), cy + jsRound(sin(t) * Double(r)), color)
+        }
     }
 }

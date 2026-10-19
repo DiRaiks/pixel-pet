@@ -22,7 +22,7 @@ The app runs entirely on your Mac. It never talks to the network itself; the onl
 ## Install
 
 ```bash
-git clone <this repo> pixel-pet
+git clone https://github.com/DiRaiks/pixel-pet.git
 ```
 
 ```bash

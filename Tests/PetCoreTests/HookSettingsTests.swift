@@ -175,3 +175,53 @@ import Testing
         #expect(try String(contentsOf: installer.scriptURL, encoding: .utf8) == HookInstaller.script)
     }
 }
+
+@Suite struct StatusLineSettingsTests {
+    let cmd = "'/x/pixelpet-statusline'"
+
+    @Test func installsWhenAbsent() {
+        let (out, state) = HookSettings.installStatusLine(into: ["a": 1], command: cmd)
+        #expect(state == .ours)
+        #expect((out["statusLine"] as? [String: Any])?["command"] as? String == cmd)
+        #expect(out["a"] as? Int == 1)
+    }
+
+    @Test func leavesForeignStatusLineAlone() {
+        let foreign: [String: Any] = ["statusLine": ["type": "command", "command": "my-line"]]
+        let (out, state) = HookSettings.installStatusLine(into: foreign, command: cmd)
+        #expect(state == .foreign)
+        #expect((out["statusLine"] as? [String: Any])?["command"] as? String == "my-line")
+    }
+
+    @Test func uninstallRemovesOnlyOurs() {
+        let ours = HookSettings.installStatusLine(into: [:], command: cmd).0
+        #expect(HookSettings.uninstallStatusLine(from: ours, command: cmd)["statusLine"] == nil)
+        let foreign: [String: Any] = ["statusLine": ["type": "command", "command": "my-line"]]
+        #expect(HookSettings.uninstallStatusLine(from: foreign, command: cmd)["statusLine"] != nil)
+    }
+}
+
+@Suite struct StatusLineInstallerTests {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pixelpet-sl-\(UUID().uuidString)")
+    var installer: HookInstaller {
+        HookInstaller(settingsURL: dir.appendingPathComponent("claude/settings.json"),
+                      scriptURL: dir.appendingPathComponent("pet/bin/pixelpet-hook"))
+    }
+
+    @Test func installAddsStatusLineScriptAndSetting() throws {
+        try installer.install()
+        #expect(installer.statusLineState == .ours)
+        #expect(FileManager.default.isExecutableFile(atPath: installer.statusLineScriptURL.path))
+        try installer.uninstall()
+        #expect(installer.statusLineState == .absent)
+        #expect(!FileManager.default.fileExists(atPath: installer.statusLineScriptURL.path))
+    }
+
+    @Test func foreignStatusLineIsReported() throws {
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("claude"), withIntermediateDirectories: true)
+        try Data(#"{"statusLine":{"type":"command","command":"mine"}}"#.utf8).write(to: installer.settingsURL)
+        try installer.install()
+        #expect(installer.statusLineState == .foreign)
+        #expect(installer.isInstalled)
+    }
+}

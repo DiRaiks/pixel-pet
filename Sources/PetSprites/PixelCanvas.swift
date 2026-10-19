@@ -62,3 +62,19 @@ public struct PixelCanvas: Equatable, Sendable {
         )
     }
 }
+
+extension PixelCanvas {
+    /// Recolors the top `rows` interior rows of the pet's body as "empty": the 5-hour limit used up so far.
+    /// The body top is the first row holding outline; only fill and highlight pixels change, so the face stays.
+    public func drained(rows: Int) -> PixelCanvas {
+        guard rows > 0, let top = (0..<height).first(where: { y in (0..<width).contains { pixel($0, y) == Palette.outline } })
+        else { return self }
+        var out = self
+        for y in (top + 1)...min(top + rows, height - 1) {
+            for x in 0..<width where pixel(x, y) == Palette.fill || pixel(x, y) == Palette.highlight {
+                out.set(x, y, Palette.empty)
+            }
+        }
+        return out
+    }
+}

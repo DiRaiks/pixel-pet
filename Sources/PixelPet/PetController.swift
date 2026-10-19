@@ -14,6 +14,11 @@ final class PetController {
     /// The state the pet returns to after dragging; agent activity (or the debug menu) sets it.
     private(set) var restingState = PetState.idle
     private var agents: [AgentCube] = []
+    private var drain = 0
+    /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
+    var onTap: (() -> Void)?
+    var onDragStart: (() -> Void)?
+    var anchorView: NSView { view }
 
     private let panel: PetPanel
     private let view: PetView
@@ -65,6 +70,13 @@ final class PetController {
         persist()
     }
 
+    /// Saved only when the numbers change; statusline snapshots arrive several times a second.
+    func rememberLimits(_ limits: UsageLimits?) {
+        if let limits, let saved = config.lastLimits, limits.sameWindows(as: saved) { return }
+        config.lastLimits = limits
+        persist()
+    }
+
     func setLogEvents(_ enabled: Bool) {
         config.logEvents = enabled
         persist()
@@ -101,6 +113,12 @@ final class PetController {
         updateClock()
     }
 
+    func setDrain(_ rows: Int) {
+        guard rows != drain else { return }
+        drain = rows
+        render()
+    }
+
     func setAgents(_ cubes: [AgentCube]) {
         guard cubes != agents else { return }
         agents = cubes
@@ -120,9 +138,14 @@ final class PetController {
 
     private func wireInput() {
         view.onPress = { [weak self] in self?.cancelFlick() }
-        view.onClick = { [weak self] in self?.preview(.hop) }
+        view.onClick = { [weak self] in
+            guard let self else { return }
+            react(.hop)
+            onTap?()
+        }
         view.onDragBegan = { [weak self] in
             guard let self else { return }
+            onDragStart?()
             player.play(.dragged)
             render()
             updateClock()
@@ -204,7 +227,7 @@ final class PetController {
     }
 
     private func render() {
-        let frame = sprites.frame(player.state, player.frame)
+        let frame = sprites.frame(player.state, player.frame, drain: drain)
         view.show(frame.image, canvas: frame.canvas)
     }
 

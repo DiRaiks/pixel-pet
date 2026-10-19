@@ -9,6 +9,8 @@ public struct AgentSession: Equatable, Sendable {
     public var model: String?
     public var status = Status.idle
     public var currentTool: String?
+    /// Context window fill from the statusline (terminal sessions only).
+    public var contextPercent: Double?
     public var subagents: Set<String> = []
     public var lastEventAt: Date
     public var workingSince: Date?
@@ -28,6 +30,16 @@ public struct AgentSession: Equatable, Sendable {
     }
 
     public var project: String? { Self.projectName(for: cwd) }
+
+    /// "claude-opus-5-5" or "Opus 5.5" -> "Opus"; unknown names pass through.
+    public static func shortModel(_ model: String?) -> String? {
+        guard let model else { return nil }
+        let lower = model.lowercased()
+        for family in ["opus", "sonnet", "haiku", "fable"] where lower.contains(family) {
+            return family.prefix(1).uppercased() + family.dropFirst()
+        }
+        return model
+    }
 
     static func projectName(for cwd: String?) -> String? {
         guard let cwd, !cwd.isEmpty else { return nil }
@@ -130,6 +142,17 @@ public struct SessionRegistry: Sendable {
         }
         sessions[event.sessionID] = s
         return reaction
+    }
+
+    /// Statusline snapshots refresh model and context; they also keep an open terminal session from going stale.
+    public mutating func apply(_ snapshot: StatuslineSnapshot, at now: Date) {
+        guard !ended.contains(snapshot.sessionID) else { return }
+        var s = sessions[snapshot.sessionID] ?? AgentSession(id: snapshot.sessionID, firstSeenAt: now, lastEventAt: now)
+        s.lastEventAt = now
+        if let cwd = snapshot.cwd { s.cwd = cwd }
+        if let model = snapshot.model { s.model = model }
+        s.contextPercent = snapshot.contextPercent
+        sessions[snapshot.sessionID] = s
     }
 
     /// Drops stale sessions and settles interrupted ones. Sessions waiting for the user are never dropped.

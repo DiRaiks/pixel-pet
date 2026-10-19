@@ -16,9 +16,10 @@ public enum PetBrain {
     public static let errorWindow: TimeInterval = 3
     public static let doneFlash: TimeInterval = 1.5
 
-    public static func baseState(for sessions: [AgentSession], now: Date) -> PetState {
+    public static func baseState(for sessions: [AgentSession], limits: UsageLimits? = nil, now: Date) -> PetState {
         if sessions.contains(where: { isFreshFailure($0, now) }) { return .error }
         if sessions.contains(where: { $0.status == .waiting }) { return .alert }
+        if limits?.current(at: now).isLow == true { return .lowLimit }
         if sessions.contains(where: { $0.status == .working }) { return .working }
         return .idle
     }

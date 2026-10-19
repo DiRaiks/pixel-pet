@@ -53,6 +53,29 @@ public enum HookSettings {
         return out
     }
 
+    public enum StatusLineState: Equatable, Sendable { case ours, foreign, absent }
+
+    public static func statusLineState(in settings: [String: Any], command: String) -> StatusLineState {
+        guard let line = settings["statusLine"] else { return .absent }
+        return (line as? [String: Any])?["command"] as? String == command ? .ours : .foreign
+    }
+
+    /// Takes the statusline only when the user has none; someone else's statusline is left untouched.
+    public static func installStatusLine(into settings: [String: Any], command: String) -> ([String: Any], StatusLineState) {
+        let state = statusLineState(in: settings, command: command)
+        guard state == .absent else { return (settings, state) }
+        var out = settings
+        out["statusLine"] = ["type": "command", "command": command]
+        return (out, .ours)
+    }
+
+    public static func uninstallStatusLine(from settings: [String: Any], command: String) -> [String: Any] {
+        guard statusLineState(in: settings, command: command) == .ours else { return settings }
+        var out = settings
+        out.removeValue(forKey: "statusLine")
+        return out
+    }
+
     private static func hooksDict(_ settings: [String: Any]) throws -> [String: Any] {
         guard let value = settings["hooks"] else { return [:] }
         guard let dict = value as? [String: Any] else { throw Error.unexpectedShape("hooks") }
@@ -78,6 +101,7 @@ public struct HookInstaller: Sendable {
 
     public let settingsURL: URL
     public let scriptURL: URL
+    public var statusLineScriptURL: URL { scriptURL.deletingLastPathComponent().appendingPathComponent("pixelpet-statusline") }
 
     public static let script = """
     #!/bin/sh
@@ -93,6 +117,31 @@ public struct HookInstaller: Sendable {
     else
         cat >/dev/null
     fi
+    exit 0
+
+    """
+
+    /// Statusline for terminal sessions: shares the snapshot with the pet and prints a compact line.
+    /// `plutil` reads JSON from stdin, so this needs nothing beyond the base system.
+    public static let statusLineScript = """
+    #!/bin/sh
+    # Pixel Pet statusline: forwards Claude Code's statusline JSON to the pet and prints
+    # "Model · ctx N% · 5h N% · 7d N%". Never fails; missing fields are skipped.
+    # C locale: printf must read "42.4" the same way under a comma-decimal terminal locale.
+    export LC_ALL=C
+    input=$(cat)
+    SOCK="$HOME/.pixelpet/pet.sock"
+    if [ -S "$SOCK" ]; then
+        printf '%s' "$input" | nc -U -w 1 "$SOCK" >/dev/null 2>&1
+    fi
+    get() { printf '%s' "$input" | plutil -extract "$1" raw -o - - 2>/dev/null; }
+    pct() { [ -n "$1" ] && printf '%.0f' "$1" 2>/dev/null; }
+    model=$(get model.display_name)
+    line="${model:-Claude}"
+    ctx=$(pct "$(get context_window.used_percentage)") && line="$line · ctx $ctx%"
+    five=$(pct "$(get rate_limits.five_hour.used_percentage)") && line="$line · 5h $five%"
+    week=$(pct "$(get rate_limits.seven_day.used_percentage)") && line="$line · 7d $week%"
+    printf '%s\\n' "$line"
     exit 0
 
     """
@@ -116,6 +165,12 @@ public struct HookInstaller: Sendable {
     }
 
     private var command: String { Self.command(for: scriptURL) }
+    private var statusLineCommand: String { Self.command(for: statusLineScriptURL) }
+
+    public var statusLineState: HookSettings.StatusLineState {
+        guard let settings = try? readSettings() else { return .absent }
+        return HookSettings.statusLineState(in: settings, command: statusLineCommand)
+    }
 
     public var isInstalled: Bool {
         guard let settings = try? readSettings() else { return false }
@@ -125,30 +180,44 @@ public struct HookInstaller: Sendable {
 
     public func install() throws {
         let settings = try readSettings()
-        let updated = try HookSettings.install(into: settings, command: command)
-        try writeScript()
+        let withHooks = try HookSettings.install(into: settings, command: command)
+        let (updated, _) = HookSettings.installStatusLine(into: withHooks, command: statusLineCommand)
+        try writeScripts()
         try writeSettings(updated, original: settings)
     }
 
     public func uninstall() throws {
         let settings = try readSettings()
-        try writeSettings(try HookSettings.uninstall(from: settings, command: command), original: settings)
+        let withoutHooks = try HookSettings.uninstall(from: settings, command: command)
+        try writeSettings(HookSettings.uninstallStatusLine(from: withoutHooks, command: statusLineCommand), original: settings)
         try? FileManager.default.removeItem(at: scriptURL)
+        try? FileManager.default.removeItem(at: statusLineScriptURL)
+    }
+
+    /// Adds only the statusline to an existing connection; a user's own statusline is left alone.
+    public func installStatusLine() throws {
+        let settings = try readSettings()
+        let (updated, _) = HookSettings.installStatusLine(into: settings, command: statusLineCommand)
+        try writeScripts()
+        try writeSettings(updated, original: settings)
     }
 
     /// Keeps an already-connected hook script in sync with this build of the app.
     public func refreshScriptIfInstalled() throws {
         guard let settings = try? readSettings(), HookSettings.isInstalled(in: settings, command: command) else { return }
-        let current = try? String(contentsOf: scriptURL, encoding: .utf8)
-        if current != Self.script { try writeScript() }
+        let hook = try? String(contentsOf: scriptURL, encoding: .utf8)
+        let line = try? String(contentsOf: statusLineScriptURL, encoding: .utf8)
+        if hook != Self.script || line != Self.statusLineScript { try writeScripts() }
     }
 
-    private func writeScript() throws {
+    private func writeScripts() throws {
         let fm = FileManager.default
         try fm.createDirectory(at: scriptURL.deletingLastPathComponent(), withIntermediateDirectories: true,
                                attributes: [.posixPermissions: 0o700])
-        try Data(Self.script.utf8).write(to: scriptURL, options: .atomic)
-        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        for (url, text) in [(scriptURL, Self.script), (statusLineScriptURL, Self.statusLineScript)] {
+            try Data(text.utf8).write(to: url, options: .atomic)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        }
     }
 
     /// Missing or empty file means "no settings yet"; any other read problem is an error, never an empty object.

@@ -9,6 +9,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var isHidden = false
     /// Opt-in debug log of hook events (ids and event names only) in ~/.pixelpet/events.log.
     public var logEvents = false
+    /// Last known limits, so the panel isn't blank right after a restart.
+    public var lastLimits: UsageLimits?
 
     public init() {}
 
@@ -19,6 +21,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         scale = min(max(rawScale, Self.scaleRange.lowerBound), Self.scaleRange.upperBound)
         isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
         logEvents = try c.decodeIfPresent(Bool.self, forKey: .logEvents) ?? false
+        lastLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastLimits)
     }
 }
 

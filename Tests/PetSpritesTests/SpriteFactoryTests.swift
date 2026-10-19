@@ -74,3 +74,21 @@ import PetCore
         #expect(icon.pixel(5, 7) == nil)
     }
 }
+
+@Suite struct DrainTests {
+    @Test func zeroRowsChangesNothing() {
+        let idle = SpriteFactory.frames(for: .idle, agentCubes: false)[0]
+        #expect(idle.drained(rows: 0) == idle)
+    }
+
+    @Test func drainsTopFillRowsButKeepsOutlineAndFace() {
+        let idle = SpriteFactory.frames(for: .idle, agentCubes: false)[0]
+        let drained = idle.drained(rows: 3)
+        // Body top outline is at y=12; rows 13...15 lose their fill, row 16 keeps it.
+        #expect(drained.pixel(9, 12) == Palette.outline)
+        #expect(drained.pixel(11, 14) == Palette.empty)
+        #expect(drained.pixel(10, 15) == Palette.empty)
+        #expect(drained.pixel(11, 16) == Palette.fill)
+        #expect(drained.pixel(13, 17) == Palette.eye)
+    }
+}

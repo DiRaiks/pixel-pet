@@ -10,9 +10,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let pet: PetController
     private let hooks: HookInstaller
     private let hooksItem = NSMenuItem(title: "", action: #selector(toggleHooks), keyEquivalent: "")
+    private let statusLineItem = NSMenuItem(title: "Добавить statusline для терминала", action: #selector(addStatusLine),
+                                            keyEquivalent: "")
     private let logItem = NSMenuItem(title: "Записывать события", action: #selector(toggleLog), keyEquivalent: "")
     private let openLogItem = NSMenuItem(title: "Открыть журнал событий", action: #selector(openLog), keyEquivalent: "")
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
+    private let limitsItem = NSMenuItem(title: "Лимиты: пока неизвестны", action: nil, keyEquivalent: "")
+    private let panelItem = NSMenuItem(title: "Панель статуса", action: #selector(showPanel), keyEquivalent: "")
+    var onShowPanel: (() -> Void)?
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
 
@@ -36,10 +41,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func build() {
+        limitsItem.isEnabled = false
+        menu.addItem(limitsItem)
+        panelItem.target = self
+        menu.addItem(panelItem)
+        menu.addItem(.separator())
         toggleItem.target = self
         menu.addItem(toggleItem)
         hooksItem.target = self
         menu.addItem(hooksItem)
+        statusLineItem.target = self
+        menu.addItem(statusLineItem)
         menu.addItem(.separator())
 
         let states = NSMenuItem(title: "Состояние", action: nil, keyEquivalent: "")
@@ -75,6 +87,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         toggleItem.title = pet.isHidden ? "Показать кубика" : "Спрятать кубика"
         hooksItem.title = hooks.isInstalled ? "Отключить от Claude Code" : "Подключить к Claude Code…"
+        // Connections made before statuslines existed can pick one up here; a user's own statusline is never replaced.
+        statusLineItem.isHidden = !(hooks.isInstalled && hooks.statusLineState == .absent)
         for entry in stateMenu.items {
             entry.state = entry.representedObject as? String == pet.restingState.rawValue ? .on : .off
         }
@@ -91,10 +105,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func openLog() { NSWorkspace.shared.open(EventLog.url) }
 
-    /// Count of working or waiting agents next to the icon; nothing when all is quiet.
-    func setActiveCount(_ count: Int) {
-        item.button?.title = count > 0 ? " \(count)" : ""
+    /// Count of working or waiting agents next to the icon (nothing when all is quiet) and the limits line.
+    func update(active: Int, limits: UsageLimits?) {
+        item.button?.title = active > 0 ? " \(active)" : ""
+        let parts = [limits?.fiveHour.map { "5 ч \(Int($0.usedPercent.rounded()))%" },
+                     limits?.sevenDay.map { "7 дн \(Int($0.usedPercent.rounded()))%" }].compactMap { $0 }
+        limitsItem.title = parts.isEmpty ? "Лимиты: пока неизвестны" : "Лимиты: " + parts.joined(separator: " · ")
     }
+
+    @objc private func showPanel() { onShowPanel?() }
 
     @objc private func toggleHooks() {
         do {
@@ -103,6 +122,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             } else if confirmInstall() {
                 try hooks.install()
             }
+        } catch {
+            NSApp.activate()
+            let alert = NSAlert()
+            alert.messageText = "Не получилось изменить настройки Claude Code"
+            alert.informativeText = String(describing: error)
+            alert.runModal()
+        }
+    }
+
+    @objc private func addStatusLine() {
+        do {
+            try hooks.installStatusLine()
         } catch {
             NSApp.activate()
             let alert = NSAlert()

@@ -9,15 +9,26 @@ final class AgentMonitor {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pixelpet/pet.sock").path
     }
 
+    /// Rows of body interior the 5-hour limit can drain.
+    static let drainInterior = 12
+
     private let pet: PetController
+    private let hooks: HookInstaller
+    let status = StatusModel()
     private var registry = SessionRegistry()
+    private var limits: UsageLimits?
+    private var probePolicy = ProbePolicy()
+    private var launchProbe: Task<Void, Never>?
     private var server: EventServer?
     private var consumer: Task<Void, Never>?
     private var refreshTimer: Timer?
-    var onChange: ((_ active: Int) -> Void)?
+    var onChange: ((_ active: Int, _ limits: UsageLimits?) -> Void)?
 
-    init(pet: PetController) {
+    init(pet: PetController, hooks: HookInstaller) {
         self.pet = pet
+        self.hooks = hooks
+        status.onRefreshLimits = { [weak self] in self?.probeLimits(.manual) }
+        limits = pet.config.lastLimits
     }
 
     func start() {
@@ -38,6 +49,12 @@ final class AgentMonitor {
         } catch {
             NSLog("PixelPet: event server failed to start: \(String(describing: error))")
         }
+        refresh()
+        // Learn the limits shortly after launch, once things settle (skipped if the remembered ones are fresh).
+        launchProbe = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            self?.probeLimits(.launch)
+        }
     }
 
     func stop() {
@@ -45,6 +62,8 @@ final class AgentMonitor {
         server = nil
         consumer?.cancel()
         consumer = nil
+        launchProbe?.cancel()
+        launchProbe = nil
         refreshTimer?.invalidate()
         refreshTimer = nil
     }
@@ -52,24 +71,69 @@ final class AgentMonitor {
     var sessions: [AgentSession] { registry.ordered }
 
     private func receive(_ data: Data) {
-        guard let event = AgentEvent.parse(data) else { return }
-        if pet.config.logEvents { EventLog.append(event.logLine) }
-        let reaction = registry.apply(event, at: Date())
-        switch reaction {
-        case .finished: pet.react(.celebrate)
-        case .failed, nil: break
+        let now = Date()
+        switch Inbound.parse(data, at: now) {
+        case .hook(let event):
+            if pet.config.logEvents { EventLog.append(event.logLine) }
+            if registry.apply(event, at: now) == .finished { pet.react(.celebrate) }
+        case .statusline(let snapshot):
+            if pet.config.logEvents { EventLog.append(snapshot.logLine) }
+            registry.apply(snapshot, at: now)
+            if let observed = snapshot.limits { merge(observed) }
+        case nil:
+            return
         }
         refresh()
+    }
+
+    private func merge(_ observed: UsageLimits) {
+        limits = limits.map { $0.merged(with: observed) } ?? observed
+        pet.rememberLimits(limits)
+    }
+
+    /// Runs the cheap `claude -p` probe for fresh limits when the policy allows it (one at a time,
+    /// cooldown after success, growing backoff after failures).
+    func probeLimits(_ reason: ProbePolicy.Reason) {
+        let now = Date()
+        guard probePolicy.allows(reason, now: now, limitsObservedAt: limits?.observedAt) else { return }
+        probePolicy.started(at: now)
+        guard let claude = ClaudeLocator.find() else {
+            probePolicy.finished(success: false)
+            return
+        }
+        status.isProbing = true
+        Task { @MainActor [weak self] in
+            let observed = await LimitsProbe.run(claude: claude)
+            guard let self else { return }
+            probePolicy.finished(success: observed != nil)
+            status.isProbing = false
+            if let observed { merge(observed) }
+            refresh()
+        }
     }
 
     private func refresh() {
         let now = Date()
         registry.prune(now: now)
         let sessions = registry.ordered
-        pet.setMood(PetBrain.baseState(for: sessions, now: now))
+        let current = limits?.current(at: now)
+        pet.setMood(PetBrain.baseState(for: sessions, limits: limits, now: now))
         pet.setAgents(PetBrain.cubes(for: sessions, now: now))
-        onChange?(PetBrain.activeCount(sessions))
+        pet.setDrain(current?.drainRows(interior: Self.drainInterior) ?? 0)
+        let active = PetBrain.activeCount(sessions)
+        onChange?(active, current)
+        status.sessions = sessions
+        status.limits = limits
+        status.hooksConnected = hooks.isInstalled
+        status.now = now
+        if active > 0 { probeLimits(.busy) }
         scheduleRefresh(sessions, now)
+    }
+
+    /// Called when the panel opens: refresh the picture, and the limits if they're older than a few minutes.
+    func panelWillShow() {
+        refresh()
+        probeLimits(.panel)
     }
 
     /// Wakes up only when something changes without an event: a flash or error window ends,
@@ -78,7 +142,8 @@ final class AgentMonitor {
         refreshTimer?.invalidate()
         refreshTimer = nil
         let visual = PetBrain.nextChange(for: sessions, now: now)
-        let housekeeping = registry.nextExpiry().map { max($0, now.addingTimeInterval(1)) }
+        let resets = limits?.nextReset(after: now)
+        let housekeeping = [registry.nextExpiry(), resets].compactMap { $0 }.min().map { max($0, now.addingTimeInterval(1)) }
         guard let next = [visual, housekeeping].compactMap({ $0 }).min() else { return }
         let timer = Timer(fire: next, interval: 0, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }

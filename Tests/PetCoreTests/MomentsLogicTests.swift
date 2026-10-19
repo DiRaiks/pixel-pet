@@ -161,15 +161,17 @@ import Testing
         return Calendar.current.date(from: c)!
     }
 
-    @Test func lateNightIsFromElevenToFive() {
+    /// Local time: the Mac's own clock and time zone.
+    @Test func lateNightIsFromTenToFive() {
+        #expect(NightDesk.isLate(at: date(22)))
         #expect(NightDesk.isLate(at: date(23, 30)))
         #expect(NightDesk.isLate(at: date(2)))
         #expect(!NightDesk.isLate(at: date(5)))
-        #expect(!NightDesk.isLate(at: date(22, 59)))
+        #expect(!NightDesk.isLate(at: date(21, 59)))
     }
 
     @Test func nextChangeIsTheNearestBoundary() {
-        #expect(NightDesk.nextChange(after: date(14)) == date(23))
+        #expect(NightDesk.nextChange(after: date(14)) == date(22))
         #expect(NightDesk.nextChange(after: date(23, 30)) == Calendar.current.date(byAdding: .hour, value: 6, to: date(23))!)
         #expect(NightDesk.nextChange(after: date(3)) == date(5))
     }

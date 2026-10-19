@@ -23,6 +23,8 @@ struct BodyStyle {
     /// A call headset with a mic; it takes the place of a head accessory while it's on.
     var headset = false
     var figure = Figure.cube
+    /// Hanging out of the home hole: the top is hidden anyway, so LM isn't lowered to make room for his diamond.
+    var inHole = false
     /// Degrees clockwise, around the body's center.
     var rotation = 0.0
 
@@ -45,7 +47,7 @@ extension PixelCanvas {
     mutating func body(_ s: BodyStyle) -> BodyFrame {
         // LM's diamond needs room above the body: at least 4 rows, so the top of a big jump comes a bit lower.
         let lid = s.figure == .lidman
-        let lift = lid && s.rotation == 0 ? max(0, 4 - (s.by + s.dy - s.h)) : 0
+        let lift = lid && s.rotation == 0 && !s.inHole ? max(0, 4 - (s.by + s.dy - s.h)) : 0
         let cx = s.cx + s.dx, by = s.by + s.dy + lift, x0 = cx - s.w / 2, y0 = by - s.h
         if s.shadow {
             let sw = max(4, s.w - 2 - jsRound(Double(s.ground - 1 - by) / 1.5))

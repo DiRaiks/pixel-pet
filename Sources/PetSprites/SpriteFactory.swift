@@ -451,10 +451,14 @@ public enum SpriteFactory {
         home(&c, look: look, by: by, w: w, h: h, lookX: 0, eyes: i == 0 ? .squeeze : .open, props: props, glow: .glow)
     }
 
+    /// LM comes out of the hole 2 rows less than the cube: just his eyes and the round bottom of the drop.
+    static let lidManPeekRaise = 2
+
     static func home(_ c: inout PixelCanvas, look: Look, by: Int, w: Int = 16, h: Int = 14, lookX: Int,
                              eyes: Eyes, props: Bool, glow: Eyes) {
         var s = BodyStyle(look: look)
-        s.by = by; s.w = w; s.h = h; s.shadow = false
+        s.by = by - (look.figure == .lidman ? lidManPeekRaise : 0); s.w = w; s.h = h; s.shadow = false
+        s.inHole = true
         s.lookX = lookX
         s.eyes = eyes
         c.body(s)

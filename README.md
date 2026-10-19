@@ -166,7 +166,7 @@ On top of these, it plays one-off animations:
 | <img src="docs/images/refill.png" width="80" alt=""> | <img src="docs/images/spawn.png" width="80" alt=""> | <img src="docs/images/compact.png" width="80" alt=""> | <img src="docs/images/thrown.png" width="80" alt=""> |
 | The 5-hour limit reset | Subagents start, and come back | Claude compacts its context | Thrown hard, into a wall |
 | <img src="docs/images/dizzy.png" width="80" alt=""> | <img src="docs/images/late-night.png" width="80" alt=""> | | |
-| Shaken while dragged | After 11 pm: a lamp and tea | | |
+| Shaken while dragged | From 10 pm: a lamp and tea | | |
 | <img src="docs/images/hookah.png" width="80" alt=""> | | | |
 | A hookah break | | | |
 

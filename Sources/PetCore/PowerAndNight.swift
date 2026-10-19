@@ -23,7 +23,7 @@ public struct PowerReading: Equatable, Sendable {
 
 /// Late at night the desk gets a lamp, and the mug holds tea.
 public enum NightDesk {
-    public static let startHour = 23
+    public static let startHour = 22
     public static let endHour = 5
 
     public static func isLate(at date: Date, calendar: Calendar = .autoupdatingCurrent) -> Bool {
@@ -31,7 +31,7 @@ public enum NightDesk {
         return hour >= startHour || hour < endHour
     }
 
-    /// The next 23:00 or 05:00 after `date`, to redraw the desk then.
+    /// The next 22:00 or 05:00 after `date`, to redraw the desk then.
     public static func nextChange(after date: Date, calendar: Calendar = .autoupdatingCurrent) -> Date {
         [startHour, endHour].compactMap {
             calendar.nextDate(after: date, matching: DateComponents(hour: $0, minute: 0, second: 0), matchingPolicy: .nextTime)

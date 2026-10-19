@@ -108,6 +108,20 @@ import PetCore
         }
     }
 
+    /// Out of the home hole LM peeks 2 rows less than the cube, and the room his diamond needs on the desk
+    /// doesn't push him down there (that once showed the V of his top as two ears).
+    @Test func peeksOutLessThanTheCube() {
+        func bottom(_ f: PixelCanvas) -> Int { (0..<32).last { y in (0..<32).contains { f.pixel($0, y) != nil } }! }
+        for state in [PetState.peekHold, .peek] {
+            for (i, (lm, cube)) in zip(SpriteFactory.frames(for: state, agentCubes: false, look: lm),
+                                       SpriteFactory.frames(for: state, agentCubes: false)).enumerated() {
+                // Frames where the cube is still all inside the hole (rows 0-5) look the same for both.
+                guard bottom(cube) > 5 else { continue }
+                #expect(bottom(lm) == max(5, bottom(cube) - SpriteFactory.lidManPeekRaise), "\(state) frame \(i)")
+            }
+        }
+    }
+
     /// "!" steps aside so the diamond stays visible.
     @Test func alertMarkClearsTheDiamond() {
         let frame = SpriteFactory.frame(for: .alert, index: 0, agentCubes: false, look: lm)

@@ -460,7 +460,7 @@ final class PetController {
         return props
     }
 
-    /// Redraws at the next 23:00 or 05:00, when the lamp goes on or off.
+    /// Redraws at the next 22:00 or 05:00, when the lamp goes on or off.
     private func scheduleNightCheck() {
         nightCheck?.cancel()
         let work = DispatchWorkItem { [weak self] in

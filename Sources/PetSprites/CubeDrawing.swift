@@ -225,7 +225,7 @@ extension PixelCanvas {
     /// Low frames (a puddle) keep the eyes inside the body.
     static func lidEyeRow(_ h: Int) -> Int { h >= 10 ? max(4, jsRound(Double(h) * 0.45)) : max(1, (h - 3) / 2) }
 
-    /// Lido's mascot, built from the Lido logo: a round drop with a V cut into its top, and above it, apart,
+    /// LM: a round drop with a V cut into its top, and above it, apart,
     /// a diamond (light left half, dark right half) whose lower point sits in that V. Big white eyes following
     /// the gaze, a smile (see `lidManFace`).
     mutating func drawLidMan(_ s: BodyStyle, at m: Int, face: Bool, headroom: Int) {

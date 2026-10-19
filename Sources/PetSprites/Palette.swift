@@ -68,7 +68,7 @@ public enum Accessory: String, CaseIterable, Sendable {
     }
 }
 
-/// The character itself: the cube, or LM, Lido's mascot.
+/// The character itself: the cube, or LM.
 public enum Figure: String, CaseIterable, Sendable {
     case cube, lidman
 }

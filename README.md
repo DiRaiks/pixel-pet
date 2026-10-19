@@ -16,8 +16,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/lm.png" width="120" alt="LM, the Lido mascot: a round drop under a diamond, typing and hopping"><br>
-  Or pick <b>LM</b>, the Lido mascot, instead of the cube. Where the cube rolls over, LM catches a drop or melts into a puddle:<br>
+  <img src="docs/images/lm.png" width="120" alt="LM, a round drop under a diamond, typing and hopping"><br>
+  Or pick <b>LM</b> instead of the cube. Where the cube rolls over, LM catches a drop or melts into a puddle:<br>
   <img src="docs/images/lm-drip.png" width="120" alt="LM catches a drop on his diamond">
   <img src="docs/images/lm-melt.png" width="120" alt="LM melts into a puddle and gathers back up">
 </p>
@@ -250,7 +250,7 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Setting | Notes |
 |---|---|
 | Size | ×2 to ×6 |
-| Character | The cube, or LM (the Lido mascot: a drop under a diamond, after the Lido logo). LM keeps his own aqua colors and wears no accessory, so Color and Accessory are greyed out for him |
+| Character | The cube, or LM (a drop under a diamond). LM keeps his own aqua colors and wears no accessory, so Color and Accessory are greyed out for him |
 | Color | Lavender, mint, peach, graphite, sky, sakura, vanilla or night (dark, for dark wallpapers), or "every day new" |
 | Accessory | None, glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf or mustache, or "every day new" |
 | Do not disturb | Same as ⌃⌥P |

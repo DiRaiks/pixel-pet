@@ -151,7 +151,7 @@ Agents can work for hours, so the typing loop doesn't run unbroken. Every 45–1
 |:---:|:---:|:---:|:---:|:---:|
 | A sip of coffee | A stretch | A pause to think, then an idea | A burst of fast typing | A look at a block that changed |
 
-The longer the current task runs, the more piles up on the desk: a coffee mug after 10 minutes, a headband after 30.
+The longer the agents keep at it, the more piles up on the desk: a coffee mug after 10 minutes of work, a headband after 30. The time adds up across turns and agents; pauses of up to 10 minutes (reading an answer, writing the next message) don't count but don't clear the desk either. A longer break does.
 
 <img src="docs/images/work-props.png" width="300" alt="Typing with nothing on the desk, with a mug, and with a mug and a headband">
 

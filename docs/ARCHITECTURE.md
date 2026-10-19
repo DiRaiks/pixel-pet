@@ -231,7 +231,7 @@ How the pet moves between the desk and home:
 - **Angry** after 5 clicks within 3 s. The status card still opens, and clicks at home do not count.
 - **Work moments** (sip, stretch, think, rush) play every 45–120 s while the pet types at the desk, never twice in a row (`WorkMoments`). The same gates as fidgets apply, plus: only over the plain typing loop.
 - **Glances** at the agent blocks: when an agent on one side finishes, fails, starts waiting or working, or joins others (`WorkMoments.noticeable`), the pet looks left (Codex) or right (Claude), at most once every 8 s. The first blocks at launch, catch-up batches, the green flash fading and sessions dropping off don't count. A moment playing at the keyboard stops when the typing does (talking, an alert, Reduce Motion).
-- **Desk props** grow with the active work of the longest turn running now (`WorkStage`, `AgentSession.workedFor`; time spent waiting for the user is left out but doesn't reset it): a mug after 10 minutes, a headband after 30. `AgentMonitor` wakes up at the next threshold. They are drawn into every desk pose (`PetState.isAtDesk`) and cached as variants by `SpriteLibrary`; Reduce Motion keeps them.
+- **Desk props** grow with the work session (`WorkSession`, `WorkStage`): the time the pet spends typing, across turns and agents. Pauses of up to 10 minutes between turns are neither counted nor ending it; a longer break clears the desk. A mug after 10 minutes, a headband after 30. `AgentMonitor` wakes up at the next threshold. They are drawn into every desk pose (`PetState.isAtDesk`) and cached as variants by `SpriteLibrary`; Reduce Motion keeps them.
 
 ## Translation and selection
 

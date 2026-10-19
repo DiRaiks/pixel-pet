@@ -30,6 +30,8 @@ final class AgentMonitor {
     private var codexLimits: UsageLimits?
     private var codexProbePolicy = ProbePolicy()
     private var codexWatcher: CodexWatcher?
+    /// How long the agents have been at it across turns, for the desk props.
+    private var workSession = WorkSession()
     var onChange: ((_ active: Int, _ limits: UsageLimits?, _ codexLimits: UsageLimits?) -> Void)?
 
     init(pet: PetController, hooks: HookInstaller) {
@@ -219,9 +221,9 @@ final class AgentMonitor {
         pet.setAgents(PetBrain.cubes(for: sessions, now: now), codex: PetBrain.cubes(for: codex, now: now),
                       noticing: noticing)
         pet.setDrain(current?.drainRows(interior: Self.drainInterior) ?? 0)
-        // The longest turn running now decides the desk props.
-        let worked = (sessions + codex).compactMap { $0.workedFor(now: now) }.max()
-        pet.setWorkStage(WorkStage.stage(worked: worked))
+        // Desk props grow over the whole stretch of work, across turns and short pauses.
+        workSession.update(working: (sessions + codex).contains { $0.status == .working }, now: now)
+        pet.setWorkStage(WorkStage.stage(worked: workSession.worked(now: now)))
         let active = PetBrain.activeCount(sessions + codex)
         onChange?(active, current, codexWatcher == nil ? nil : codexLimits?.current(at: now))
         status.sessions = sessions
@@ -232,7 +234,7 @@ final class AgentMonitor {
         status.hooksConnected = hooks.isInstalled
         status.now = now
         if PetBrain.activeCount(sessions) > 0 { probeLimits(.busy) }
-        scheduleRefresh(sessions + codex, now, extra: WorkStage.nextChange(worked: worked, now: now))
+        scheduleRefresh(sessions + codex, now, extra: workSession.nextChange(now: now))
     }
 
     /// Called when the panel opens: refresh the picture, and the limits if they're older than a few minutes.

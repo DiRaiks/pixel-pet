@@ -20,19 +20,45 @@ import Testing
         #expect(WorkStage.nextChange(worked: nil, now: t0) == nil)
     }
 
-    /// Time spent waiting for the user's answer doesn't count, but doesn't reset the desk either.
-    @Test func workedTimeSurvivesAQuestion() {
-        var r = SessionRegistry()
-        let ev = { (k: AgentEvent.Kind) in AgentEvent(sessionID: "s", cwd: nil, kind: k) }
-        r.apply(ev(.promptSubmitted), at: t0)
-        r.apply(ev(.permissionRequested), at: t0.addingTimeInterval(20 * 60))
-        r.apply(ev(.toolFinished(name: "Bash", useID: nil)), at: t0.addingTimeInterval(25 * 60))
-        let worked = r.ordered[0].workedFor(now: t0.addingTimeInterval(36 * 60))
-        #expect(abs((worked ?? 0) - 31 * 60) < 0.001)
-        #expect(WorkStage.stage(worked: worked) == .headband)
-        // Not working: nothing to count.
-        r.apply(ev(.stopped), at: t0.addingTimeInterval(40 * 60))
-        #expect(r.ordered[0].workedFor(now: t0.addingTimeInterval(41 * 60)) == nil)
+    func minutes(_ m: Double) -> Date { t0.addingTimeInterval(m * 60) }
+
+    /// Many short turns in a row add up: the pauses between them (reading, typing the next message,
+    /// answering a question) don't count, but don't wipe the desk either.
+    @Test func workSessionAddsUpTurnsAcrossShortPauses() {
+        var w = WorkSession()
+        w.update(working: true, now: minutes(0))
+        w.update(working: false, now: minutes(6))
+        #expect(w.worked(now: minutes(8)) == 6 * 60)
+        w.update(working: true, now: minutes(9))
+        #expect(w.worked(now: minutes(14)) == 11 * 60)
+        #expect(WorkStage.stage(worked: w.worked(now: minutes(14))) == .mug)
+    }
+
+    @Test func aLongBreakClearsTheDesk() {
+        var w = WorkSession()
+        w.update(working: true, now: minutes(0))
+        w.update(working: false, now: minutes(20))
+        #expect(w.worked(now: minutes(20) + WorkSession.grace + 1) == 0)
+        w.update(working: true, now: minutes(20) + WorkSession.grace + 60)
+        #expect(w.worked(now: minutes(20) + WorkSession.grace + 120) == 60)
+    }
+
+    /// Updates arrive with every agent event; repeating the same state changes nothing.
+    @Test func repeatedUpdatesAreHarmless() {
+        var w = WorkSession()
+        for m in 0..<5 { w.update(working: true, now: minutes(Double(m))) }
+        #expect(w.worked(now: minutes(5)) == 5 * 60)
+        for m in 5..<8 { w.update(working: false, now: minutes(Double(m))) }
+        #expect(w.worked(now: minutes(8)) == 5 * 60)
+    }
+
+    /// The next prop is only scheduled while the work goes on.
+    @Test func nextPropOnlyWhileWorking() {
+        var w = WorkSession()
+        w.update(working: true, now: minutes(0))
+        #expect(w.nextChange(now: minutes(4)) == minutes(10))
+        w.update(working: false, now: minutes(5))
+        #expect(w.nextChange(now: minutes(6)) == nil)
     }
 
     @Test func momentsDoNotRepeatBackToBack() {

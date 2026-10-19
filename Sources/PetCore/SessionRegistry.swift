@@ -31,12 +31,6 @@ public struct AgentSession: Equatable, Sendable {
 
     public var project: String? { Self.projectName(for: cwd) }
 
-    /// Active work in the current turn while it is working (time spent waiting for the user left out).
-    public func workedFor(now: Date) -> TimeInterval? {
-        guard status == .working, let workingSince else { return nil }
-        return workedBefore + now.timeIntervalSince(workingSince)
-    }
-
     /// "claude-opus-5-5" or "Opus 5.5" -> "Opus"; unknown names pass through.
     public static func shortModel(_ model: String?) -> String? {
         guard let model else { return nil }

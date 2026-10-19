@@ -9,7 +9,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 - README pictures: animated states, looks, card screenshots and usage examples, generated with the new `--export-readme` flag.
 
 ### Changed
-- **Livelier work.** While agents work the cube now has moments at the keyboard every 45–120 s (a sip of coffee, a stretch, a pause to think, a burst of fast typing), looks over at the agent blocks when one changes, and gets a mug after 10 minutes and a headband after 30 of the current task.
+- **Livelier work.** While agents work the cube now has moments at the keyboard every 45–120 s (a sip of coffee, a stretch, a pause to think, a burst of fast typing), looks over at the agent blocks when one changes, and gets a mug after 10 minutes and a headband after 30 of work, counted across turns with pauses of up to 10 minutes allowed.
 - **Talking pose** moved one pixel right, clear of the new left column.
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 

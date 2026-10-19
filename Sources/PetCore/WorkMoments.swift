@@ -7,7 +7,7 @@ public enum WorkStage: Int, Comparable, Sendable {
     public static let mugAfter: TimeInterval = 10 * 60
     public static let headbandAfter: TimeInterval = 30 * 60
 
-    /// `worked`: active work so far in the longest-running current turn (nil when nothing works).
+    /// `worked`: active work so far in the current work session (see `WorkSession`).
     public static func stage(worked: TimeInterval?) -> WorkStage {
         guard let worked else { return .fresh }
         return worked >= headbandAfter ? .headband : worked >= mugAfter ? .mug : .fresh
@@ -20,6 +20,43 @@ public enum WorkStage: Int, Comparable, Sendable {
     }
 
     public static func < (a: WorkStage, b: WorkStage) -> Bool { a.rawValue < b.rawValue }
+}
+
+/// A stretch of work across many turns: the time the pet spends typing (any agent working), with pauses
+/// of up to `grace` between turns (reading the answer, writing the next message, answering a question)
+/// neither counted nor ending it. A longer break starts a new session with a clean desk.
+public struct WorkSession: Sendable {
+    public static let grace: TimeInterval = 10 * 60
+
+    private var accumulated: TimeInterval = 0
+    private var workingSince: Date?
+    private var stoppedAt: Date?
+
+    public init() {}
+
+    /// Called with every refresh; only changes between working and not matter.
+    public mutating func update(working: Bool, now: Date) {
+        if working {
+            guard workingSince == nil else { return }
+            if let stoppedAt, now.timeIntervalSince(stoppedAt) > Self.grace { accumulated = 0 }
+            workingSince = now
+            stoppedAt = nil
+        } else if let since = workingSince {
+            accumulated += now.timeIntervalSince(since)
+            workingSince = nil
+            stoppedAt = now
+        }
+    }
+
+    public func worked(now: Date) -> TimeInterval {
+        if workingSince == nil, let stoppedAt, now.timeIntervalSince(stoppedAt) > Self.grace { return 0 }
+        return accumulated + (workingSince.map { now.timeIntervalSince($0) } ?? 0)
+    }
+
+    /// When the next prop appears, if the work goes on; nil during a pause.
+    public func nextChange(now: Date) -> Date? {
+        workingSince == nil ? nil : WorkStage.nextChange(worked: worked(now: now), now: now)
+    }
 }
 
 /// Small moments at the keyboard, so hours of typing don't look like one loop: now and then a sip, a

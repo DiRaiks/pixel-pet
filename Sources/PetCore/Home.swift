@@ -16,6 +16,9 @@ public struct HomeSpot: Equatable, Sendable {
 public enum HomeGeometry {
     /// Dropping the pet with its top-center this close to a home pulls it in.
     public static let snapRadius = 90.0
+    /// Pulled out of a home, it only goes back when let go about where it sat: with the full snap radius
+    /// a short tug downward would land it right back inside, and the pet would seem stuck there.
+    public static let releaseRadius = 24.0
 
     public static func home(on screen: PetScreen, notch: PetRect?) -> HomeSpot {
         let x = notch.map { $0.x + $0.width / 2 } ?? (screen.frame.x + screen.frame.width / 2)
@@ -43,12 +46,21 @@ public enum HomeGeometry {
         return PetRect(x: l.maxX, y: l.y, width: r.x - l.maxX, height: l.height)
     }
 
-    public static func snapTarget(windowOrigin origin: PetPoint, size: PetSize, homes: [HomeSpot]) -> HomeSpot? {
+    /// `leaving` is the home the drag started from: it takes the pet back only within `releaseRadius` of its
+    /// seat; every other home keeps the full snap radius.
+    public static func snapTarget(windowOrigin origin: PetPoint, size: PetSize, homes: [HomeSpot],
+                                  leaving: HomeSpot? = nil) -> HomeSpot? {
         let top = PetPoint(x: origin.x + size.width / 2, y: origin.y + size.height)
         func distance(_ h: HomeSpot) -> Double {
             let dx = h.anchor.x - top.x, dy = h.anchor.y - top.y
             return (dx * dx + dy * dy).squareRoot()
         }
-        return homes.filter { distance($0) <= snapRadius }.min { distance($0) < distance($1) }
+        func takesBack(_ h: HomeSpot) -> Bool {
+            guard h == leaving else { return distance(h) <= snapRadius }
+            let seat = windowOrigin(for: h, size: size)
+            let dx = seat.x - origin.x, dy = seat.y - origin.y
+            return (dx * dx + dy * dy).squareRoot() <= releaseRadius
+        }
+        return homes.filter(takesBack).min { distance($0) < distance($1) }
     }
 }

@@ -30,6 +30,36 @@ import Testing
         #expect(HomeGeometry.snapTarget(windowOrigin: far, size: size, homes: [home]) == nil)
     }
 
+    /// Pulling the pet out of its home must not need a long drag: a short tug lands it on the desk,
+    /// and only letting go almost where it sat puts it back.
+    @Test func pullingOutOfHomeNeedsOnlyAShortTug() {
+        let home = HomeGeometry.home(on: external, notch: nil)
+        let seat = HomeGeometry.windowOrigin(for: home, size: size)
+        let tugged = PetPoint(x: seat.x, y: seat.y - 50)
+        #expect(HomeGeometry.snapTarget(windowOrigin: tugged, size: size, homes: [home]) == home, "from the desk it would snap")
+        #expect(HomeGeometry.snapTarget(windowOrigin: tugged, size: size, homes: [home], leaving: home) == nil)
+        let barelyMoved = PetPoint(x: seat.x + 10, y: seat.y - 12)
+        #expect(HomeGeometry.snapTarget(windowOrigin: barelyMoved, size: size, homes: [home], leaving: home) == home)
+    }
+
+    /// Under a notch the seat itself hangs below the anchor; leaving is measured from the seat, not the anchor.
+    @Test func leavingANotchHomeIsMeasuredFromItsSeat() {
+        let notch = PetRect(x: 1180, y: 1408, width: 200, height: 32)
+        let home = HomeGeometry.home(on: external, notch: notch)
+        let seat = HomeGeometry.windowOrigin(for: home, size: size)
+        #expect(HomeGeometry.snapTarget(windowOrigin: seat, size: size, homes: [home], leaving: home) == home)
+        let tugged = PetPoint(x: seat.x, y: seat.y - 40)
+        #expect(HomeGeometry.snapTarget(windowOrigin: tugged, size: size, homes: [home], leaving: home) == nil)
+    }
+
+    /// Carried from one home over to another screen's home: that one still pulls it in with the full radius.
+    @Test func anotherHomeStillSnapsWhileLeavingOne() {
+        let a = HomeSpot(anchor: PetPoint(x: 400, y: 1000), hasNotch: false)
+        let b = HomeSpot(anchor: PetPoint(x: 1400, y: 1000), hasNotch: false)
+        let nearB = PetPoint(x: 1400 + 40 - 64, y: 1000 - 50 - 128)
+        #expect(HomeGeometry.snapTarget(windowOrigin: nearB, size: size, homes: [a, b], leaving: a) == b)
+    }
+
     @Test func nearestHomeWinsAcrossScreens() {
         let a = HomeSpot(anchor: PetPoint(x: 100, y: 1000), hasNotch: false)
         let b = HomeSpot(anchor: PetPoint(x: 160, y: 1000), hasNotch: false)

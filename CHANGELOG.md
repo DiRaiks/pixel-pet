@@ -8,6 +8,8 @@ The project was built in milestones; each was merged into `main` once it had bee
 - README pictures: animated states, looks, card screenshots and usage examples, generated with the new `--export-readme` flag.
 
 ### Fixed
+- **Moving the pet:** dropping it home, throwing it and sending it home or out from the menu now actually move the window. On macOS 26 and later the window animator ignores `setFrameOrigin`, so the pet stayed where it was let go. When dropped into its home, that could be above the top edge of the screen: out of sight, or showing only the bottom of a peeking cube that could not be grabbed. Cards also land exactly next to the pet now, instead of 6 pt off.
+- **Pulling out of home:** a short tug is enough. Before, letting go anywhere within 90 pt pulled the pet right back in; now it returns only when released within 24 pt of its seat.
 - **Quick question:** fenced code blocks in answers show as monospaced blocks. Before, they collapsed into one line that started with the language tag, like `bash git reset --soft HEAD~1`.
 - **Dragging:** the grabbing hand drawn over the cube is gone. It was left over from the prototype, and since you hold the cube by the middle it showed as a stray triangle above its head.
 

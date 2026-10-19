@@ -255,18 +255,13 @@ public enum SpriteFactory {
         }
     }
 
+    /// Held by the middle: dangles a little and swings, nothing drawn over its head.
     static func dragged(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         var s = BodyStyle(look: look)
         s.w = 14; s.h = 17; s.by = 23
         s.dx = jsRound(sin(Double(i) / 10 * .pi * 2) * 1.4)
         s.eyes = .wide; s.mouth = .open
-        let b = c.body(s)
-        let hand = ["1   ", "11  ", "121 ", "1221", "11  "]
-        for (y, row) in hand.enumerated() {
-            for (x, ch) in row.enumerated() where ch != " " {
-                c.set(b.cx + 1 + x, b.y0 - 4 + y, ch == "1" ? look.skin.outline : Palette.white)
-            }
-        }
+        c.body(s)
     }
 
     /// Let go: falls, squashes flat, then wobbles like jelly with bounces that die down.

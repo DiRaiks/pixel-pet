@@ -17,6 +17,14 @@ import PetCore
         #expect(SpriteFactory.frames(for: .celebrate) == SpriteFactory.frames(for: .celebrate))
     }
 
+    /// The cube is held by the middle, so nothing (no grabbing hand) is drawn above its head.
+    @Test func draggedDrawsNothingAboveTheBody() {
+        for (i, frame) in SpriteFactory.frames(for: .dragged).enumerated() {
+            let top = (0..<32).first { y in (0..<32).contains { frame.pixel($0, y) != nil } }
+            #expect(top == 6, "dragged frame \(i) starts at row \(String(describing: top))")
+        }
+    }
+
     @Test func backgroundIsTransparent() {
         let idle = SpriteFactory.frames(for: .idle)[0]
         #expect(idle.pixel(0, 0) == nil)

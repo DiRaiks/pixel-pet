@@ -25,7 +25,9 @@ final class PetPanel: NSPanel {
 @MainActor
 final class PetView: NSView {
     let sprite = CALayer()
+    let agentsLayer = CALayer()
     var canvas: PixelCanvas?
+    var agentsCanvas: PixelCanvas?
     var scale: CGFloat = 4
 
     var onPress: (() -> Void)?
@@ -43,7 +45,10 @@ final class PetView: NSView {
         sprite.magnificationFilter = .nearest
         sprite.minificationFilter = .nearest
         sprite.frame = bounds
+        agentsLayer.magnificationFilter = .nearest
+        agentsLayer.frame = bounds
         layer?.addSublayer(sprite)
+        layer?.addSublayer(agentsLayer)
     }
 
     @available(*, unavailable)
@@ -54,7 +59,16 @@ final class PetView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         sprite.frame = bounds
+        agentsLayer.frame = bounds
         CATransaction.commit()
+    }
+
+    func showAgents(_ image: CGImage?, canvas: PixelCanvas) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        agentsLayer.contents = image
+        CATransaction.commit()
+        agentsCanvas = image == nil ? nil : canvas
     }
 
     func show(_ image: CGImage, canvas: PixelCanvas) {
@@ -76,7 +90,7 @@ final class PetView: NSView {
     private func isOpaquePixel(at p: NSPoint) -> Bool {
         guard let canvas else { return true }
         let hit = SpriteHit.pixel(x: p.x, y: p.y, scale: scale, height: canvas.height)
-        return canvas.pixel(hit.x, hit.y) != nil
+        return canvas.pixel(hit.x, hit.y) != nil || agentsCanvas?.pixel(hit.x, hit.y) != nil
     }
 
     override func mouseDown(with event: NSEvent) {

@@ -15,7 +15,7 @@ final class SpriteLibrary {
     init() {
         var all: [PetState: [Frame]] = [:]
         for state in PetState.allCases {
-            all[state] = SpriteFactory.frames(for: state).enumerated().map { index, canvas in
+            all[state] = SpriteFactory.frames(for: state, agentCubes: false).enumerated().map { index, canvas in
                 // A missing frame would shift every later index; failing loudly at launch is better.
                 guard let image = canvas.makeImage() else { fatalError("PixelPet: cannot render \(state) frame \(index)") }
                 return Frame(image: image, canvas: canvas)

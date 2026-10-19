@@ -7,8 +7,10 @@ let package = Package(
     targets: [
         .target(name: "PetCore"),
         .target(name: "PetSprites", dependencies: ["PetCore"]),
-        .executableTarget(name: "PixelPet", dependencies: ["PetCore", "PetSprites"]),
+        .target(name: "PetIntegrations", dependencies: ["PetCore"]),
+        .executableTarget(name: "PixelPet", dependencies: ["PetCore", "PetSprites", "PetIntegrations"]),
         .testTarget(name: "PetCoreTests", dependencies: ["PetCore"]),
         .testTarget(name: "PetSpritesTests", dependencies: ["PetSprites"]),
+        .testTarget(name: "PetIntegrationsTests", dependencies: ["PetIntegrations"]),
     ]
 )

@@ -23,6 +23,8 @@ public enum Palette {
     public static let errorShade = RGBA(0xA32D2D)
     public static let errorDark = RGBA(0x501313)
     public static let white = RGBA(0xFFFFFF)
+    public static let agentIdle = RGBA(0xB4B2A9)
+    public static let agentDone = RGBA(0x639922)
     /// Menu-bar icons are templates: only alpha matters, macOS tints them for light and dark bars.
     public static let template = RGBA(0x000000)
 }

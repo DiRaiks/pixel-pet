@@ -1,5 +1,6 @@
 import AppKit
 import PetCore
+import PetSprites
 
 /// Owns the pet window: frame clock, rendering, click/drag behavior and persisted placement.
 @MainActor
@@ -10,8 +11,9 @@ final class PetController {
     private let sprites: SpriteLibrary
     private(set) var config: PetConfig
     private var player = PetPlayer(base: .idle)
-    /// The state the pet returns to after dragging; the debug menu changes it.
+    /// The state the pet returns to after dragging; agent activity (or the debug menu) sets it.
     private(set) var restingState = PetState.idle
+    private var agents: [AgentCube] = []
 
     private let panel: PetPanel
     private let view: PetView
@@ -73,6 +75,32 @@ final class PetController {
         config.origin = PetPoint(panel.frame.origin)
         placeOnScreen()
         persistOrigin()
+    }
+
+    // MARK: Agents
+
+    /// Agent activity decides the resting state; while dragged the pet keeps dangling and picks it up on drop.
+    func setMood(_ state: PetState) {
+        guard state != restingState else { return }
+        restingState = state
+        guard player.state != .dragged else { return }
+        player.setBase(state)
+        render()
+        updateClock()
+    }
+
+    func react(_ oneShot: PetState) {
+        guard player.state != .dragged else { return }
+        player.play(oneShot)
+        render()
+        updateClock()
+    }
+
+    func setAgents(_ cubes: [AgentCube]) {
+        guard cubes != agents else { return }
+        agents = cubes
+        renderAgents()
+        updateClock()
     }
 
     /// Looping states become the resting state; one-shots play once on top of it.
@@ -163,13 +191,22 @@ final class PetController {
         let now = CACurrentMediaTime()
         let changed = player.advance(by: now - lastTick)
         lastTick = now
-        if changed { render() }
+        if changed {
+            render()
+            if !agents.isEmpty { renderAgents() }
+        }
         updateClock()
     }
 
     private func render() {
         let frame = sprites.frame(player.state, player.frame)
         view.show(frame.image, canvas: frame.canvas)
+    }
+
+    /// The stack animates on a shared 10 Hz beat so it doesn't speed up or slow down with the pet's state.
+    private func renderAgents() {
+        let canvas = AgentStack.canvas(for: agents, tick: Int(CACurrentMediaTime() * 10))
+        view.showAgents(canvas.opaquePixelCount > 0 ? canvas.makeImage() : nil, canvas: canvas)
     }
 
     // MARK: Placement

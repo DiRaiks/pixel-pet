@@ -8,6 +8,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     let menu = NSMenu()
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let pet: PetController
+    private let hooks: HookInstaller
+    private let hooksItem = NSMenuItem(title: "", action: #selector(toggleHooks), keyEquivalent: "")
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
@@ -18,11 +20,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         .peek: "Из чёлки", .drop: "Приземление", .talk: "Отвечает",
     ]
 
-    init(pet: PetController, sprites: SpriteLibrary) {
+    init(pet: PetController, hooks: HookInstaller) {
         self.pet = pet
+        self.hooks = hooks
         super.init()
         item.button?.image = Self.icon()
         item.button?.toolTip = "Pixel Pet"
+        item.button?.imagePosition = .imageLeading
+        item.length = NSStatusItem.variableLength
         item.menu = menu
         menu.delegate = self
         build()
@@ -31,6 +36,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func build() {
         toggleItem.target = self
         menu.addItem(toggleItem)
+        hooksItem.target = self
+        menu.addItem(hooksItem)
+        menu.addItem(.separator())
 
         let states = NSMenuItem(title: "Состояние", action: nil, keyEquivalent: "")
         // `dragged` only makes sense under the cursor, so it isn't offered here.
@@ -59,6 +67,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         toggleItem.title = pet.isHidden ? "Показать кубика" : "Спрятать кубика"
+        hooksItem.title = hooks.isInstalled ? "Отключить от Claude Code" : "Подключить к Claude Code…"
         for entry in stateMenu.items {
             entry.state = entry.representedObject as? String == pet.restingState.rawValue ? .on : .off
         }
@@ -68,6 +77,42 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleHidden() { pet.setHidden(!pet.isHidden) }
+
+    /// Count of working or waiting agents next to the icon; nothing when all is quiet.
+    func setActiveCount(_ count: Int) {
+        item.button?.title = count > 0 ? " \(count)" : ""
+    }
+
+    @objc private func toggleHooks() {
+        do {
+            if hooks.isInstalled {
+                try hooks.uninstall()
+            } else if confirmInstall() {
+                try hooks.install()
+            }
+        } catch {
+            NSApp.activate()
+            let alert = NSAlert()
+            alert.messageText = "Не получилось изменить настройки Claude Code"
+            alert.informativeText = String(describing: error)
+            alert.runModal()
+        }
+    }
+
+    private func confirmInstall() -> Bool {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "Подключить кубика к Claude Code?"
+        alert.informativeText = """
+        В ~/.claude/settings.json добавятся хуки, которые сообщают кубику о работе агентов. \
+        Перед изменением файл копируется рядом (settings.json.pixelpet-backup-…). \
+        Файл будет переформатирован: ключи по алфавиту, отступ в 2 пробела. \
+        Тексты промптов не сохраняются. Отключить можно в этом же меню.
+        """
+        alert.addButton(withTitle: "Подключить")
+        alert.addButton(withTitle: "Отмена")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
 
     @objc private func pickState(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let state = PetState(rawValue: raw) else { return }

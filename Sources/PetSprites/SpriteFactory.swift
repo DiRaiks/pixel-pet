@@ -13,10 +13,11 @@ public enum SpriteFactory {
                        (14, 15, -11), (14, 16, -9), (14, 17, -5), (14, 16, -1), (20, 10, 0), (18, 12, 0), (16, 15, 0),
                        (16, 14, 0), (16, 14, 0)]
 
-    public static func frames(for state: PetState) -> [PixelCanvas] {
+    /// `agentCubes: false` drops the prototype's fixed agent blocks; the app draws live ones via AgentStack.
+    public static func frames(for state: PetState, agentCubes: Bool = true) -> [PixelCanvas] {
         (0..<state.frameCount).map { i in
             var c = PixelCanvas()
-            draw(state, frame: i, on: &c)
+            draw(state, frame: i, cubes: agentCubes, on: &c)
             return c
         }
     }
@@ -37,16 +38,16 @@ public enum SpriteFactory {
         frames(for: state).compactMap { $0.makeImage() }
     }
 
-    static func draw(_ state: PetState, frame i: Int, on c: inout PixelCanvas) {
+    static func draw(_ state: PetState, frame i: Int, cubes: Bool, on c: inout PixelCanvas) {
         switch state {
         case .idle: idle(i, &c)
         case .hop: hopFrame(i, &c)
-        case .working: working(i, &c)
-        case .alert: alert(i, &c)
+        case .working: working(i, cubes, &c)
+        case .alert: alert(i, cubes, &c)
         case .celebrate: celebrate(i, &c)
         case .sleep: sleep(i, &c)
         case .lowLimit: lowLimit(i, &c)
-        case .error: error(i, &c)
+        case .error: error(i, cubes, &c)
         case .peek: peek(i, &c)
         case .dragged: dragged(i, &c)
         case .drop: drop(i, &c)
@@ -73,18 +74,19 @@ public enum SpriteFactory {
         c.body(s)
     }
 
-    static func working(_ i: Int, _ c: inout PixelCanvas) {
+    static func working(_ i: Int, _ cubes: Bool, _ c: inout PixelCanvas) {
         var s = BodyStyle()
         s.cx = 13; s.h = (i / 2) % 2 == 1 ? 13 : 14
         s.eyes = .half; s.lookX = 1; s.lookY = -1
         let b = c.body(s)
         let active = (i / 3) % 4
         for k in 0..<3 { c.set(b.cx - 3 + k * 3, b.y0 - 3 - (k == active ? 1 : 0), Palette.shade) }
+        guard cubes else { return }
         c.agentCube(25, 24, Palette.teal, spin: i)
         c.agentCube(25, 20, Palette.teal, spin: i + 4)
     }
 
-    static func alert(_ i: Int, _ c: inout PixelCanvas) {
+    static func alert(_ i: Int, _ cubes: Bool, _ c: inout PixelCanvas) {
         let hops = [0, 0, -1, -2, -3, -2, -1, 0, 0, 0, 0, 0]
         var s = BodyStyle()
         s.cx = 14; s.dy = hops[i]
@@ -95,6 +97,7 @@ public enum SpriteFactory {
             c.fill(b.cx - 1, b.y0 - 7, 2, 3, Palette.amber)
             c.fill(b.cx - 1, b.y0 - 3, 2, 1, Palette.amber)
         }
+        guard cubes else { return }
         let cy = 24 - ((i + 6) % 12 < 3 ? 1 : 0)
         c.agentCube(26, cy, Palette.amber)
         if i % 4 < 2 { c.set(27, cy + 1, Palette.amberDark) }
@@ -140,7 +143,7 @@ public enum SpriteFactory {
         }
     }
 
-    static func error(_ i: Int, _ c: inout PixelCanvas) {
+    static func error(_ i: Int, _ cubes: Bool, _ c: inout PixelCanvas) {
         let shake = [0, -2, 2, -2, 2, -1, 1, 0, 0, 0, 0, 0]
         var s = BodyStyle()
         s.cx = 14; s.dx = shake[i]
@@ -149,6 +152,7 @@ public enum SpriteFactory {
             s.fill = Palette.errorFill; s.highlight = Palette.errorHighlight; s.shade = Palette.errorShade
         }
         c.body(s)
+        guard cubes else { return }
         c.agentCube(26, 24, Palette.errorFill)
         if i % 4 < 2 { c.set(27, 25, Palette.errorDark) }
     }

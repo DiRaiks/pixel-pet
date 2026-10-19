@@ -10,6 +10,11 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// At the keyboard while agents work: a sip from the mug, a stretch, a pause to think, a burst of fast
     /// typing, and a look over at the agent blocks on either side.
     case workSip, workStretch, workThink, workRush, glanceLeft, glanceRight
+    /// A hardware key wants a touch (GPG signing): holds up a little YubiKey with its pad blinking, then
+    /// a happy check mark once touched.
+    case touchKey, touchDone
+    /// The same from home: out of the hole, key held under it.
+    case touchKeyHome
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -47,6 +52,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .workThink: [200, 150, 300, 300, 400, 300, 300, 250, 150, 350, 150, 150]
         case .workRush: Self.repeating(16, 50) + [250]
         case .glanceLeft, .glanceRight: [80, 600, 100, 300, 90, 300, 80, 120]
+        case .touchKey, .touchKeyHome: Self.repeating(8, 150)
+        case .touchDone: [90, 90, 90, 120, 150, 250, 300, 300]
         }
     }
 
@@ -56,7 +63,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     public var loops: Bool {
         switch self {
         case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble,
-             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight: false
+             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone: false
         default: true
         }
     }

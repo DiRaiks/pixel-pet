@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import PetCore
+import PetIntegrations
 import PetSprites
 
 @MainActor
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var desktop: DesktopSensor?
     private var settings: AppWindow<SettingsView>?
     private var welcome: AppWindow<OnboardingView>?
+    private var touch: TouchWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let exportArgs = CommandLine.arguments
@@ -168,13 +170,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !pet.config.onboarded {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak welcome] in welcome?.show() }
         }
+        setTouchHint(pet.config.touchHint)
+        settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }
         let desktop = DesktopSensor(pet: pet)
         pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
         desktop.start()
         self.desktop = desktop
     }
 
+    /// Follow the system log for a YubiKey waiting for a touch, or stop.
+    private func setTouchHint(_ on: Bool) {
+        guard on != (touch != nil), let pet else { return }
+        if on {
+            let watcher = TouchWatcher { [weak pet] at in
+                DispatchQueue.main.async { MainActor.assumeIsolated { pet?.keySignal(at: at) } }
+            }
+            watcher.start()
+            touch = watcher
+        } else {
+            touch?.stop()
+            touch = nil
+            pet.clearTouch()
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        touch?.stop()
         agents?.stop()
         AskSessions.removeAll()
     }

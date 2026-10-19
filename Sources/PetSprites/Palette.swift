@@ -84,6 +84,11 @@ public enum Palette {
     public static let mug = RGBA(0xF1EFE8)
     public static let mugShade = RGBA(0xB4B2A9)
     public static let coffee = RGBA(0x6B4A2E)
+    /// The little YubiKey: black body, gold touch pad (lit while it waits), silver USB plug.
+    public static let keyBody = RGBA(0x2C2C2A)
+    public static let keyGold = RGBA(0xC9962B)
+    public static let keyGoldLit = RGBA(0xFAD978)
+    public static let keyPlug = RGBA(0xC9C7C0)
     /// Frames of glasses and headphones; deliberately not any skin's outline color.
     public static let accessoryDark = RGBA(0x34302E)
     public static let gear = RGBA(0x2C2C2A)

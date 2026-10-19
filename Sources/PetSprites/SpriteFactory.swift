@@ -57,6 +57,9 @@ public enum SpriteFactory {
         case .workRush: workRush(i, look, props, &c)
         case .glanceLeft: glance(i, -1, look, props, &c)
         case .glanceRight: glance(i, 1, look, props, &c)
+        case .touchKey: touchKey(i, look, &c)
+        case .touchDone: touchDone(i, look, &c)
+        case .touchKeyHome: touchKeyHome(i, cubes, look, &c)
         case .alert: alert(i, cubes, look, &c)
         case .celebrate: celebrate(i, look, &c)
         case .sleep: sleep(i, look, &c)
@@ -218,6 +221,66 @@ public enum SpriteFactory {
         desk(&c, props)
     }
 
+    /// Holds up a little YubiKey in front: looks down at it, then up at you, the gold pad blinking like the
+    /// real one and rings pulsing out of it, until it's touched.
+    static func touchKey(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        var s = BodyStyle(look: look)
+        let atKey = i < 4
+        s.lookY = atKey ? 1 : 0
+        s.lookX = atKey ? 0 : 0
+        s.eyes = atKey ? .down : (i == 6 ? .blink : .wide)
+        s.mouth = atKey ? .flat : .open
+        s.blush = 2
+        let b = c.body(s)
+        let bob = i % 4 < 2 ? 0 : -1
+        yubiKey(&c, x: b.cx - 4, y: 21 + bob, lit: i % 2 == 0)
+        // Rings around the pad: one pixel out, then two, then gone.
+        let (px, py) = (b.cx + 1, 21 + bob + 1)
+        let r = i % 4
+        if r == 1 || r == 2 {
+            let d = r + 1
+            for (dx, dy) in [(-d, 0), (d + 1, 0), (0, -d), (1, -d), (0, d + 1), (1, d + 1)] {
+                c.set(px + dx, py + dy - (dy > 0 ? 1 : 0), Palette.keyGoldLit)
+            }
+        }
+    }
+
+    /// From home: out of the hole with the key held up under it, pad blinking.
+    static func touchKeyHome(_ i: Int, _ props: Bool, _ look: Look, _ c: inout PixelCanvas) {
+        home(&c, look: look, by: 16, lookX: 0, eyes: i < 4 ? .down : (i == 6 ? .blink : .wide), props: props, glow: .glow)
+        let bob = i % 4 < 2 ? 0 : -1
+        yubiKey(&c, x: 12, y: 17 + bob, lit: i % 2 == 0)
+        if i % 4 == 1 || i % 4 == 2 {
+            let y = 17 + bob + 1
+            c.set(15, y, Palette.keyGoldLit); c.set(20, y, Palette.keyGoldLit)
+        }
+    }
+
+    /// Touched: the key goes away, a little hop and a check mark.
+    static func touchDone(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        let hop = [0, -1, -2, -1, 0, 0, 0, 0]
+        var s = BodyStyle(look: look)
+        s.dy = hop[i]
+        s.eyes = i < 2 ? .open : .happy
+        s.mouth = .smile
+        s.blush = i >= 3 ? 3 : 2
+        let b = c.body(s)
+        if i < 2 { yubiKey(&c, x: b.cx - 4, y: 22 + i, lit: false) }
+        guard i >= 3 else { return }
+        // Check mark above the head.
+        let (x, y) = (b.cx + 6, b.y0 - 5)
+        for (dx, dy) in [(0, 2), (1, 3), (2, 2), (3, 1), (4, 0)] { c.set(x + dx, y + dy, Palette.tealLight) }
+        for (dx, dy) in [(0, 3), (1, 4), (2, 3), (3, 2), (4, 1)] { c.set(x + dx, y + dy, Palette.teal) }
+    }
+
+    /// A YubiKey lying sideways: plug on the left, black body, round gold pad near the right end.
+    static func yubiKey(_ c: inout PixelCanvas, x: Int, y: Int, lit: Bool) {
+        c.fill(x, y + 1, 2, 2, Palette.keyPlug)
+        c.fill(x + 2, y, 8, 4, Palette.keyBody)
+        c.fill(x + 5, y + 1, 2, 2, lit ? Palette.keyGoldLit : Palette.keyGold)
+        c.set(x + 9, y, Palette.keyPlug)   // the key ring hole
+    }
+
     static func alert(_ i: Int, _ cubes: Bool, _ look: Look, _ c: inout PixelCanvas) {
         let hops = [0, 0, -1, -2, -3, -2, -1, 0, 0, 0, 0, 0]
         var s = BodyStyle(look: look)
@@ -340,7 +403,7 @@ public enum SpriteFactory {
         home(&c, look: look, by: by, w: w, h: h, lookX: 0, eyes: i == 0 ? .squeeze : .open, props: props, glow: .glow)
     }
 
-    private static func home(_ c: inout PixelCanvas, look: Look, by: Int, w: Int = 16, h: Int = 14, lookX: Int,
+    static func home(_ c: inout PixelCanvas, look: Look, by: Int, w: Int = 16, h: Int = 14, lookX: Int,
                              eyes: Eyes, props: Bool, glow: Eyes) {
         var s = BodyStyle(look: look)
         s.by = by; s.w = w; s.h = h; s.shadow = false

@@ -76,6 +76,15 @@ enum ReadmeExport {
         write(render([typing, Clip(state: .glanceLeft, cubes: claude, codex: flash), typing], scale: 6),
               to: directory.appendingPathComponent("glance-on-finish.png"))
         write(propsLineup(scale: 5), to: directory.appendingPathComponent("props.png"))
+        // A key wants a touch: holds it up until touched, then a happy check mark.
+        let touch = [Clip(state: .idle, seconds: 0.8), Clip(state: .touchKey, seconds: 3.6), Clip(state: .touchDone),
+                     Clip(state: .idle, seconds: 0.8)]
+        write(render(touch, scale: 6), to: directory.appendingPathComponent("touch.png"))
+        let touchWorking = [Clip(state: .working, seconds: 0.8, cubes: claude, codex: codex),
+                            Clip(state: .touchKey, seconds: 2.4, cubes: claude, codex: codex),
+                            Clip(state: .touchDone, cubes: claude, codex: codex),
+                            Clip(state: .working, seconds: 0.8, cubes: claude, codex: codex)]
+        write(render(touchWorking, scale: 6), to: directory.appendingPathComponent("touch-while-working.png"))
     }
 
     static let background = CGColor(red: 0.945, green: 0.937, blue: 0.91, alpha: 1)
@@ -106,6 +115,8 @@ enum ReadmeExport {
             ("angry", [Clip(state: .angry), rest]),
             ("talk", [Clip(state: .talk, seconds: 1.6)]),
             ("home", [Clip(state: .burrowed, seconds: 2, menuBar: true), Clip(state: .peekHold, seconds: 2.5, menuBar: true)]),
+            ("touch", [Clip(state: .idle, seconds: 0.6), Clip(state: .touchKey, seconds: 2.4), Clip(state: .touchDone),
+                       Clip(state: .idle, seconds: 0.6)]),
             ("work-sip", [Clip(state: .working, seconds: 0.9), Clip(state: .workSip), Clip(state: .working, seconds: 0.6)]),
             ("work-stretch", [Clip(state: .working, seconds: 0.9), Clip(state: .workStretch), Clip(state: .working, seconds: 0.6)]),
             ("work-think", [Clip(state: .working, seconds: 0.9), Clip(state: .workThink), Clip(state: .working, seconds: 0.6)]),

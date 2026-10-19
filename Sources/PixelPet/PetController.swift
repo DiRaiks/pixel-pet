@@ -32,6 +32,10 @@ final class PetController {
     private var lastAgentGlance = Date.distantPast
     /// What piles up on the desk as work goes on.
     private var workStage = WorkStage.fresh
+    /// A hardware key waiting for a touch: shown above everything else.
+    private var touchWait = TouchWait()
+    private var touching = false
+    private var touchEnd: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false
     /// When to doze off, and a live reading of how long the user has been away (sampled each time the
@@ -227,6 +231,8 @@ final class PetController {
     }
 
     private func resolvedRest() -> PetState {
+        // The key waiting for a touch is what the user is waiting on right now, even under do-not-disturb.
+        if touching { return config.isHome ? .touchKeyHome : .touchKey }
         if config.isHome { return PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) }
         // Talking (translation card open) yields to errors and waiting agents.
         if talking && mood != .error && mood != .alert { return .talk }
@@ -310,13 +316,61 @@ final class PetController {
         // Typing starts: the first moment comes a while later, not right away.
         if rest == .working { nextWorkMoment = Date().addingTimeInterval(WorkMoments.delay()) }
         // A keyboard moment belongs to the typing; when that stops (talking, an alert, done) it stops too.
-        if player.state.isAtDesk, player.state != .working {
+        // A key wanting a touch cuts in at once.
+        if rest == .touchKey || rest == .touchKeyHome || (player.state.isAtDesk && player.state != .working) {
             player.play(rest)
         } else {
             player.setBase(rest)
         }
         render()
         updateClock()
+    }
+
+    // MARK: Hardware key
+
+    /// One "waiting for a touch" line from the system log.
+    func keySignal(at now: Date = Date()) {
+        // A signal queued just before the setting was switched off.
+        guard config.touchHint else { return }
+        touchWait.signal(at: now)
+        let waiting = touchWait.isWaiting(now: now)
+        if waiting != touching {
+            touching = waiting
+            applyRest()
+        }
+        // Check again once the signals would have stopped.
+        touchEnd?.cancel()
+        guard touching, let end = touchWait.endsAt else { return }
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.checkTouchEnded() }
+        }
+        touchEnd = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0.05, end.timeIntervalSinceNow + 0.05), execute: work)
+    }
+
+    private func checkTouchEnded() {
+        guard touching else { return }
+        if touchWait.isWaiting(now: Date()) {
+            // Not over yet after all (timers and the wall clock can disagree): look again a bit later.
+            let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.checkTouchEnded() } }
+            touchEnd = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+            return
+        }
+        touching = false
+        applyRest()
+        // Touched: a happy check mark (from home just a quick peek). A wait that ran into gpg's timeout
+        // most likely wasn't touched, so nothing to celebrate.
+        if touchWait.duration < TouchWait.likelyTimeout { react(.touchDone) }
+    }
+
+    /// The setting was switched off mid-wait.
+    func clearTouch() {
+        touchEnd?.cancel()
+        touchWait = TouchWait()
+        guard touching else { return }
+        touching = false
+        applyRest()
     }
 
     // MARK: Personality

@@ -233,6 +233,13 @@ How the pet moves between the desk and home:
 - **Glances** at the agent blocks: when an agent on one side finishes, fails, starts waiting or working, or joins others (`WorkMoments.noticeable`), the pet looks left (Codex) or right (Claude), at most once every 8 s. The first blocks at launch, catch-up batches, the green flash fading and sessions dropping off don't count. A moment playing at the keyboard stops when the typing does (talking, an alert, Reduce Motion).
 - **Desk props** grow with the work session (`WorkSession`, `WorkStage`): the time the pet spends typing, across turns and agents. Pauses of up to 10 minutes between turns are neither counted nor ending it; a longer break clears the desk. A mug after 10 minutes, a headband after 30. `AgentMonitor` wakes up at the next threshold. They are drawn into every desk pose (`PetState.isAtDesk`) and cached as variants by `SpriteLibrary`; Reduce Motion keeps them.
 
+## YubiKey touch
+
+- **Signal.** While a YubiKey waits for its button during a GPG operation, macOS's smart-card reader service (`usbsmartcardreaderd`, subsystem CryptoTokenKit) logs "Time extension received" about three times a second; the messages stop once it is touched or gpg gives up (about 14 s). This holds when GnuPG reaches the key through the system's PC/SC; its own CCID driver would bypass the service.
+- **Watching.** `TouchWatcher` keeps one `log stream --level debug --style ndjson` running, filtered by predicate to exactly that message (no measurable CPU, about 4 MB). It runs under a small `sh` watchdog that kills the stream when the app's pid is gone, so a crash leaves nothing behind. A stream that ends on its own is restarted after 10 s, doubling up to 5 minutes while it keeps dying young. Each launch has a generation, so output from an old stream is never mixed in.
+- **Deciding.** `TouchWait` (PetCore) starts a wait after two signals within 1.2 s and ends it after 1.2 s of silence; signals dated in the future (clock set back) count as stale.
+- **Showing.** `PetController` puts `touchKey` (desk) or `touchKeyHome` (out of the hole) above every other resting state, even do-not-disturb, and cuts into whatever one-shot plays. When the wait ends it plays `touchDone`, unless the wait lasted 13 s or more: then gpg most likely timed out and there is nothing to celebrate. Under Reduce Motion the key is shown as a still frame.
+
 ## Translation and selection
 
 - **Reading the selection.** `SelectionReader` asks the focused element for `AXSelectedText`. If the app does not expose it, the reader sends ⌘C and restores the clipboard exactly. Restored items carry the nspasteboard.org marker types, so clipboard managers skip them.
@@ -271,6 +278,7 @@ How the pet moves between the desk and home:
 | `askModel` | `haiku` | Model for quick questions |
 | `skin` / `accessory` | `lavender` / `none` | Look |
 | `watchCodex` | true | Follow Codex sessions and limits |
+| `touchHint` | true | Show when a YubiKey waits for a touch |
 | `lastCodexLimits` | — | Last known Codex limits |
 | `logEvents` | false | Write `~/.pixelpet/events.log` (ids, project and event names only; rotates at 1 MB) |
 | `lastLimits` | — | Last known limits |

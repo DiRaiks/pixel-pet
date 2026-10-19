@@ -77,7 +77,7 @@ Quit the running pet first (menu: "Выйти", or `pkill -x PixelPet`). The app
 |---|---|
 | `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: `lavender`, `mint`, `peach`, `mono`. Accessories: `none`, `glasses`, `headphones`, `cap` |
 | `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
-| `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks) and the desk props, then quits |
+| `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
 | `--with-claude` | Used with `--translate-text`: also runs "via Claude" |

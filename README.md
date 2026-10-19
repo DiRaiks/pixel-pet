@@ -37,6 +37,10 @@
 <td><b>Home in the notch.</b> Drop it anywhere along the top edge of a screen and it slips into the notch, or into a small burrow on displays without one. From there only its eyes show, and it peeks out when something needs you.</td>
 </tr>
 <tr>
+<td align="center"><img src="docs/images/touch.png" width="120" alt="Holding up a YubiKey, then a check mark"></td>
+<td><b>Touch your YubiKey.</b> When a GPG signature (a signed commit, for one) waits for the key's button, the cube pulls out a little YubiKey and holds it up with the pad blinking, then cheers with a check mark once you touch it.</td>
+</tr>
+<tr>
 <td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
 <td><b>Desktop life.</b> Its eyes follow the cursor. It falls asleep when you are away, yawns and rolls now and then, gets shy when you hover over it, and gets cross if you click it too much.</td>
 </tr>
@@ -230,6 +234,7 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Claude Code hooks and statusline | Connect or disconnect them |
 | Model for questions | haiku, sonnet or opus |
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
+| YubiKey | Show when the key waits for a touch (on by default) |
 | Event log | Writes to `~/.pixelpet/events.log` |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
 | Accessibility | Shows the permission status, with a button to request it |
@@ -266,6 +271,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
 | `~/.claude/settings.json` | One hook entry for each of 12 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/*-pixelpet-claude` | Quick-question sessions. Deleted when you start a new conversation, on quit and on launch |
+| System log | Read only, one message: the smart-card service's "Time extension received", through a filtered `log stream` that ends with the app |
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |
 | `$TMPDIR/pixelpet-claude` | Empty working folder for the pet's own `claude -p` runs |
 
@@ -296,6 +302,7 @@ Two things stay behind until you remove them yourself:
 - **No Codex blocks or limits.** Check that "Следить за агентами Codex" is on in Settings. Blocks show up once a Codex session writes to `~/.codex/sessions`. Limits need a native Codex binary: the one inside ChatGPT.app, a standalone release in `~/.codex/packages`, or `codex` on the PATH (the npm one needs Node, which apps started from Finder don't have).
 - **Limits show "unknown".** The app finds limits by running a tiny `claude -p` request. Check that Claude Code is installed and signed in.
 - **A hotkey does nothing.** Hotkeys are global. If another app already owns the combination, Pixel Pet cannot register it; it only writes `hotkey N not registered` to the unified log.
+- **The cube doesn't show the YubiKey.** It reads the touch request from macOS's smart-card service, which GnuPG uses when it talks to the key through PC/SC (the usual setup on macOS). If `scdaemon` uses GnuPG's own CCID driver instead, nothing reaches the system log. FIDO2 touches (`sk-` SSH keys, passkeys) aren't shown yet.
 - **Translation says the language is not installed.** Use the download button in the card. Alternatively, open System Settings → General → Language & Region → Translation Languages.
 
 ## Documentation

@@ -33,6 +33,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var accessory = "none"
     /// Follow Codex sessions (~/.codex/sessions) next to Claude Code's.
     public var watchCodex = true
+    /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
+    public var touchHint = true
     /// Last known Codex limits, like `lastLimits` for Claude.
     public var lastCodexLimits: UsageLimits?
 
@@ -57,6 +59,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         skin = try c.decodeIfPresent(String.self, forKey: .skin) ?? "lavender"
         accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
+        touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         lastCodexLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastCodexLimits)
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }

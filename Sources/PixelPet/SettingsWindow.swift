@@ -35,6 +35,14 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
+    var touchHint = true {
+        didSet {
+            guard !loading, touchHint != oldValue else { return }
+            update { $0.touchHint = touchHint }
+            onTouchHint?(touchHint)
+        }
+    }
+    @ObservationIgnored var onTouchHint: ((Bool) -> Void)?
     var launchAtLogin = false
     var hooksConnected = false
     var statusLine = HookSettings.StatusLineState.absent
@@ -64,6 +72,7 @@ final class SettingsModel {
         accessory = c.accessory
         logEvents = c.logEvents
         watchCodex = c.watchCodex
+        touchHint = c.touchHint
         launchAtLogin = LaunchAtLogin.isEnabled
         hooksConnected = hooks.isInstalled
         statusLine = hooks.statusLineState
@@ -177,6 +186,10 @@ struct SettingsView: View {
                 }
                 Toggle("Журнал событий (~/.pixelpet/events.log)", isOn: $model.logEvents)
                     .help("Только id сессий, проекты и имена событий, без текстов")
+            }
+            Section("YubiKey") {
+                Toggle("Подсказывать касание ключа", isOn: $model.touchHint)
+                    .help("Когда ключ ждёт касания для GPG-подписи, кубик достаёт его и показывает. Читает только это сообщение системного журнала")
             }
             Section("Codex") {
                 Toggle("Следить за агентами Codex", isOn: $model.watchCodex)

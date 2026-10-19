@@ -103,6 +103,17 @@ enum ReadmeExport {
             ("late-night", [Clip(state: .working, seconds: 2.4, cubes: claude, codex: codex, props: [.mug, .tea, .lamp]),
                             Clip(state: .workSip, cubes: claude, codex: codex, props: [.mug, .tea, .lamp])]),
         ]
+        // Looks: every skin, then every accessory on lavender, then a few new pairings.
+        write(lineup(Skin.all.map { Look(skin: $0) }, scale: 3), to: directory.appendingPathComponent("skins.png"))
+        let accessories = Accessory.allCases.filter { $0 != .none }
+        write(lineup(accessories.prefix(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
+              to: directory.appendingPathComponent("accessories-1.png"))
+        write(lineup(accessories.dropFirst(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
+              to: directory.appendingPathComponent("accessories-2.png"))
+        let pairs: [Look] = [Look(skin: .sky, accessory: .beanie), Look(skin: .sakura, accessory: .bow),
+                             Look(skin: .vanilla, accessory: .crown), Look(skin: .night, accessory: .sunglasses),
+                             Look(skin: .night, accessory: .propeller), Look(skin: .mono, accessory: .mustache)]
+        write(lineup(pairs, scale: 3), to: directory.appendingPathComponent("pairs.png"))
         let hookahBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookah), Clip(state: .idle, seconds: 0.8)]
         write(render(hookahBreak, scale: 6), to: directory.appendingPathComponent("hookah.png"))
         let cloudBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookahCloud), Clip(state: .idle, seconds: 0.8)]
@@ -175,9 +186,12 @@ enum ReadmeExport {
         ]
         write(render(reel, scale: 6), to: directory.appendingPathComponent("showreel.png"))
         // Every look, idling side by side.
-        let looks = [Skin.lavender, .mint, .peach, .mono].map { Look(skin: $0) }
-            + [Accessory.glasses, .headphones, .cap].map { Look(skin: .lavender, accessory: $0) }
-        write(lineup(looks, scale: 3), to: directory.appendingPathComponent("looks.png"))
+        write(lineup(Skin.all.map { Look(skin: $0) }, scale: 3), to: directory.appendingPathComponent("looks.png"))
+        let wearable = Accessory.allCases.filter { $0 != .none }
+        write(lineup(wearable.prefix(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
+              to: directory.appendingPathComponent("accessories-1.png"))
+        write(lineup(wearable.dropFirst(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
+              to: directory.appendingPathComponent("accessories-2.png"))
         write(propsLineup(scale: 3), to: directory.appendingPathComponent("work-props.png"))
     }
 
@@ -235,7 +249,7 @@ enum ReadmeExport {
         }
     }
 
-    private static func lineup(_ looks: [Look], scale: Int) -> [(CGImage, Double)] {
+    static func lineup(_ looks: [Look], scale: Int) -> [(CGImage, Double)] {
         let frames = looks.map { SpriteFactory.frames(for: .idle, agentCubes: false, look: $0) }
         return PetState.idle.durations.enumerated().compactMap { i, delay in
             tile(frames.map { ($0[i], nil) }, scale: scale).map { ($0, delay) }

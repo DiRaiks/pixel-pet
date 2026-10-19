@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import PetCore
 @testable import PetSprites
@@ -130,5 +131,55 @@ import PetCore
         // Body top outline is row 12; rows 13-15 are drained.
         #expect(drained.pixel(12, 14) == Skin.mono.empty)
         #expect(drained.pixel(12, 13) == Skin.mono.empty)
+    }
+}
+
+@Suite struct DailyLookTests {
+    func day(_ d: Int) -> Date {
+        var c = DateComponents(); c.year = 2026; c.month = 10; c.day = d; c.hour = 12
+        return Calendar.current.date(from: c)!
+    }
+
+    @Test func fixedChoicesPassThrough() {
+        let look = Look.resolve(skin: "sky", accessory: "crown", on: day(19))
+        #expect(look == Look(skin: .sky, accessory: .crown))
+        #expect(Look.resolve(skin: "nonsense", accessory: "nonsense", on: day(19)) == Look.standard)
+    }
+
+    /// "Every day new": the same all day long (also after a restart), different from yesterday, never bare.
+    @Test func dailyIsStableWithinADayAndChangesBetweenDays() {
+        let morning = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: day(19))!
+        let night = Calendar.current.date(bySettingHour: 23, minute: 59, second: 0, of: day(19))!
+        #expect(Look.resolve(skin: Look.daily, accessory: Look.daily, on: morning)
+                == Look.resolve(skin: Look.daily, accessory: Look.daily, on: night))
+        for d in 1..<28 {
+            let today = Look.resolve(skin: Look.daily, accessory: Look.daily, on: day(d))
+            let tomorrow = Look.resolve(skin: Look.daily, accessory: Look.daily, on: day(d + 1))
+            #expect(today.skin != tomorrow.skin, "day \(d)")
+            #expect(today.accessory != tomorrow.accessory, "day \(d)")
+            #expect(today.accessory != .none)
+        }
+    }
+
+    @Test func dailyCoversEverything() {
+        let looks = (1...60).map { Look.resolve(skin: Look.daily, accessory: Look.daily, on: day(1).addingTimeInterval(Double($0) * 86400)) }
+        #expect(Set(looks.map(\.skin.name)) == Set(Skin.all.map(\.name)))
+        #expect(Set(looks.map(\.accessory)) == Set(Accessory.allCases.filter { $0 != .none }))
+    }
+
+    /// Hats and headphones keep the work headband off, so the two don't stack.
+    @Test func headAccessoriesHideTheHeadband() {
+        let banded = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, look: Look(skin: .lavender, accessory: .scarf), props: [.headband])
+        #expect(banded.pixels.contains(Palette.capRed))
+        let hatted = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, look: Look(skin: .lavender, accessory: .beanie), props: [.headband])
+        let plainBeanie = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, look: Look(skin: .lavender, accessory: .beanie))
+        #expect(hatted == plainBeanie)
+    }
+
+    /// The dark skin keeps a light outline and face, so it reads on dark wallpapers.
+    @Test func nightSkinHasALightFace() {
+        let frame = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: Look(skin: .night))
+        #expect(frame.pixel(9, 12) == Skin.night.outline)
+        #expect(frame.pixels.contains(Skin.night.eye))
     }
 }

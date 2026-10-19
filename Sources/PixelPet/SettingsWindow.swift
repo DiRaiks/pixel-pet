@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import PetCore
+import PetSprites
 import SwiftUI
 
 /// Settings mirror the config; every change goes straight back to the pet and is saved.
@@ -126,9 +127,14 @@ enum Choices {
     static let models = ["haiku", "sonnet", "opus"]
     static let skins: [(name: String, title: String)] = [
         ("lavender", "Лавандовый"), ("mint", "Мятный"), ("peach", "Персиковый"), ("mono", "Графитовый"),
+        ("sky", "Небесный"), ("sakura", "Сакура"), ("vanilla", "Ваниль"), ("night", "Ночной"),
+        (Look.daily, "Каждый день новый"),
     ]
     static let accessories: [(name: String, title: String)] = [
-        ("none", "Без аксессуара"), ("glasses", "Очки"), ("headphones", "Наушники"), ("cap", "Кепка"),
+        ("none", "Без аксессуара"), ("glasses", "Очки"), ("sunglasses", "Солнечные очки"), ("headphones", "Наушники"),
+        ("cap", "Кепка"), ("beanie", "Шапка-бини"), ("crown", "Корона"), ("bow", "Бантик"), ("flower", "Цветок"),
+        ("propeller", "Шапка с пропеллером"), ("scarf", "Шарф"), ("mustache", "Усы"),
+        (Look.daily, "Каждый день новый"),
     ]
     static let sleep: [(minutes: Int, title: String)] = [
         (0, "никогда"), (5, "через 5 мин"), (10, "через 10 мин"), (15, "через 15 мин"), (30, "через 30 мин"), (60, "через час"),

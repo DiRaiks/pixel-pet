@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/looks.png" width="696" alt="Four skins (lavender, mint, peach, graphite) and three accessories (glasses, headphones, cap)">
+  <img src="docs/images/looks.png" width="792" alt="Eight colors: lavender, mint, peach, graphite, sky, sakura, vanilla, night"><br>
+  <img src="docs/images/accessories-1.png" width="600" alt="Accessories: glasses, headphones, cap, beanie, crown, bow"><br>
+  <img src="docs/images/accessories-2.png" width="504" alt="Accessories: flower, propeller hat, sunglasses, scarf, mustache">
 </p>
 
 ## What it does
@@ -236,8 +238,8 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Setting | Notes |
 |---|---|
 | Size | ×2 to ×6 |
-| Color | Lavender, mint, peach or graphite |
-| Accessory | None, glasses, headphones or a cap |
+| Color | Lavender, mint, peach, graphite, sky, sakura, vanilla or night (dark, for dark wallpapers), or "every day new" |
+| Accessory | None, glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf or mustache, or "every day new" |
 | Do not disturb | Same as ⌃⌥P |
 | Hookah breaks | On by default |
 | Desktop reactions | Eyes follow the cursor, glances at the app you switch to, the cube fades over fullscreen apps, fidgets |

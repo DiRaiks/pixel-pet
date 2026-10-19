@@ -92,6 +92,7 @@ final class PetController {
 
     func start() {
         scheduleNightCheck()
+        scheduleDayChange()
         if config.isHome { panel.level = .statusBar }
         restingState = resolvedRest()
         player.play(restingState)
@@ -139,7 +140,10 @@ final class PetController {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.scheduleNightCheck()
-                if self?.player.state.isAtDesk == true { self?.render() }
+                self?.scheduleDayChange()
+                // Woke up on another day: today's look.
+                if let self { self.sprites.setLook(Self.look(from: self.config)) }
+                self?.render()
             }
         })
         observers.append(NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { [weak self] _ in
@@ -530,8 +534,28 @@ final class PetController {
         render()
     }
 
-    static func look(from config: PetConfig) -> Look {
-        Look(skin: Skin.named(config.skin), accessory: Accessory(rawValue: config.accessory) ?? .none)
+    static func look(from config: PetConfig, on date: Date = Date()) -> Look {
+        Look.resolve(skin: config.skin, accessory: config.accessory, on: date)
+    }
+
+    /// With "every day new", the look changes at midnight.
+    private var dayChange: DispatchWorkItem?
+
+    private func scheduleDayChange() {
+        dayChange?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.sprites.setLook(Self.look(from: self.config))
+                self.render()
+                self.scheduleDayChange()
+            }
+        }
+        dayChange = work
+        let calendar = Calendar.autoupdatingCurrent
+        let midnight = calendar.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0, second: 0),
+                                         matchingPolicy: .nextTime) ?? Date().addingTimeInterval(86400)
+        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, midnight.timeIntervalSinceNow + 1), execute: work)
     }
 
     // MARK: Home

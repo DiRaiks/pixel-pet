@@ -96,7 +96,7 @@ extension PixelCanvas {
             set(cx + 4, ey - 2, k.eye); set(cx + 3, ey - 1, k.eye)
         }
         let left = m, right = m + w - 1, top = m
-        if s.headband {
+        if s.headband, !s.accessory.isOnHead {
             fill(left + 1, top + 2, w - 2, 1, Palette.capRed)
             set(right + 1, top + 2, Palette.capRed); set(right + 2, top + 3, Palette.capRed)
         }
@@ -127,6 +127,53 @@ extension PixelCanvas {
             fill(left + 3, top - 2, w - 6, 2, Palette.capRed)
             fill(left + 1, top - 1, w - 2, 1, Palette.capRed)
             fill(right - 1, top - 1, 3, 1, Palette.capRed)
+        case .beanie:
+            // Knit hat pulled over the top edge, ribbed brim, a pompom.
+            fill(left + 2, top - 3, w - 4, 1, Palette.beanie)
+            fill(left + 1, top - 2, w - 2, 2, Palette.beanie)
+            for x in stride(from: left + 1, through: right - 1, by: 2) { set(x, top, Palette.beanieRib) }
+            fill(left + 1, top, 1, 1, Palette.beanie)
+            fill(cx - 1, top - 5, 2, 2, Palette.beanieRib)
+        case .crown:
+            fill(cx - 4, top - 2, 8, 2, Palette.crownGold)
+            fill(cx - 4, top - 1, 8, 1, Palette.crownShade)
+            set(cx - 4, top - 3, Palette.crownGold); set(cx - 1, top - 4, Palette.crownGold)
+            set(cx, top - 4, Palette.crownGold); set(cx + 3, top - 3, Palette.crownGold)
+            set(cx - 1, top - 2, Palette.capRed); set(cx, top - 2, Palette.capRed)
+        case .bow:
+            let bx = right - 4
+            fill(bx, top - 2, 2, 3, Palette.bowPink); fill(bx + 3, top - 2, 2, 3, Palette.bowPink)
+            fill(bx + 2, top - 1, 1, 1, Palette.capRed)
+        case .flower:
+            // A daisy tucked at the top-left corner: petals round a yellow middle, a leaf below.
+            let (fx, fy) = (left + 3, top - 1)
+            fill(fx - 1, fy - 2, 3, 5, Palette.petal)
+            fill(fx - 2, fy - 1, 5, 3, Palette.petal)
+            set(fx, fy, Palette.petalCenter); set(fx, fy - 1, Palette.petalCenter)
+            set(fx - 1, fy, Palette.petalCenter); set(fx + 1, fy, Palette.petalCenter)
+            set(fx + 3, fy + 1, Palette.teal); set(fx + 4, fy + 2, Palette.teal)
+        case .propeller:
+            fill(cx - 4, top - 1, 8, 2, Palette.capRed)
+            fill(cx - 4, top - 1, 4, 1, Palette.propellerBlue)
+            fill(cx, top, 4, 1, Palette.propellerBlue)
+            set(cx - 1, top - 2, Palette.lamp); set(cx - 1, top - 3, Palette.lamp)
+            fill(cx - 4, top - 4, 3, 1, Palette.crownGold); fill(cx, top - 4, 3, 1, Palette.crownGold)
+        case .sunglasses:
+            for x in [cx - 5, cx + 1] { fill(x, ey - 1, 4, 3, Palette.lens); set(x + 1, ey - 1, Palette.white) }
+            fill(cx - 1, ey - 1, 2, 1, Palette.lens)
+            set(left + 1, ey - 1, Palette.lens); set(right - 1, ey - 1, Palette.lens)
+        case .scarf:
+            fill(left, top + h - 5, w, 2, Palette.scarf)
+            for x in stride(from: left + 1, to: right, by: 3) { set(x, top + h - 5, Palette.scarfStripe) }
+            fill(right - 3, top + h - 3, 2, 3, Palette.scarf)
+            set(right - 3, top + h - 1, Palette.scarfStripe)
+        case .mustache:
+            // Handlebar: a thick bar under the nose, the ends curling up.
+            let my = ey + 3, color = Palette.mustache
+            fill(cx - 3, my, 6, 1, color)
+            fill(cx - 2, my + 1, 4, 1, color)
+            set(cx - 4, my, color); set(cx + 3, my, color)
+            set(cx - 5, my - 1, color); set(cx + 4, my - 1, color)
         }
     }
 

@@ -1,3 +1,5 @@
+import Foundation
+
 /// Body colors of one look. Shadows lean cool and saturated, highlights warm and pale (hue shifting),
 /// the outline is a deep tint of the body rather than near-black.
 public struct Skin: Equatable, Hashable, Sendable {
@@ -20,19 +22,45 @@ public struct Skin: Equatable, Hashable, Sendable {
         name: "mono", outline: RGBA(0x2C2C2A), fill: RGBA(0xB4B2A9), highlight: RGBA(0xE4E2DA), rim: RGBA(0xCFCDC5),
         shade: RGBA(0x888780), shade2: RGBA(0x6A6964), empty: RGBA(0xF1EFE8), eye: RGBA(0x2C2C2A),
         eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x5F5E5A), blush: RGBA(0xED93B1))
+    public static let sky = Skin(
+        name: "sky", outline: RGBA(0x123A63), fill: RGBA(0x6FB3EA), highlight: RGBA(0xC4E4FB), rim: RGBA(0x98CCF3),
+        shade: RGBA(0x3E86C9), shade2: RGBA(0x2A66A6), empty: RGBA(0xE6F2FC), eye: RGBA(0x0B2440),
+        eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x2E6FA8), blush: RGBA(0xF5A3C7))
+    public static let sakura = Skin(
+        name: "sakura", outline: RGBA(0x6B1E45), fill: RGBA(0xF2A6C6), highlight: RGBA(0xFCD9E8), rim: RGBA(0xF7C1D8),
+        shade: RGBA(0xD9739F), shade2: RGBA(0xB8557F), empty: RGBA(0xFDEEF4), eye: RGBA(0x4A1230),
+        eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x9E3D68), blush: RGBA(0xE2557E))
+    public static let vanilla = Skin(
+        name: "vanilla", outline: RGBA(0x5C4320), fill: RGBA(0xF1DFB4), highlight: RGBA(0xFBF3DD), rim: RGBA(0xF6E9C9),
+        shade: RGBA(0xD6BC82), shade2: RGBA(0xB89A5E), empty: RGBA(0xFBF7EC), eye: RGBA(0x3D2C12),
+        eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x8A6A35), blush: RGBA(0xF0A08A))
+    /// Dark body for dark wallpapers: the outline and the face are light instead.
+    public static let night = Skin(
+        name: "night", outline: RGBA(0xB9C3FF), fill: RGBA(0x2B3263), highlight: RGBA(0x4F5A9E), rim: RGBA(0x3A437E),
+        shade: RGBA(0x1E2450), shade2: RGBA(0x161A3D), empty: RGBA(0x6A72A8), eye: RGBA(0xE8ECFF),
+        eyeShine: RGBA(0x9BA6F0), eyeShine2: RGBA(0xB9C3FF), blush: RGBA(0xC77DB5))
     /// The pet turning red while something fails.
     static let error = Skin(
         name: "error", outline: RGBA(0x501313), fill: RGBA(0xE24B4A), highlight: RGBA(0xF09595), rim: RGBA(0xF09595),
         shade: RGBA(0xA32D2D), shade2: RGBA(0x791F1F), empty: RGBA(0xFCEBEB), eye: RGBA(0x501313),
         eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x791F1F), blush: RGBA(0xF09595))
 
-    public static let all: [Skin] = [.lavender, .mint, .peach, .mono]
+    public static let all: [Skin] = [.lavender, .mint, .peach, .mono, .sky, .sakura, .vanilla, .night]
 
     public static func named(_ name: String) -> Skin { all.first { $0.name == name } ?? .lavender }
 }
 
 public enum Accessory: String, CaseIterable, Sendable {
     case none, glasses, headphones, cap
+    case beanie, crown, bow, flower, propeller, sunglasses, scarf, mustache
+
+    /// Worn on the head: the work headband stays off so the two don't pile up.
+    public var isOnHead: Bool {
+        switch self {
+        case .headphones, .cap, .beanie, .crown, .bow, .flower, .propeller: true
+        case .none, .glasses, .sunglasses, .scarf, .mustache: false
+        }
+    }
 }
 
 /// Everything about how the pet looks, besides the animation itself.
@@ -44,6 +72,28 @@ public struct Look: Equatable, Hashable, Sendable {
         self.accessory = accessory
     }
     public static let standard = Look()
+
+    /// The setting value meaning "a different one every day".
+    public static let daily = "daily"
+
+    /// The look for the saved settings on a given day: fixed names as they are, `daily` picked from the
+    /// date alone (the same all day, also after a restart; never the same as the day before; never bare).
+    public static func resolve(skin: String, accessory: String, on date: Date, calendar: Calendar = .autoupdatingCurrent) -> Look {
+        let day = dayNumber(date, calendar)
+        let skins = Skin.all, wearable = Accessory.allCases.filter { $0 != .none }
+        // Stepping by a number coprime to the count walks through all of them, never repeating back to back.
+        let pickedSkin = skin == daily ? skins[(day * 3) % skins.count] : Skin.named(skin)
+        let pickedAccessory = accessory == daily ? wearable[(day * 5 + 2) % wearable.count] : Accessory(rawValue: accessory) ?? .none
+        return Look(skin: pickedSkin, accessory: pickedAccessory)
+    }
+
+    private static func dayNumber(_ date: Date, _ calendar: Calendar) -> Int {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let midnight = utc.date(from: DateComponents(year: c.year, month: c.month, day: c.day)) ?? date
+        return Int(midnight.timeIntervalSince1970 / 86400)
+    }
 }
 
 /// Colors outside the body. The body constants mirror the default skin for older call sites.
@@ -80,6 +130,18 @@ public enum Palette {
     public static let keyboard = RGBA(0x5F5E5A)
     public static let keyboardTop = RGBA(0x888780)
     public static let capRed = RGBA(0xE24B4A)
+    public static let beanie = RGBA(0x4F6FA8)
+    public static let beanieRib = RGBA(0x7B95C6)
+    public static let crownGold = RGBA(0xE8B931)
+    public static let crownShade = RGBA(0xB8891A)
+    public static let bowPink = RGBA(0xE45C93)
+    public static let petal = RGBA(0xFFFFFF)
+    public static let petalCenter = RGBA(0xF6D365)
+    public static let propellerBlue = RGBA(0x3D8BD9)
+    public static let lens = RGBA(0x1C1B26)
+    public static let scarf = RGBA(0xE07A5F)
+    public static let scarfStripe = RGBA(0xF2CC8F)
+    public static let mustache = RGBA(0x5A3A22)
     /// The coffee mug on the desk during long work (its steam reuses `steam`).
     public static let mug = RGBA(0xF1EFE8)
     public static let mugShade = RGBA(0xB4B2A9)

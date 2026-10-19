@@ -18,6 +18,8 @@ struct BodyStyle {
     /// Highlight drifts down a pixel on the in-breath: breathing without moving the outline.
     var highlightShift = 0
     var nightcap = false
+    /// Red sweatband with its knot on the right, for long work.
+    var headband = false
     /// Degrees clockwise, around the body's center.
     var rotation = 0.0
 
@@ -94,6 +96,10 @@ extension PixelCanvas {
             set(cx + 4, ey - 2, k.eye); set(cx + 3, ey - 1, k.eye)
         }
         let left = m, right = m + w - 1, top = m
+        if s.headband {
+            fill(left + 1, top + 2, w - 2, 1, Palette.capRed)
+            set(right + 1, top + 2, Palette.capRed); set(right + 2, top + 3, Palette.capRed)
+        }
         if s.nightcap {
             fill(left + 1, top - 1, w - 7, 1, Palette.white)
             fill(left + 3, top - 2, w - 9, 1, Palette.capRed)
@@ -167,6 +173,15 @@ extension PixelCanvas {
         case .pout: fill(cx - 1, y, 2, 2, e)
         case .tiny: set(cx, y, e)
         }
+    }
+
+    /// A small mug with its handle on the right; `steam` 0 for none, 1-2 for a wisp that drifts up.
+    mutating func mug(_ x: Int, _ y: Int, steam: Int = 0) {
+        fill(x, y, 3, 3, Palette.mug)
+        fill(x, y + 2, 3, 1, Palette.mugShade)
+        fill(x, y, 3, 1, Palette.coffee)
+        set(x + 3, y + 1, Palette.mug)
+        if steam > 0 { set(x + 1, y - 1 - steam, Palette.steam); set(x + 2 - steam % 2, y - 2 - steam, Palette.steam) }
     }
 
     /// 3x3 agent block; `spin` walks a lighter pixel around its edge.

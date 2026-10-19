@@ -80,6 +80,10 @@ public enum Palette {
     public static let keyboard = RGBA(0x5F5E5A)
     public static let keyboardTop = RGBA(0x888780)
     public static let capRed = RGBA(0xE24B4A)
+    /// The coffee mug on the desk during long work (its steam reuses `steam`).
+    public static let mug = RGBA(0xF1EFE8)
+    public static let mugShade = RGBA(0xB4B2A9)
+    public static let coffee = RGBA(0x6B4A2E)
     /// Frames of glasses and headphones; deliberately not any skin's outline color.
     public static let accessoryDark = RGBA(0x34302E)
     public static let gear = RGBA(0x2C2C2A)
@@ -88,4 +92,12 @@ public enum Palette {
     public static let agentDone = RGBA(0x639922)
     /// Menu-bar icons are templates: only alpha matters, macOS tints them for light and dark bars.
     public static let template = RGBA(0x000000)
+}
+
+/// Props that pile up on the desk while agents keep working: a mug after a while, a headband after long.
+public struct WorkProps: OptionSet, Hashable, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let mug = WorkProps(rawValue: 1)
+    public static let headband = WorkProps(rawValue: 2)
 }

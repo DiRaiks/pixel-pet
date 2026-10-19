@@ -9,15 +9,16 @@ import PetCore
 public enum SpriteFactory {
     /// `gaze` points the eyes (cursor following, glances); only states with a plain open-eyed face use it.
     public static func frames(for state: PetState, agentCubes: Bool = true, gaze: Gaze? = nil,
-                              look: Look = .standard) -> [PixelCanvas] {
-        (0..<state.frameCount).map { frame(for: state, index: $0, agentCubes: agentCubes, gaze: gaze, look: look) }
+                              look: Look = .standard, props: WorkProps = []) -> [PixelCanvas] {
+        (0..<state.frameCount).map { frame(for: state, index: $0, agentCubes: agentCubes, gaze: gaze, look: look, props: props) }
     }
 
     /// One frame on its own, for variants made on demand (gaze, drain, look) without redrawing the whole state.
+    /// `props` only shows at the keyboard (working and its moments).
     public static func frame(for state: PetState, index i: Int, agentCubes: Bool = true, gaze: Gaze? = nil,
-                             look: Look = .standard) -> PixelCanvas {
+                             look: Look = .standard, props: WorkProps = []) -> PixelCanvas {
         var c = PixelCanvas()
-        draw(state, frame: i, cubes: agentCubes, gaze: state == .idle ? gaze : nil, look: look, on: &c)
+        draw(state, frame: i, cubes: agentCubes, gaze: state == .idle ? gaze : nil, look: look, props: props, on: &c)
         return c
     }
 
@@ -44,11 +45,18 @@ public enum SpriteFactory {
         frames(for: state).compactMap { $0.makeImage() }
     }
 
-    static func draw(_ state: PetState, frame i: Int, cubes: Bool, gaze: Gaze?, look: Look, on c: inout PixelCanvas) {
+    static func draw(_ state: PetState, frame i: Int, cubes: Bool, gaze: Gaze?, look: Look, props: WorkProps = [],
+                     on c: inout PixelCanvas) {
         switch state {
         case .idle: idle(i, look, gaze, &c)
         case .hop: hopFrame(i, look, &c)
-        case .working: working(i, cubes, look, &c)
+        case .working: working(i, cubes, look, props, &c)
+        case .workSip: workSip(i, look, props, &c)
+        case .workStretch: workStretch(i, look, props, &c)
+        case .workThink: workThink(i, look, props, &c)
+        case .workRush: workRush(i, look, props, &c)
+        case .glanceLeft: glance(i, -1, look, props, &c)
+        case .glanceRight: glance(i, 1, look, props, &c)
         case .alert: alert(i, cubes, look, &c)
         case .celebrate: celebrate(i, look, &c)
         case .sleep: sleep(i, look, &c)
@@ -91,25 +99,123 @@ public enum SpriteFactory {
     }
 
     /// Typing on a little keyboard: eyes down, a bob per key press, a pleased pause now and then.
-    static func working(_ i: Int, _ cubes: Bool, _ look: Look, _ c: inout PixelCanvas) {
+    static func working(_ i: Int, _ cubes: Bool, _ look: Look, _ props: WorkProps = [], _ c: inout PixelCanvas) {
         let taps = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]
-        var s = BodyStyle(look: look)
-        s.by = 25; s.h = 14 - taps[i]
+        var s = deskBody(look, props)
+        s.h = 14 - taps[i]
         s.eyes = i == 8 ? .blink : .down
         s.mouth = i == 8 ? .smile : .flat
-        s.lookY = 1
         c.body(s)
-        // The keyboard sits in front, hiding the bottom of the body: it reads as typing at a desk.
-        // Columns 24+ belong to the agent stack, so the keyboard stops at 23.
-        c.fill(8, 22, 16, 4, Palette.keyboard)
-        c.fill(9, 22, 14, 1, Palette.keyboardTop)
-        for x in stride(from: 9, through: 22, by: 2) { c.set(x, 23, Palette.keyboardTop) }
         let keys = [11, 15, 19, 13, 21, 9, 17, 11, 15, 19, 13, 21]
-        if taps[i] == 1 { c.set(keys[i], 23, Palette.tealLight) }
+        desk(&c, props, lit: taps[i] == 1 ? [keys[i]] : [], steam: i % 6 < 3 ? i % 3 : 0)
         if i == 8 { c.set(7, 10, Palette.tealLight); c.set(6, 9, Palette.tealLight) }
         guard cubes else { return }
         c.agentCube(25, 24, Palette.teal, spin: i)
         c.agentCube(25, 20, Palette.teal, spin: i + 4)
+    }
+
+    /// The body at the desk: lower, eyes on the keys, the headband once work has gone on long.
+    static func deskBody(_ look: Look, _ props: WorkProps) -> BodyStyle {
+        var s = BodyStyle(look: look)
+        s.by = 25; s.lookY = 1
+        s.headband = props.contains(.headband)
+        return s
+    }
+
+    /// The keyboard sits in front, hiding the bottom of the body: it reads as typing at a desk. Columns 24+
+    /// (and 0-4) belong to the agent stacks, so the desk stays within 8...23. The mug stands at its right end.
+    static func desk(_ c: inout PixelCanvas, _ props: WorkProps, lit: [Int] = [], steam: Int = 0, mugShown: Bool = true) {
+        c.fill(8, 22, 16, 4, Palette.keyboard)
+        c.fill(9, 22, 14, 1, Palette.keyboardTop)
+        for x in stride(from: 9, through: 22, by: 2) { c.set(x, 23, Palette.keyboardTop) }
+        for x in lit { c.set(x, 23, Palette.tealLight) }
+        if props.contains(.mug), mugShown { c.mug(19, 19, steam: steam) }
+    }
+
+    /// A sip of coffee: stops typing, lifts the mug to the mouth, eyes closed, a contented sigh. Brings its own
+    /// mug when there isn't one on the desk yet.
+    static func workSip(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        let mugAt = [(19, 19), (18, 17), (16, 16), (15, 15), (15, 15), (15, 15), (17, 17), (19, 19), (19, 19), (19, 19)]
+        var s = deskBody(look, props)
+        s.lookY = 0
+        s.eyes = i == 0 ? .open : (2...5).contains(i) ? .closed : (6...8).contains(i) ? .happy : .down
+        s.mouth = (7...8).contains(i) ? .smile : .flat
+        s.blush = (4...8).contains(i) ? 3 : 2
+        if i == 0 { s.lookX = 1 }
+        c.body(s)
+        desk(&c, props, mugShown: false)
+        let (x, y) = mugAt[i]
+        c.mug(x, y, steam: (3...5).contains(i) ? 1 + i % 2 : 0)
+    }
+
+    /// A stretch at the desk: grows tall and thin with eyes squeezed shut, a little crackle at the sides.
+    static func workStretch(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        let keys: [(Int, Int, Eyes, Mouth)] = [
+            (16, 14, .open, .flat), (15, 15, .half, .flat), (14, 17, .closed, .open), (13, 18, .squeeze, .open),
+            (13, 18, .closed, .open), (14, 17, .closed, .flat), (17, 13, .blink, .flat), (16, 14, .half, .flat),
+            (16, 14, .open, .smile), (16, 14, .down, .flat),
+        ]
+        let (w, h, eyes, mouth) = keys[i]
+        var s = deskBody(look, props)
+        s.w = w; s.h = h; s.eyes = eyes; s.mouth = mouth; s.lookY = 0
+        let b = c.body(s)
+        desk(&c, props)
+        guard (3...4).contains(i) else { return }
+        // Crackle: two tiny sparks beside the top corners.
+        for x in [b.x0 - 2, b.x0 + w + 1] {
+            c.set(x, b.y0 + 1, Palette.white)
+            c.set(x + (x < b.x0 ? -1 : 1), b.y0, Palette.white)
+        }
+    }
+
+    /// Stops typing to think: eyes up and to the side, thought dots appear one by one, then an idea lights
+    /// up and the typing starts again with a smile.
+    static func workThink(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        var s = deskBody(look, props)
+        let idea = (8...9).contains(i)
+        s.lookX = i >= 10 ? 0 : 1
+        s.lookY = i >= 10 ? 1 : -1
+        s.eyes = i >= 10 ? .down : idea ? .wide : (i == 5 ? .blink : .open)
+        s.mouth = idea || i >= 10 ? .smile : .tiny
+        c.body(s)
+        desk(&c, props, lit: i >= 10 ? [13 + (i - 10) * 6] : [])
+        let dots = min(3, max(0, i - 1))
+        if !idea, i < 10 {
+            for k in 0..<dots { c.set(19 + k * 2, 8 - k, Palette.shade) }
+        }
+        if idea {
+            c.set(23, 4, Palette.amber); c.fill(22, 5, 3, 1, Palette.amber); c.set(23, 6, Palette.amber)
+            if i == 8 { c.set(21, 3, Palette.amber); c.set(25, 3, Palette.amber) }
+        }
+    }
+
+    /// A burst of fast typing: every frame a key, a little shake, speed lines beside the keyboard.
+    static func workRush(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        var s = deskBody(look, props)
+        let done = i == 16
+        s.dx = done ? 0 : (i % 4 == 1 ? 1 : i % 4 == 3 ? -1 : 0)
+        s.h = done ? 14 : 14 - i % 2
+        s.eyes = done ? .happy : .down
+        s.mouth = done ? .smile : .flat
+        c.body(s)
+        let keys = [9, 21, 13, 17, 11, 19, 15, 9, 21, 11, 17, 13, 19, 15, 21, 9]
+        desk(&c, props, lit: done ? [] : [keys[i], keys[(i + 5) % keys.count]])
+        guard !done else { return }
+        if i % 2 == 0 { c.set(6, 23, Palette.keyboardTop); c.set(25, 23, Palette.keyboardTop) }
+        else { c.set(6, 24, Palette.keyboardTop); c.set(25, 24, Palette.keyboardTop) }
+    }
+
+    /// Looks over at the agent blocks on one side (-1: Codex on the left, 1: Claude on the right), then back
+    /// to the keys.
+    static func glance(_ i: Int, _ side: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        var s = deskBody(look, props)
+        let away = (1...5).contains(i)
+        s.lookX = away ? side * 2 : (i == 0 || i == 6 ? side : 0)
+        s.lookY = away ? 0 : 1
+        s.dx = away ? side : 0
+        s.eyes = i == 4 ? .blink : i == 7 ? .down : .open
+        c.body(s)
+        desk(&c, props)
     }
 
     static func alert(_ i: Int, _ cubes: Bool, _ look: Look, _ c: inout PixelCanvas) {

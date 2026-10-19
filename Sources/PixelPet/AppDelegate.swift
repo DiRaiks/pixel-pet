@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        if let i = exportArgs.firstIndex(of: "--export-work"), i + 1 < exportArgs.count {
+            ReadmeExport.work(to: URL(fileURLWithPath: exportArgs[i + 1]))
+            NSApp.terminate(nil)
+            return
+        }
         if let i = exportArgs.firstIndex(of: "--export-readme"), i + 1 < exportArgs.count {
             ReadmeExport.run(to: URL(fileURLWithPath: exportArgs[i + 1]))
             NSApp.terminate(nil)

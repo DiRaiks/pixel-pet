@@ -25,6 +25,38 @@ import PetCore
         }
     }
 
+    /// The mug stands at the right end of the desk; the headband crosses the forehead with its knot outside.
+    @Test func deskPropsShowOnlyWhenEarned() {
+        let plain = SpriteFactory.frame(for: .working, index: 0, agentCubes: false)
+        let mug = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: [.mug])
+        let both = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: [.mug, .headband])
+        #expect(plain.pixel(19, 19) != Palette.coffee)
+        #expect(mug.pixel(19, 19) == Palette.coffee)
+        #expect(mug.pixel(22, 20) == Palette.mug, "handle")
+        #expect(!plain.pixels.contains(Palette.capRed))
+        #expect(both.pixels.contains(Palette.capRed))
+        // Away from the keyboard the props stay off.
+        #expect(SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, props: [.mug, .headband]) == SpriteFactory.frame(for: .idle, index: 0, agentCubes: false))
+    }
+
+    /// The sip brings its own mug when none stands on the desk yet, and lifts it to the mouth.
+    @Test func sipLiftsTheMug() {
+        let start = SpriteFactory.frame(for: .workSip, index: 0, agentCubes: false)
+        let sip = SpriteFactory.frame(for: .workSip, index: 4, agentCubes: false)
+        #expect(start.pixel(19, 19) == Palette.coffee)
+        #expect(sip.pixel(15, 15) == Palette.coffee)
+        #expect(sip.pixel(19, 19) != Palette.coffee)
+    }
+
+    @Test func glancesLookTowardTheirSide() {
+        func eyeColumns(_ c: PixelCanvas) -> [Int] {
+            (0..<32).filter { x in (10..<20).contains { c.pixel(x, $0) == Skin.lavender.eye } }
+        }
+        let left = eyeColumns(SpriteFactory.frame(for: .glanceLeft, index: 2, agentCubes: false))
+        let right = eyeColumns(SpriteFactory.frame(for: .glanceRight, index: 2, agentCubes: false))
+        #expect(left.min()! < right.min()!)
+    }
+
     @Test func backgroundIsTransparent() {
         let idle = SpriteFactory.frames(for: .idle)[0]
         #expect(idle.pixel(0, 0) == nil)

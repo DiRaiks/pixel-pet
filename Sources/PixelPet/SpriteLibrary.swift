@@ -3,7 +3,7 @@ import PetCore
 import PetSprites
 
 /// Renders frames in the current look and keeps them: base frames for every state at once (a few
-/// hundred KB), variants (drain, gaze) on demand with a bounded cache.
+/// hundred KB), variants (drain, gaze, desk props) on demand with a bounded cache.
 @MainActor
 final class SpriteLibrary {
     struct Frame {
@@ -43,21 +43,25 @@ final class SpriteLibrary {
         let index: Int
         let rows: Int
         let gaze: Gaze?
+        let props: Int
     }
 
     private var variants: [VariantKey: Frame] = [:]
 
-    /// `drain` empties the top body rows (used 5-hour limit); `gaze` points the idle face.
-    func frame(_ state: PetState, _ index: Int, drain: Int = 0, gaze: Gaze? = nil) -> Frame {
+    /// `drain` empties the top body rows (used 5-hour limit); `gaze` points the idle face; `props` are the
+    /// mug and headband at the keyboard.
+    func frame(_ state: PetState, _ index: Int, drain: Int = 0, gaze: Gaze? = nil, props: WorkProps = []) -> Frame {
         let list = frames[state]!
         let i = min(index, list.count - 1)
         let base = list[i]
         let gaze = state == .idle ? gaze : nil
-        guard drain > 0 || gaze != nil else { return base }
-        let key = VariantKey(state: state, index: i, rows: drain, gaze: gaze)
+        let props = state.isAtDesk ? props : []
+        guard drain > 0 || gaze != nil || !props.isEmpty else { return base }
+        let key = VariantKey(state: state, index: i, rows: drain, gaze: gaze, props: props.rawValue)
         if let cached = variants[key] { return cached }
-        let looking = gaze.map { SpriteFactory.frame(for: .idle, index: i, agentCubes: false, gaze: $0, look: look) }
-        let canvas = (looking ?? base.canvas).drained(rows: drain, skin: look.skin)
+        let redrawn = gaze != nil || !props.isEmpty
+            ? SpriteFactory.frame(for: state, index: i, agentCubes: false, gaze: gaze, look: look, props: props) : nil
+        let canvas = (redrawn ?? base.canvas).drained(rows: drain, skin: look.skin)
         guard let image = canvas.makeImage() else { return base }
         if variants.count > 2_000 { variants.removeAll() }
         let frame = Frame(image: image, canvas: canvas)

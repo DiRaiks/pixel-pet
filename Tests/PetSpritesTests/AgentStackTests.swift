@@ -76,7 +76,8 @@ import PetCore
 
     /// The left column stays clear of the body in the poses the pet holds while agents run.
     @Test func restingPosesLeaveTheLeftColumnFree() {
-        for state in [PetState.idle, .working, .alert, .lowLimit, .talk, .sleep, .dragged] {
+        for state in [PetState.idle, .working, .alert, .lowLimit, .talk, .sleep, .dragged,
+                      .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight] {
             for (i, frame) in SpriteFactory.frames(for: state, agentCubes: false).enumerated() {
                 let used = (0..<32).contains { y in (0...(AgentStack.leftX + 2)).contains { frame.pixel($0, y) != nil && y < 30 } }
                 #expect(!used, "\(state) frame \(i) reaches into the left column")

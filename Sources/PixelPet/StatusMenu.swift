@@ -33,6 +33,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
         .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
         .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drop: "Приземление", .talk: "Отвечает",
+        .workSip: "Пьёт кофе", .workStretch: "Потягивается", .workThink: "Задумался", .workRush: "Строчит",
+        .glanceLeft: "Смотрит на Codex", .glanceRight: "Смотрит на Claude",
     ]
 
     init(pet: PetController, hooks: HookInstaller) {

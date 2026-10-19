@@ -47,6 +47,35 @@ enum ReadmeExport {
         var drain = 0
         /// Home states hang from the top edge of the screen: draw the menu bar above them.
         var menuBar = false
+        var props: WorkProps = []
+    }
+
+    /// Typing with nothing, with the mug, with mug and headband.
+    static func propsLineup(scale: Int) -> [(CGImage, Double)] {
+        let stages: [WorkProps] = [[], [.mug], [.mug, .headband]]
+        let frames = stages.map { SpriteFactory.frames(for: .working, agentCubes: false, props: $0) }
+        return PetState.working.durations.enumerated().compactMap { i, delay in
+            tile(frames.map { ($0[i], nil) }, scale: scale).map { ($0, delay) }
+        }
+    }
+
+    /// `--export-work <dir>`: the moments at the keyboard, each between stretches of ordinary typing, and the
+    /// props by how long work has gone on. For choosing which ones the pet gets.
+    static func work(to directory: URL) {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let claude: [AgentCube] = [.init(status: .working, subagents: 0), .init(status: .working, subagents: 1)]
+        let codex: [AgentCube] = [.init(status: .working, subagents: 0)]
+        let typing = Clip(state: .working, seconds: 1.2, cubes: claude, codex: codex)
+        for (name, state) in [("sip", PetState.workSip), ("stretch", .workStretch), ("think", .workThink),
+                              ("rush", .workRush), ("glance-left", .glanceLeft), ("glance-right", .glanceRight)] {
+            let moment = Clip(state: state, cubes: claude, codex: codex)
+            write(render([typing, moment, typing], scale: 6), to: directory.appendingPathComponent("\(name).png"))
+        }
+        // A finished Codex agent: the block flashes green while the pet looks over.
+        let flash = [AgentCube(status: .done, subagents: 0)]
+        write(render([typing, Clip(state: .glanceLeft, cubes: claude, codex: flash), typing], scale: 6),
+              to: directory.appendingPathComponent("glance-on-finish.png"))
+        write(propsLineup(scale: 5), to: directory.appendingPathComponent("props.png"))
     }
 
     static let background = CGColor(red: 0.945, green: 0.937, blue: 0.91, alpha: 1)
@@ -77,6 +106,13 @@ enum ReadmeExport {
             ("angry", [Clip(state: .angry), rest]),
             ("talk", [Clip(state: .talk, seconds: 1.6)]),
             ("home", [Clip(state: .burrowed, seconds: 2, menuBar: true), Clip(state: .peekHold, seconds: 2.5, menuBar: true)]),
+            ("work-sip", [Clip(state: .working, seconds: 0.9), Clip(state: .workSip), Clip(state: .working, seconds: 0.6)]),
+            ("work-stretch", [Clip(state: .working, seconds: 0.9), Clip(state: .workStretch), Clip(state: .working, seconds: 0.6)]),
+            ("work-think", [Clip(state: .working, seconds: 0.9), Clip(state: .workThink), Clip(state: .working, seconds: 0.6)]),
+            ("work-rush", [Clip(state: .working, seconds: 0.9), Clip(state: .workRush), Clip(state: .working, seconds: 0.6)]),
+            ("work-glance", [Clip(state: .working, seconds: 0.9, cubes: work, codex: [.init(status: .working, subagents: 0)]),
+                             Clip(state: .glanceLeft, cubes: work, codex: [.init(status: .done, subagents: 0)]),
+                             Clip(state: .working, seconds: 0.6, cubes: work, codex: [.init(status: .idle, subagents: 0)])]),
         ]
         for (name, list) in clips {
             write(render(list, scale: 4), to: directory.appendingPathComponent("\(name).png"))
@@ -95,6 +131,7 @@ enum ReadmeExport {
         let looks = [Skin.lavender, .mint, .peach, .mono].map { Look(skin: $0) }
             + [Accessory.glasses, .headphones, .cap].map { Look(skin: .lavender, accessory: $0) }
         write(lineup(looks, scale: 3), to: directory.appendingPathComponent("looks.png"))
+        write(propsLineup(scale: 3), to: directory.appendingPathComponent("work-props.png"))
     }
 
     /// Frames with their delays. Boundaries are the state's own frame ends, plus the agent stack's 10 Hz beat
@@ -137,10 +174,11 @@ enum ReadmeExport {
         return durations.count - 1
     }
 
-    private static func render(_ clips: [Clip], scale: Int) -> [(CGImage, Double)] {
+    static func render(_ clips: [Clip], scale: Int) -> [(CGImage, Double)] {
         clips.flatMap { clip in
             timeline(clip).compactMap { step -> (CGImage, Double)? in
-                var body = SpriteFactory.frame(for: clip.state, index: step.index, agentCubes: false, look: clip.look)
+                var body = SpriteFactory.frame(for: clip.state, index: step.index, agentCubes: false, look: clip.look,
+                                               props: clip.props)
                 if clip.drain > 0 { body = body.drained(rows: clip.drain, skin: clip.look.skin) }
                 let stack = clip.cubes.isEmpty && clip.codex.isEmpty
                     ? nil : AgentStack.canvas(for: clip.cubes, left: clip.codex, tick: step.tick)
@@ -158,7 +196,7 @@ enum ReadmeExport {
     }
 
     /// Sprites side by side on one rounded tile.
-    private static func tile(_ sprites: [(PixelCanvas, PixelCanvas?)], scale: Int, menuBar: Bool = false) -> CGImage? {
+    static func tile(_ sprites: [(PixelCanvas, PixelCanvas?)], scale: Int, menuBar: Bool = false) -> CGImage? {
         let pad = 4 * scale, cell = 32 * scale
         let width = sprites.count * cell + 2 * pad, height = cell + 2 * pad
         guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
@@ -190,7 +228,7 @@ enum ReadmeExport {
         return ctx.makeImage()
     }
 
-    private static func write(_ frames: [(CGImage, Double)], to url: URL) {
+    static func write(_ frames: [(CGImage, Double)], to url: URL) {
         guard let out = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, frames.count, nil)
         else { return }
         let loop = [kCGImagePropertyPNGDictionary: [kCGImagePropertyAPNGLoopCount: 0]] as CFDictionary

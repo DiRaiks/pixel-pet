@@ -143,6 +143,20 @@ On top of these, it plays one-off animations:
 | <img src="docs/images/yawn.png" width="80" alt=""> | <img src="docs/images/tumble.png" width="80" alt=""> | <img src="docs/images/shy.png" width="80" alt=""> | <img src="docs/images/angry.png" width="80" alt=""> |
 | Idle fidget: a yawn | Idle fidget: a roll | Cursor resting on it for 2 s | 5 clicks in 3 s |
 
+### At the keyboard
+
+Agents can work for hours, so the typing loop doesn't run unbroken. Every 45–120 seconds the cube has a little moment, and when an agent block changes (one finishes, fails or appears) it looks over at that side:
+
+| <img src="docs/images/work-sip.png" width="80" alt=""> | <img src="docs/images/work-stretch.png" width="80" alt=""> | <img src="docs/images/work-think.png" width="80" alt=""> | <img src="docs/images/work-rush.png" width="80" alt=""> | <img src="docs/images/work-glance.png" width="80" alt=""> |
+|:---:|:---:|:---:|:---:|:---:|
+| A sip of coffee | A stretch | A pause to think, then an idea | A burst of fast typing | A look at a block that changed |
+
+The longer the current task runs, the more piles up on the desk: a coffee mug after 10 minutes, a headband after 30.
+
+<img src="docs/images/work-props.png" width="300" alt="Typing with nothing on the desk, with a mug, and with a mug and a headband">
+
+Moments and looks follow the "Desktop reactions" setting and Reduce Motion; the props always show.
+
 While a translation card is open, it talks along: <img src="docs/images/talk.png" width="48" alt="" align="center">
 
 At home only the eyes show. The cube peeks out for alerts and errors, and briefly for one-off events.

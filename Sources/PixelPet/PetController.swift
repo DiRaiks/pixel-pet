@@ -26,6 +26,12 @@ final class PetController {
     private var lastShy = Date.distantPast
     /// Rare idle fidgets (yawn, a roll) at random intervals, so the idle loop doesn't feel canned.
     private var nextFidget = Date().addingTimeInterval(PetController.fidgetDelay())
+    /// The same at the keyboard while agents work: a sip, a stretch, a think, a burst of typing.
+    private var nextWorkMoment = Date().addingTimeInterval(WorkMoments.delay())
+    private var lastWorkMoment: PetState?
+    private var lastAgentGlance = Date.distantPast
+    /// What piles up on the desk as work goes on.
+    private var workStage = WorkStage.fresh
     /// The pet "talks" while the translation card is open.
     private var talking = false
     /// When to doze off, and a live reading of how long the user has been away (sampled each time the
@@ -107,6 +113,10 @@ final class PetController {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                // A keyboard moment is pure motion: cut it short.
+                if self.reduceMotion, self.player.state.isAtDesk, self.player.state != .working {
+                    self.player.play(self.restingState)
+                }
                 self.render()
                 self.renderAgents()
                 self.updateClock()
@@ -297,7 +307,14 @@ final class PetController {
         guard rest != restingState else { return }
         restingState = rest
         guard player.state != .dragged else { return }
-        player.setBase(rest)
+        // Typing starts: the first moment comes a while later, not right away.
+        if rest == .working { nextWorkMoment = Date().addingTimeInterval(WorkMoments.delay()) }
+        // A keyboard moment belongs to the typing; when that stops (talking, an alert, done) it stops too.
+        if player.state.isAtDesk, player.state != .working {
+            player.play(rest)
+        } else {
+            player.setBase(rest)
+        }
         render()
         updateClock()
     }
@@ -308,6 +325,48 @@ final class PetController {
     static let clicksToAnnoy = 5
     static let shyAfter: TimeInterval = 2
     static let shyCooldown: TimeInterval = 60
+
+    /// Only while typing on the desk, never over another moment, and not too often.
+    private var canHaveWorkMoment: Bool {
+        !config.isHome && config.desktopReactions && player.state == .working && restingState == .working
+            && !reduceMotion && held == nil && !isCardOpen()
+    }
+
+    private func glanceAtAgents(_ side: PetState) {
+        let now = Date()
+        guard canHaveWorkMoment, now.timeIntervalSince(lastAgentGlance) >= WorkMoments.glanceCooldown else { return }
+        lastAgentGlance = now
+        // Keep a moment from following right on the heels of the look.
+        nextWorkMoment = max(nextWorkMoment, now.addingTimeInterval(WorkMoments.glanceCooldown))
+        player.play(side)
+        render()
+        updateClock()
+    }
+
+    private func maybeWorkMoment() {
+        guard Date() >= nextWorkMoment else { return }
+        nextWorkMoment = Date().addingTimeInterval(WorkMoments.delay())
+        guard canHaveWorkMoment else { return }
+        let moment = WorkMoments.pick(after: lastWorkMoment, roll: Int.random(in: 0..<1000))
+        lastWorkMoment = moment
+        player.play(moment)
+        render()
+    }
+
+    /// Mug after a while, headband after long: set by the agent monitor from the longest running turn.
+    func setWorkStage(_ stage: WorkStage) {
+        guard stage != workStage else { return }
+        workStage = stage
+        if player.state.isAtDesk { render() }
+    }
+
+    private var workProps: WorkProps {
+        switch workStage {
+        case .fresh: []
+        case .mug: [.mug]
+        case .headband: [.mug, .headband]
+        }
+    }
 
     /// 1.5–4 minutes between fidgets: rare enough to stay a surprise.
     static func fidgetDelay() -> TimeInterval { Double.random(in: 90...240) }
@@ -469,10 +528,15 @@ final class PetController {
         render()
     }
 
-    func setAgents(_ cubes: [AgentCube], codex: [AgentCube] = []) {
+    func setAgents(_ cubes: [AgentCube], codex: [AgentCube] = [], noticing: Bool = true) {
         guard cubes != agents || codex != codexAgents else { return }
+        // Something changed among the blocks: look over at that side (Codex left, Claude right).
+        let side: PetState? = !noticing ? nil
+            : WorkMoments.noticeable(old: codexAgents, new: codex) ? .glanceLeft
+            : WorkMoments.noticeable(old: agents, new: cubes) ? .glanceRight : nil
         agents = cubes
         codexAgents = codex
+        if let side { glanceAtAgents(side) }
         renderAgents()
         updateClock()
     }
@@ -620,6 +684,7 @@ final class PetController {
             } else {
                 // Resuming after being hidden or occluded: no instant catch-up fidget either.
                 nextFidget = Date().addingTimeInterval(Self.fidgetDelay())
+                nextWorkMoment = Date().addingTimeInterval(WorkMoments.delay())
             }
             lastTick = now
         }
@@ -640,6 +705,7 @@ final class PetController {
         if changed { render() }
         if !(agents.isEmpty && codexAgents.isEmpty), !config.isHome, !reduceMotion { renderAgents() }
         maybeFidget()
+        maybeWorkMoment()
         updateClock(fromTick: true)
     }
 
@@ -648,7 +714,7 @@ final class PetController {
         let state = held?.state ?? player.state
         let index = held?.frame ?? (reduceMotion ? (MotionPolicy.stillFrame(for: state) ?? player.frame) : player.frame)
         let frame = sprites.frame(state, index, drain: config.isHome ? 0 : drain,
-                                  gaze: config.isHome ? nil : currentGaze)
+                                  gaze: config.isHome ? nil : currentGaze, props: workProps)
         view.show(frame.image, canvas: frame.canvas)
     }
 

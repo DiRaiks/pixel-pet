@@ -146,7 +146,7 @@ final class AgentMonitor {
                 mergeCodex(observed)
             }
         }
-        refresh()
+        refresh(noticing: !batch.isReplay)
     }
 
     private func mergeCodex(_ observed: UsageLimits) {
@@ -206,7 +206,8 @@ final class AgentMonitor {
         }
     }
 
-    private func refresh() {
+    /// `noticing: false` for catch-up: blocks may change, but the pet doesn't look over at history.
+    private func refresh(noticing: Bool = true) {
         let now = Date()
         registry.prune(now: now)
         codexRegistry.prune(now: now)
@@ -215,8 +216,12 @@ final class AgentMonitor {
         let current = limits?.current(at: now)
         // The mood follows every agent; the drained body and the low-limit look stay Claude's.
         pet.setMood(PetBrain.baseState(for: sessions + codex, limits: limits, now: now))
-        pet.setAgents(PetBrain.cubes(for: sessions, now: now), codex: PetBrain.cubes(for: codex, now: now))
+        pet.setAgents(PetBrain.cubes(for: sessions, now: now), codex: PetBrain.cubes(for: codex, now: now),
+                      noticing: noticing)
         pet.setDrain(current?.drainRows(interior: Self.drainInterior) ?? 0)
+        // The longest turn running now decides the desk props.
+        let worked = (sessions + codex).compactMap { $0.workedFor(now: now) }.max()
+        pet.setWorkStage(WorkStage.stage(worked: worked))
         let active = PetBrain.activeCount(sessions + codex)
         onChange?(active, current, codexWatcher == nil ? nil : codexLimits?.current(at: now))
         status.sessions = sessions
@@ -227,7 +232,7 @@ final class AgentMonitor {
         status.hooksConnected = hooks.isInstalled
         status.now = now
         if PetBrain.activeCount(sessions) > 0 { probeLimits(.busy) }
-        scheduleRefresh(sessions + codex, now)
+        scheduleRefresh(sessions + codex, now, extra: WorkStage.nextChange(worked: worked, now: now))
     }
 
     /// Called when the panel opens: refresh the picture, and the limits if they're older than a few minutes.
@@ -239,10 +244,10 @@ final class AgentMonitor {
 
     /// Wakes up only when something changes without an event: a flash or error window ends,
     /// an interrupted session settles, or a session goes stale.
-    private func scheduleRefresh(_ sessions: [AgentSession], _ now: Date) {
+    private func scheduleRefresh(_ sessions: [AgentSession], _ now: Date, extra: Date? = nil) {
         refreshTimer?.invalidate()
         refreshTimer = nil
-        let visual = PetBrain.nextChange(for: sessions, now: now)
+        let visual = [PetBrain.nextChange(for: sessions, now: now), extra].compactMap { $0 }.min()
         let resets = limits?.nextReset(after: now)
         let codexResets = codexLimits?.nextReset(after: now)
         let housekeeping = [registry.nextExpiry(), codexRegistry.nextExpiry(), resets, codexResets].compactMap { $0 }.min().map { max($0, now.addingTimeInterval(1)) }

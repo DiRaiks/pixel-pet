@@ -181,11 +181,12 @@ The three callers:
 
 ## Home: notch and burrow
 
-`Home` and `HomeGeometry` compute a home spot at the top center of each screen. On a notched screen, the notch's center is the gap between `auxiliaryTopLeftArea` and `auxiliaryTopRightArea`; the window then hangs so the eyes sit just under the cut-out. Other screens get a drawn black "burrow".
+`HomeSpot` and `HomeGeometry` compute a home spot at the top center of each screen. On a notched screen, the notch's center is the gap between `auxiliaryTopLeftArea` and `auxiliaryTopRightArea`; the window then hangs so the eyes sit just under the cut-out. Other screens get a drawn black "burrow".
 
 How the pet moves between the desk and home:
 
-- **Drop.** Dropping or flicking the pet so its top center ends within 90 pt of a home pulls it in. Both the release point and the landing point of a throw are checked. Dragging it away from home lets it out.
+- **Drop.** Letting go with the pet's top at or above a screen's top edge, or within 60 pt below it, anywhere along it, sends it to that screen's home; so does ending within 90 pt of the home itself. Both the release point and the landing point of a throw are checked.
+- **Pull out.** A drag that starts at home takes the pet back only if it is let go within 24 pt of its seat, so a short tug is enough to get it out. Other homes keep the normal rules during that drag.
 - **Hover.** Hovering over the home makes the pet peek out after a short delay, so the cursor passing over the menu bar does not trigger it.
 - **Do not disturb.** This sends the pet home. Leaving clears it only if the pet really ends up on the desk.
 - **Screen changes.** The home display is remembered. After display sleep or unlock the window is re-seated, because macOS reports different geometry while the screen is locked.

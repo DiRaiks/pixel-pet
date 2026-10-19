@@ -9,7 +9,7 @@ import Testing
 
     @Test func burrowSitsAtTopCenterOfScreen() {
         let home = HomeGeometry.home(on: external, notch: nil)
-        #expect(home == HomeSpot(anchor: PetPoint(x: 1280, y: 1440), hasNotch: false))
+        #expect(home == HomeSpot(anchor: PetPoint(x: 1280, y: 1440), hasNotch: false, edge: 0...2560))
         #expect(HomeGeometry.windowOrigin(for: home, size: size) == PetPoint(x: 1280 - 64, y: 1440 - 128))
     }
 
@@ -18,7 +18,7 @@ import Testing
                                visible: PetRect(x: -1512, y: 0, width: 1512, height: 944))
         let notch = PetRect(x: -1512 + 662, y: 950, width: 188, height: 32)
         let home = HomeGeometry.home(on: laptop, notch: notch)
-        #expect(home == HomeSpot(anchor: PetPoint(x: -1512 + 756, y: 982), hasNotch: true, notchHeight: 32))
+        #expect(home == HomeSpot(anchor: PetPoint(x: -1512 + 756, y: 982), hasNotch: true, notchHeight: 32, edge: -1512...0))
     }
 
     @Test func dropNearAHomeSnapsIntoIt() {
@@ -28,6 +28,33 @@ import Testing
         #expect(HomeGeometry.snapTarget(windowOrigin: near, size: size, homes: [home]) == home)
         let far = PetPoint(x: 1280 - 64, y: 1440 - 200 - 128)
         #expect(HomeGeometry.snapTarget(windowOrigin: far, size: size, homes: [home]) == nil)
+    }
+
+    /// Anywhere along the top edge of a screen counts: the pet slides over into that screen's home.
+    @Test func dropAnywhereAlongTheTopEdgeGoesHome() {
+        let home = HomeGeometry.home(on: external, notch: nil)
+        let farLeft = PetPoint(x: 120, y: 1440 - 128 + 20)
+        #expect(HomeGeometry.snapTarget(windowOrigin: farLeft, size: size, homes: [home]) == home)
+        let farRight = PetPoint(x: 2560 - 128, y: 1440 - 128 - 40)
+        #expect(HomeGeometry.snapTarget(windowOrigin: farRight, size: size, homes: [home]) == home)
+        // Held by the middle with the cursor pinned at the top of the screen, the window pokes far above the edge.
+        let heldUp = PetPoint(x: 300, y: 1440 - 128 + 100)
+        #expect(HomeGeometry.snapTarget(windowOrigin: heldUp, size: size, homes: [home]) == home)
+        // Well below the edge it stays on the desk.
+        let lower = PetPoint(x: 120, y: 1440 - 128 - 150)
+        #expect(HomeGeometry.snapTarget(windowOrigin: lower, size: size, homes: [home]) == nil)
+    }
+
+    /// The edge band belongs to its own screen: a pet at the top of the left screen doesn't fly to the right one.
+    @Test func topEdgeBandStaysOnItsScreen() {
+        let left = HomeGeometry.home(on: external, notch: nil)
+        let right = HomeGeometry.home(on: PetScreen(frame: PetRect(x: 2560, y: -196, width: 1920, height: 1080),
+                                                     visible: PetRect(x: 2560, y: -196, width: 1920, height: 1080)), notch: nil)
+        let topOfRight = PetPoint(x: 2560 + 100, y: 884 - 128 + 10)
+        #expect(HomeGeometry.snapTarget(windowOrigin: topOfRight, size: size, homes: [left, right]) == right)
+        // Below the right screen's top but level with the left screen's band is nowhere near a home.
+        let besideRight = PetPoint(x: 2560 + 100, y: 1440 - 128 - 10)
+        #expect(HomeGeometry.snapTarget(windowOrigin: besideRight, size: size, homes: [left, right]) == nil)
     }
 
     /// Pulling the pet out of its home must not need a long drag: a short tug lands it on the desk,

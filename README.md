@@ -34,7 +34,7 @@
 </tr>
 <tr>
 <td align="center"><img src="docs/images/home.png" width="120" alt="Eyes glowing in the burrow, then peeking out"></td>
-<td><b>Home in the notch.</b> Drop it near the top of the screen and it slips into the notch, or into a small burrow on displays without one. From there only its eyes show, and it peeks out when something needs you.</td>
+<td><b>Home in the notch.</b> Drop it anywhere along the top edge of a screen and it slips into the notch, or into a small burrow on displays without one. From there only its eyes show, and it peeks out when something needs you.</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
@@ -93,8 +93,8 @@ Agent sessions that are already open get picked up as soon as they send their ne
 | Click the cube | It hops and opens the status panel (sessions, limits, model, context) |
 | Right-click | The context menu, which matches the menu-bar menu |
 | Drag | Moves the cube. A quick flick throws it across the screen |
-| Drop near the top center of a screen | It dives home into the notch or burrow |
-| Drag it down from home | It comes back out onto the desk |
+| Drop anywhere along the top edge of a screen | It slides over and dives home into the notch, or the burrow at the top center |
+| Drag it out of home | A short tug is enough; it only goes back in if you let go right where it sat |
 | Hover over it for 2 s | It gets shy, at most once a minute. This happens only while it is idle on the desk with desktop reactions on and no card open |
 | Click it 5 times in 3 s | It gets cross |
 

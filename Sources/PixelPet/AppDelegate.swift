@@ -188,6 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsModel?.refresh()
         }
         settingsModel.onRefresh = { [weak self] in self?.meetings?.reload() }
+        settingsModel.onRequestCalendar = { [weak self] in self?.meetings?.requestAccess() }
         setMeetingAlerts(pet.config.meetingAlerts, askForAccess: false)
         setTouchHint(pet.config.touchHint)
         settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }

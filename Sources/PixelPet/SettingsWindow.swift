@@ -51,6 +51,7 @@ final class SettingsModel {
     @ObservationIgnored var calendarCountProvider: (() -> Int)?
     /// Settings opened or refocused: let the calendar monitor look at the permission again.
     @ObservationIgnored var onRefresh: (() -> Void)?
+    @ObservationIgnored var onRequestCalendar: (() -> Void)?
     var touchHint = true {
         didSet {
             guard !loading, touchHint != oldValue else { return }
@@ -235,7 +236,8 @@ struct SettingsView: View {
                                 Text("доступ ограничен: нужен полный").foregroundStyle(.secondary)
                                 Button("Открыть настройки…") { MeetingMonitor.openPrivacySettings() }
                             case .notAsked:
-                                Text("спросим доступ").foregroundStyle(.secondary)
+                                Text("нет доступа").foregroundStyle(.secondary)
+                                Button("Разрешить…") { model.onRequestCalendar?() }
                             }
                         }
                     }
@@ -269,8 +271,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        // Not pinned to its full height: the window caps it to the screen and the form scrolls.
         .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -291,19 +293,32 @@ final class AppWindow<Content: View>: NSObject, NSWindowDelegate {
     private var timer: Timer?
     private var lastRefresh = Date.distantPast
 
+    /// Measures how tall the content wants to be, laid out at its full height.
+    private let measure: NSHostingView<AnyView>
+
     init(title: String, content: Content) {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 400),
-                          styleMask: [.titled, .closable], backing: .buffered, defer: true)
+                          styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: true)
+        measure = NSHostingView(rootView: AnyView(content.fixedSize(horizontal: false, vertical: true)))
         super.init()
         window.title = title
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: content)
+        let host = NSHostingView(rootView: content)
+        // The window decides the height; the content scrolls inside it when it's taller.
+        host.sizingOptions = []
+        window.contentView = host
         window.delegate = self
     }
 
     func show() {
         refresh()
-        window.setContentSize(window.contentView?.fittingSize ?? window.frame.size)
+        // As tall as the content wants, but never beyond the screen (minus a margin); width stays fixed.
+        let wanted = measure.fittingSize
+        let screen = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 800
+        let height = min(wanted.height, (screen * 0.9).rounded())
+        window.setContentSize(NSSize(width: wanted.width, height: height))
+        window.contentMinSize = NSSize(width: wanted.width, height: min(height, 320))
+        window.contentMaxSize = NSSize(width: wanted.width, height: wanted.height)
         if !window.isVisible { window.center() }
         // Activation is only a request for a background app; float the window above others until the
         // user focuses it, so a welcome shown at launch isn't buried under the frontmost app.

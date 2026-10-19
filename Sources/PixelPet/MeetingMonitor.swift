@@ -45,19 +45,24 @@ final class MeetingMonitor {
             // Syncing calendars send these in bursts: read once they settle.
             MainActor.assumeIsolated { self?.reloadSoon() }
         }
-        if askForAccess, Self.access == .notAsked {
-            // A menu-bar app's prompt can open behind other windows; come forward first.
-            NSApp.activate()
-            store.requestFullAccessToEvents { [weak self] _, _ in
-                DispatchQueue.main.async {
-                    MainActor.assumeIsolated {
-                        self?.onAccessChange?()
-                        self?.reload()
-                    }
+        if askForAccess { requestAccess() }
+        reload()
+    }
+
+    /// Shows the system prompt (only possible while access was never decided; after a rebuild of an
+    /// ad-hoc signed app macOS forgets the answer, so this is also how to get it back).
+    func requestAccess() {
+        guard running, Self.access == .notAsked else { return }
+        // A menu-bar app's prompt can open behind other windows; come forward first.
+        NSApp.activate()
+        store.requestFullAccessToEvents { [weak self] _, _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self?.onAccessChange?()
+                    self?.reload()
                 }
             }
         }
-        reload()
     }
 
     func stop() {

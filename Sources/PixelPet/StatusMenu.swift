@@ -1,0 +1,91 @@
+import AppKit
+import PetCore
+import PetSprites
+
+/// Menu-bar item with a mini cube; the same menu doubles as the pet's right-click menu.
+@MainActor
+final class StatusMenu: NSObject, NSMenuDelegate {
+    let menu = NSMenu()
+    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    private let pet: PetController
+    private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
+    private let stateMenu = NSMenu()
+    private let scaleMenu = NSMenu()
+
+    private static let stateTitles: [PetState: String] = [
+        .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
+        .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
+        .peek: "Из чёлки", .drop: "Приземление", .talk: "Отвечает",
+    ]
+
+    init(pet: PetController, sprites: SpriteLibrary) {
+        self.pet = pet
+        super.init()
+        item.button?.image = Self.icon()
+        item.button?.toolTip = "Pixel Pet"
+        item.menu = menu
+        menu.delegate = self
+        build()
+    }
+
+    private func build() {
+        toggleItem.target = self
+        menu.addItem(toggleItem)
+
+        let states = NSMenuItem(title: "Состояние", action: nil, keyEquivalent: "")
+        // `dragged` only makes sense under the cursor, so it isn't offered here.
+        for state in PetState.allCases where state != .dragged {
+            let entry = NSMenuItem(title: Self.stateTitles[state] ?? state.rawValue, action: #selector(pickState(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = state.rawValue
+            stateMenu.addItem(entry)
+        }
+        states.submenu = stateMenu
+        menu.addItem(states)
+
+        let scales = NSMenuItem(title: "Размер", action: nil, keyEquivalent: "")
+        for scale in PetConfig.scaleRange {
+            let entry = NSMenuItem(title: "×\(scale)", action: #selector(pickScale(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.tag = scale
+            scaleMenu.addItem(entry)
+        }
+        scales.submenu = scaleMenu
+        menu.addItem(scales)
+
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Выйти", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        toggleItem.title = pet.isHidden ? "Показать кубика" : "Спрятать кубика"
+        for entry in stateMenu.items {
+            entry.state = entry.representedObject as? String == pet.restingState.rawValue ? .on : .off
+        }
+        for entry in scaleMenu.items {
+            entry.state = entry.tag == pet.config.scale ? .on : .off
+        }
+    }
+
+    @objc private func toggleHidden() { pet.setHidden(!pet.isHidden) }
+
+    @objc private func pickState(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let state = PetState(rawValue: raw) else { return }
+        if pet.isHidden { pet.setHidden(false) }
+        pet.preview(state)
+    }
+
+    @objc private func pickScale(_ sender: NSMenuItem) { pet.setScale(sender.tag) }
+
+    /// Template silhouette so macOS tints it correctly on light and dark menu bars.
+    private static func icon() -> NSImage? {
+        guard let cube = SpriteFactory.menuIcon().makeImage() else { return nil }
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+            NSGraphicsContext.current?.imageInterpolation = .none
+            NSGraphicsContext.current?.cgContext.draw(cube, in: rect)
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+}

@@ -1,0 +1,76 @@
+import Testing
+import PetCore
+@testable import PetSprites
+
+@Suite struct SpriteFactoryTests {
+    @Test(arguments: PetState.allCases)
+    func producesOneCanvasPerFrame(state: PetState) {
+        let frames = SpriteFactory.frames(for: state)
+        #expect(frames.count == state.frameCount)
+        for (i, canvas) in frames.enumerated() {
+            #expect(canvas.width == 32 && canvas.height == 32)
+            #expect(canvas.opaquePixelCount > 100, "\(state) frame \(i) looks empty")
+        }
+    }
+
+    @Test func framesAreDeterministic() {
+        #expect(SpriteFactory.frames(for: .celebrate) == SpriteFactory.frames(for: .celebrate))
+    }
+
+    @Test func backgroundIsTransparent() {
+        let idle = SpriteFactory.frames(for: .idle)[0]
+        #expect(idle.pixel(0, 0) == nil)
+        #expect(idle.pixel(31, 0) == nil)
+    }
+
+    @Test func idleBodyMatchesPrototypeGeometry() {
+        let idle = SpriteFactory.frames(for: .idle)[0]
+        // Body 16x14 at x0=8, y0=12; rounded corners are cut.
+        #expect(idle.pixel(8, 12) == nil)
+        #expect(idle.pixel(9, 12) == Palette.outline)
+        #expect(idle.pixel(10, 15) == Palette.highlight)
+        #expect(idle.pixel(11, 20) == Palette.fill)
+        // Left eye with a glint in its top-left pixel.
+        #expect(idle.pixel(12, 16) == Palette.glint)
+        #expect(idle.pixel(13, 17) == Palette.eye)
+    }
+
+    @Test func blinkClosesEyes() {
+        let blink = SpriteFactory.frames(for: .idle)[11]
+        #expect(blink.pixel(12, 16) == Palette.fill)
+        #expect(blink.pixel(12, 18) == Palette.eye)
+    }
+
+    @Test func errorFlashesRed() {
+        let frame = SpriteFactory.frames(for: .error)[2]
+        #expect(frame.pixels.contains(Palette.errorFill))
+    }
+
+    @Test func peekStartsHiddenInsideTheNotch() {
+        let hidden = SpriteFactory.frames(for: .peek)[0]
+        #expect(hidden.pixel(6, 2) == Palette.notch)
+        #expect(!hidden.pixels.contains(Palette.fill))
+        #expect(hidden.pixels.contains(Palette.glow))
+    }
+
+    @Test func lowLimitShowsDrainedTop() {
+        let frame = SpriteFactory.frames(for: .lowLimit)[0]
+        #expect(frame.pixels.contains(Palette.empty))
+    }
+
+    @Test func makesCGImageOfCanvasSize() throws {
+        let image = try #require(SpriteFactory.frames(for: .idle)[0].makeImage())
+        #expect(image.width == 32 && image.height == 32)
+    }
+}
+
+@Suite struct MenuIconTests {
+    @Test func isSilhouetteWithEyeHoles() {
+        let icon = SpriteFactory.menuIcon()
+        #expect(icon.width == 18 && icon.height == 18)
+        #expect(Set(icon.pixels.compactMap { $0 }) == [Palette.template])
+        // Body is solid, eyes are punched out so the template keeps its face.
+        #expect(icon.pixel(9, 14) != nil)
+        #expect(icon.pixel(5, 7) == nil)
+    }
+}

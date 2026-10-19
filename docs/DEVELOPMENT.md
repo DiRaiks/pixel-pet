@@ -142,7 +142,6 @@ Notarization and distribution are out of scope. The app is meant to be built fro
 ## Known gaps and ideas
 
 - **Stable code signing.** Builds are signed ad-hoc until a "Pixel Pet Dev" certificate exists (see [Code signing](#code-signing)), so the Accessibility permission has to be granted again after each rebuild.
-- **The notch on real hardware.** Home in the notch is built from `auxiliaryTopLeftArea` / `auxiliaryTopRightArea` but was only ever checked on external displays with the lid closed: the window's seat under the notch and the peek need a look with the lid open.
 - **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
 - **Approve or deny from the panel.** A waiting agent's permission request could be answered from the status card.
 - **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.

@@ -22,6 +22,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let translateItem = NSMenuItem(title: "Перевести выделенное", action: #selector(translate), keyEquivalent: "t")
     private let askItem = NSMenuItem(title: "Спросить Claude", action: #selector(ask), keyEquivalent: "k")
     var onTranslate: (() -> Void)?
+    var onSettings: (() -> Void)?
+    var onWelcome: (() -> Void)?
     var onAsk: (() -> Void)?
     var onShowPanel: (() -> Void)?
     private let stateMenu = NSMenu()
@@ -98,6 +100,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(logItem)
         menu.addItem(openLogItem)
         menu.addItem(.separator())
+        let settings = NSMenuItem(title: "Настройки…", action: #selector(openSettings), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
+        let welcome = NSMenuItem(title: "Добро пожаловать…", action: #selector(openWelcome), keyEquivalent: "")
+        welcome.target = self
+        menu.addItem(welcome)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Выйти", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -143,47 +152,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc func toggleDND() { pet.setDoNotDisturb(!pet.doNotDisturb) }
 
     @objc private func toggleHooks() {
-        do {
-            if hooks.isInstalled {
-                try hooks.uninstall()
-            } else if confirmInstall() {
-                try hooks.install()
-            }
-        } catch {
-            NSApp.activate()
-            let alert = NSAlert()
-            alert.messageText = "Не получилось изменить настройки Claude Code"
-            alert.informativeText = String(describing: error)
-            alert.runModal()
+        if hooks.isInstalled {
+            HookActions.disconnect(hooks)
+        } else {
+            HookActions.connect(hooks)
         }
     }
 
-    @objc private func addStatusLine() {
-        do {
-            try hooks.installStatusLine()
-        } catch {
-            NSApp.activate()
-            let alert = NSAlert()
-            alert.messageText = "Не получилось изменить настройки Claude Code"
-            alert.informativeText = String(describing: error)
-            alert.runModal()
-        }
-    }
+    @objc private func addStatusLine() { HookActions.addStatusLine(hooks) }
 
-    private func confirmInstall() -> Bool {
-        NSApp.activate()
-        let alert = NSAlert()
-        alert.messageText = "Подключить кубика к Claude Code?"
-        alert.informativeText = """
-        В ~/.claude/settings.json добавятся хуки, которые сообщают кубику о работе агентов. \
-        Перед изменением файл копируется рядом (settings.json.pixelpet-backup-…). \
-        Файл будет переформатирован: ключи по алфавиту, отступ в 2 пробела. \
-        Тексты промптов не сохраняются. Отключить можно в этом же меню.
-        """
-        alert.addButton(withTitle: "Подключить")
-        alert.addButton(withTitle: "Отмена")
-        return alert.runModal() == .alertFirstButtonReturn
-    }
+    @objc private func openSettings() { onSettings?() }
+
+    @objc private func openWelcome() { onWelcome?() }
 
     @objc private func pickState(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let state = PetState(rawValue: raw) else { return }

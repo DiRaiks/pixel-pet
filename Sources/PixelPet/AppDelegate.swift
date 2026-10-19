@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var translator: Translator?
     private var asker: Asker?
     private var desktop: DesktopSensor?
+    private var settings: AppWindow<SettingsView>?
+    private var welcome: AppWindow<OnboardingView>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // One pet at a time: a second copy would fight over the socket and the screen.
@@ -114,6 +116,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.menu = menu
         pet.start()
         agents.start()
+        let settingsModel = SettingsModel(pet: pet, hooks: hooks)
+        let settings = AppWindow(title: "Pixel Pet — настройки", content: SettingsView(model: settingsModel))
+        settings.onKey = { settingsModel.refresh() }
+        settings.onPoll = { settingsModel.refreshAccessibility() }
+        var openSettings: () -> Void = {}
+        var finishWelcome: () -> Void = {}
+        let welcome = AppWindow(title: "Pixel Pet", content: OnboardingView(
+            model: settingsModel, onSettings: { openSettings() }, onDone: { finishWelcome() }))
+        welcome.onKey = { settingsModel.refresh() }
+        welcome.onPoll = { settingsModel.refreshAccessibility() }
+        // Seen once is enough, however the window was closed.
+        welcome.onClose = { [weak pet] in
+            guard let pet, !pet.config.onboarded else { return }
+            pet.updateConfig { $0.onboarded = true }
+        }
+        openSettings = { [weak settings] in settings?.show() }
+        finishWelcome = { [weak welcome] in welcome?.close() }
+        menu.onSettings = { [weak settings] in settings?.show() }
+        menu.onWelcome = { [weak welcome] in welcome?.show() }
+        self.settings = settings
+        self.welcome = welcome
+        if CommandLine.arguments.contains("--show-settings") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak settings] in settings?.show() }
+        }
+        if !pet.config.onboarded {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak welcome] in welcome?.show() }
+        }
         let desktop = DesktopSensor(pet: pet)
         pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
         desktop.start()
@@ -141,6 +170,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         main.addItem(editItem)
+        let windowItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowItem.submenu = windowMenu
+        main.addItem(windowItem)
         return main
     }
 }

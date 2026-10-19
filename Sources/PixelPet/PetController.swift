@@ -30,6 +30,11 @@ final class PetController {
     private var dimmed = false
     /// The pet moved, changed screens, went home or out, or was hidden: desktop reactions re-check.
     var onPlacementChange: (() -> Void)?
+    /// System Settings → Accessibility → Display → Reduce motion.
+    private(set) var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    /// Under Reduce Motion a skipped one-shot leaves a held frame for a moment instead.
+    private var held: MotionPolicy.Cue?
+    private var heldGeneration = 0
     private var agents: [AgentCube] = []
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
@@ -84,6 +89,17 @@ final class PetController {
                 }
             },
         ]
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                self.render()
+                self.renderAgents()
+                self.updateClock()
+            }
+        })
         // While the screen is locked or the displays sleep, macOS reports other screen geometry and the window
         // can be left off its home; no screen-parameter change follows on wake, so re-seat it explicitly.
         let workspace = NSWorkspace.shared.notificationCenter
@@ -118,6 +134,14 @@ final class PetController {
         persist()
     }
 
+    /// Settings changes: save, re-decide the resting state, let desktop reactions re-check.
+    func updateConfig(_ change: (inout PetConfig) -> Void) {
+        change(&config)
+        persist()
+        applyRest()
+        onPlacementChange?()
+    }
+
     func setLogEvents(_ enabled: Bool) {
         config.logEvents = enabled
         persist()
@@ -148,9 +172,26 @@ final class PetController {
         guard player.state != .dragged else { return }
         let shown = config.isHome ? PetBrain.homeReaction(to: oneShot, doNotDisturb: config.doNotDisturb) : oneShot
         guard let shown, !(config.isHome && (player.state == .peekHold || player.state == .dive)) else { return }
+        if reduceMotion, !MotionPolicy.allowsOneShot(shown) {
+            if let cue = MotionPolicy.cue(for: shown) { hold(cue) }
+            return
+        }
         player.play(shown)
         render()
         updateClock()
+    }
+
+    private func hold(_ cue: MotionPolicy.Cue, for duration: TimeInterval = 1.5) {
+        heldGeneration += 1
+        let generation = heldGeneration
+        held = cue
+        render()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(duration))
+            guard let self, generation == heldGeneration else { return }
+            held = nil
+            render()
+        }
     }
 
     private func resolvedRest() -> PetState {
@@ -264,7 +305,7 @@ final class PetController {
             let size = PetSize(panel.frame.size)
             let fallback = PetPoint(x: panel.frame.minX, y: panel.frame.minY - 160)
             let desk = Placement.resolve(saved: config.origin ?? fallback, size: size, screens: screens())
-            player.play(.drop)
+            if !reduceMotion { player.play(.drop) }
             render()
             updateClock()
             animateMove(to: desk)
@@ -312,7 +353,7 @@ final class PetController {
         persist()
         restingState = resolvedRest()
         player.play(restingState)
-        if dive { player.play(.dive) }
+        if dive, !reduceMotion { player.play(.dive) }
         render()
         renderAgents()
         updateClock()
@@ -341,7 +382,7 @@ final class PetController {
         // A short delay so passing the cursor over the menu bar doesn't trigger it.
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
-                guard let self, self.player.state == .burrowed else { return }
+                guard let self, self.player.state == .burrowed, !self.reduceMotion else { return }
                 self.player.play(.peek)
                 self.render()
                 self.updateClock()
@@ -425,7 +466,7 @@ final class PetController {
             restingState = resolvedRest()
         }
         player.play(restingState)
-        player.play(.drop)
+        if !reduceMotion { player.play(.drop) }
         render()
         updateClock()
 
@@ -438,6 +479,13 @@ final class PetController {
     private func animateMove(to destination: PetPoint, persistDesk: Bool = true) {
         moveGeneration += 1
         let generation = moveGeneration
+        if reduceMotion {
+            // No sliding or throwing: the pet is simply where it lands.
+            cancelFlick()
+            panel.setFrameOrigin(destination.ns)
+            if persistDesk, !config.isHome { persistOrigin() }
+            return
+        }
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.35
             context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
@@ -468,7 +516,9 @@ final class PetController {
 
     /// Runs the frame timer only while the pet is visible, at the current state's frame rate.
     private func updateClock() {
-        guard isOnScreen else {
+        // A frozen state under Reduce Motion has nothing to animate: no frame timer at all.
+        let frozen = reduceMotion && MotionPolicy.stillFrame(for: player.state) != nil
+        guard isOnScreen, !frozen else {
             timer?.invalidate()
             timer = nil
             timerState = nil
@@ -499,7 +549,9 @@ final class PetController {
 
     private func render() {
         // At home the top of the body is inside the hole, so a drained band would only show as a stray stripe.
-        let frame = sprites.frame(player.state, player.frame, drain: config.isHome ? 0 : drain,
+        let state = held?.state ?? player.state
+        let index = held?.frame ?? (reduceMotion ? (MotionPolicy.stillFrame(for: state) ?? player.frame) : player.frame)
+        let frame = sprites.frame(state, index, drain: config.isHome ? 0 : drain,
                                   gaze: config.isHome ? nil : currentGaze)
         view.show(frame.image, canvas: frame.canvas)
     }
@@ -507,7 +559,9 @@ final class PetController {
     /// The stack animates on a shared 10 Hz beat so it doesn't speed up or slow down with the pet's state.
     private func renderAgents() {
         // At home the stack would sit in the menu bar; the menu-bar counter covers it there.
-        let canvas = AgentStack.canvas(for: config.isHome ? [] : agents, tick: Int(CACurrentMediaTime() * 10))
+        // Reduce Motion: the cubes keep their colors but stop spinning and bouncing.
+        let tick = reduceMotion ? 0 : Int(CACurrentMediaTime() * 10)
+        let canvas = AgentStack.canvas(for: config.isHome ? [] : agents, tick: tick)
         view.showAgents(canvas.opaquePixelCount > 0 ? canvas.makeImage() : nil, canvas: canvas)
     }
 

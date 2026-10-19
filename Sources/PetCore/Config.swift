@@ -26,6 +26,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var desktopReactions = true
     /// Doze off after this many minutes without input (0 = never).
     public var sleepAfterMinutes = 10
+    /// The welcome window has been seen.
+    public var onboarded = false
 
     public init() {}
 
@@ -44,6 +46,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
         desktopReactions = try c.decodeIfPresent(Bool.self, forKey: .desktopReactions) ?? true
+        onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }
 }

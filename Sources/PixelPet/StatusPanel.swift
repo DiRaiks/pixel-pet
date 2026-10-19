@@ -59,7 +59,7 @@ final class CardPanel<Content: View> {
         panel.setContentSize(panel.contentView?.fittingSize ?? NSSize(width: 340, height: 200))
         let origin = position(for: panel.frame.size, near: petWindow.frame, on: petWindow.screen ?? NSScreen.main)
         // Enter: fade in while settling 6 pt toward the pet, ease-out, under 200 ms.
-        if animated {
+        if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             let lift: CGFloat = origin.y >= petWindow.frame.maxY ? 6 : -6
             panel.setFrameOrigin(NSPoint(x: origin.x, y: origin.y + lift))
             panel.alphaValue = 0
@@ -98,9 +98,9 @@ final class CardPanel<Content: View> {
         clock?.invalidate()
         clock = nil
         onClose?()
-        // Exit faster than enter.
+        // Exit faster than enter (and not at all with Reduce Motion).
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.12
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.12
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
             MainActor.assumeIsolated {

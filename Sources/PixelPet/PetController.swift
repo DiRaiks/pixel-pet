@@ -65,6 +65,11 @@ final class PetController {
         persist()
     }
 
+    func setLogEvents(_ enabled: Bool) {
+        config.logEvents = enabled
+        persist()
+    }
+
     func setScale(_ scale: Int) {
         guard PetConfig.scaleRange.contains(scale), scale != config.scale else { return }
         let anchor = NSPoint(x: panel.frame.midX, y: panel.frame.minY)

@@ -10,6 +10,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let pet: PetController
     private let hooks: HookInstaller
     private let hooksItem = NSMenuItem(title: "", action: #selector(toggleHooks), keyEquivalent: "")
+    private let logItem = NSMenuItem(title: "Записывать события", action: #selector(toggleLog), keyEquivalent: "")
+    private let openLogItem = NSMenuItem(title: "Открыть журнал событий", action: #selector(openLog), keyEquivalent: "")
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
@@ -61,6 +63,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         scales.submenu = scaleMenu
         menu.addItem(scales)
 
+        logItem.target = self
+        openLogItem.target = self
+        menu.addItem(.separator())
+        menu.addItem(logItem)
+        menu.addItem(openLogItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Выйти", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -71,12 +78,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         for entry in stateMenu.items {
             entry.state = entry.representedObject as? String == pet.restingState.rawValue ? .on : .off
         }
+        logItem.state = pet.config.logEvents ? .on : .off
+        openLogItem.isHidden = !FileManager.default.fileExists(atPath: EventLog.url.path)
         for entry in scaleMenu.items {
             entry.state = entry.tag == pet.config.scale ? .on : .off
         }
     }
 
     @objc private func toggleHidden() { pet.setHidden(!pet.isHidden) }
+
+    @objc private func toggleLog() { pet.setLogEvents(!pet.config.logEvents) }
+
+    @objc private func openLog() { NSWorkspace.shared.open(EventLog.url) }
 
     /// Count of working or waiting agents next to the icon; nothing when all is quiet.
     func setActiveCount(_ count: Int) {

@@ -43,3 +43,24 @@ import Testing
         #expect(AgentSession.projectName(for: nil) == nil)
     }
 }
+
+@Suite struct QuestionEventTests {
+    func parse(_ json: String) -> AgentEvent? { AgentEvent.parse(Data(json.utf8)) }
+
+    @Test func turnEndQuestionIsRecognized() {
+        let e = parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"mcp__ccd_turn__wrap_up","tool_use_id":"w","tool_input":{"recap":"r","ask":"Коммитим?","actions":[]}}"#)
+        #expect(e?.kind == .questionAsked)
+    }
+
+    @Test func turnEndWithoutQuestionIsAPlainTool() {
+        let e = parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"mcp__ccd_turn__wrap_up","tool_use_id":"w","tool_input":{"recap":"r"}}"#)
+        #expect(e?.kind == .toolStarted(name: "mcp__ccd_turn__wrap_up", useID: "w"))
+        let blank = parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"mcp__ccd_turn__wrap_up","tool_input":{"ask":"  "}}"#)
+        #expect(blank?.kind == .toolStarted(name: "mcp__ccd_turn__wrap_up", useID: nil))
+    }
+
+    @Test func logLineHasNoContent() {
+        let e = AgentEvent(sessionID: "7d34aa38-5817", cwd: "/Users/a/secret-project", kind: .toolStarted(name: "Bash", useID: "t"))
+        #expect(e.logLine == "7d34aa38 secret-project toolStarted Bash")
+    }
+}

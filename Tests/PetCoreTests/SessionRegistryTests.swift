@@ -202,3 +202,31 @@ import Testing
         #expect(waiting.nextExpiry() == nil)
     }
 }
+
+@Suite struct TurnEndQuestionTests {
+    let t0 = Date(timeIntervalSince1970: 1_000_000)
+    func at(_ s: Double) -> Date { t0.addingTimeInterval(s) }
+    func ev(_ kind: AgentEvent.Kind) -> AgentEvent { AgentEvent(sessionID: "s1", cwd: "/w/p", kind: kind) }
+
+    @Test func questionAtTurnEndWaitsForReply() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.questionAsked), at: at(30))
+        #expect(r.ordered[0].status == .working)
+        #expect(r.apply(ev(.stopped), at: at(31)) == nil)
+        #expect(r.ordered[0].status == .waiting)
+        r.apply(ev(.promptSubmitted), at: at(60))
+        #expect(r.ordered[0].status == .working)
+        r.apply(ev(.stopped), at: at(65))
+        #expect(r.ordered[0].status == .idle)
+    }
+
+    @Test func unansweredQuestionFadesAfterStaleTime() {
+        var r = SessionRegistry()
+        r.apply(ev(.questionAsked), at: t0)
+        r.apply(ev(.stopped), at: at(1))
+        #expect(r.nextExpiry() == at(1 + SessionRegistry.staleAfter))
+        r.prune(now: at(1 + SessionRegistry.staleAfter + 1))
+        #expect(r.ordered.first?.status == .idle)
+    }
+}

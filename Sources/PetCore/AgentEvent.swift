@@ -6,6 +6,8 @@ public struct AgentEvent: Equatable, Sendable {
         case sessionStart(model: String?)
         case promptSubmitted
         case toolStarted(name: String, useID: String?)
+        /// The turn is about to end with a question for the user (Claude desktop's next-step box with an `ask`).
+        case questionAsked
         case toolFinished(name: String, useID: String?)
         case permissionRequested
         case notification(type: String?)
@@ -38,7 +40,8 @@ public struct AgentEvent: Equatable, Sendable {
         switch name {
         case "SessionStart": kind = .sessionStart(model: json["model"] as? String)
         case "UserPromptSubmit": kind = .promptSubmitted
-        case "PreToolUse": kind = .toolStarted(name: tool, useID: useID)
+        case "PreToolUse":
+            kind = asksUser(tool, json["tool_input"]) ? .questionAsked : .toolStarted(name: tool, useID: useID)
         case "PostToolUse", "PostToolUseFailure": kind = .toolFinished(name: tool, useID: useID)
         case "PermissionRequest": kind = .permissionRequested
         case "Notification": kind = .notification(type: json["notification_type"] as? String)
@@ -54,5 +57,32 @@ public struct AgentEvent: Equatable, Sendable {
         default: return nil
         }
         return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind)
+    }
+
+    /// The desktop app ends a turn that needs the user's decision with a wrap-up call carrying a non-empty `ask`.
+    private static func asksUser(_ tool: String, _ input: Any?) -> Bool {
+        guard tool.hasSuffix("__wrap_up"), let ask = (input as? [String: Any])?["ask"] as? String else { return false }
+        return !ask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// One line for the opt-in event log: ids, project and event names only, never prompts or tool input.
+    public var logLine: String {
+        let project = AgentSession.projectName(for: cwd) ?? "-"
+        let detail: String
+        switch kind {
+        case .sessionStart(let model): detail = "sessionStart \(model ?? "-")"
+        case .promptSubmitted: detail = "promptSubmitted"
+        case .toolStarted(let name, _): detail = "toolStarted \(name)"
+        case .questionAsked: detail = "questionAsked"
+        case .toolFinished(let name, _): detail = "toolFinished \(name)"
+        case .permissionRequested: detail = "permissionRequested"
+        case .notification(let type): detail = "notification \(type ?? "-")"
+        case .stopped: detail = "stopped"
+        case .failed: detail = "failed"
+        case .subagentStarted: detail = "subagentStarted"
+        case .subagentStopped: detail = "subagentStopped"
+        case .sessionEnded: detail = "sessionEnded"
+        }
+        return "\(sessionID.prefix(8)) \(project) \(detail)"
     }
 }

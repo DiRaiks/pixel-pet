@@ -53,6 +53,7 @@ final class AgentMonitor {
 
     private func receive(_ data: Data) {
         guard let event = AgentEvent.parse(data) else { return }
+        if pet.config.logEvents { EventLog.append(event.logLine) }
         let reaction = registry.apply(event, at: Date())
         switch reaction {
         case .finished: pet.react(.celebrate)
@@ -86,5 +87,35 @@ final class AgentMonitor {
         timer.tolerance = next == visual ? 0.1 : 5
         RunLoop.main.add(timer, forMode: .common)
         refreshTimer = timer
+    }
+}
+
+/// Opt-in plain-text log for debugging what the hooks report. Rotates at 1 MB, keeping one old file.
+enum EventLog {
+    static var url: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pixelpet/events.log")
+    }
+    static let maxSize = 1 << 20
+    private static let stamp: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        return f
+    }()
+
+    static func append(_ line: String) {
+        let fm = FileManager.default
+        if let size = try? fm.attributesOfItem(atPath: url.path)[.size] as? Int, size > maxSize {
+            let old = url.appendingPathExtension("1")
+            try? fm.removeItem(at: old)
+            try? fm.moveItem(at: url, to: old)
+        }
+        let data = Data("\(stamp.string(from: Date())) \(line)\n".utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url, options: .atomic)
+        }
     }
 }

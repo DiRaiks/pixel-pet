@@ -7,6 +7,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var origin: PetPoint?
     public var scale = 4
     public var isHidden = false
+    /// Opt-in debug log of hook events (ids and event names only) in ~/.pixelpet/events.log.
+    public var logEvents = false
 
     public init() {}
 
@@ -16,6 +18,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         let rawScale = try c.decodeIfPresent(Int.self, forKey: .scale) ?? 4
         scale = min(max(rawScale, Self.scaleRange.lowerBound), Self.scaleRange.upperBound)
         isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
+        logEvents = try c.decodeIfPresent(Bool.self, forKey: .logEvents) ?? false
     }
 }
 

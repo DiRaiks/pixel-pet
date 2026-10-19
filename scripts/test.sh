@@ -1,7 +1,8 @@
 #!/bin/sh
-# Swift Testing macros intermittently fail to load on incremental rebuilds with Command Line Tools only
-# (swiftbuild backend, explicit modules). Drop the test targets' intermediates before each run; if the
-# macro plugin still isn't found, wipe all intermediates and retry once. Product binaries stay cached.
+# Swift Testing macros fail to load when `swift test` reuses the project description (.build/manifest.pif)
+# written by a plain `swift build`, which lacks the test macro plugin (swiftbuild backend, Command Line Tools
+# only). Dropping it is cheap and keeps compiled products cached. If the plugin is still missing, wipe the
+# swiftbuild output and retry once (~1 min).
 set -u
 cd "$(dirname "$0")/.."
 log="$(mktemp -t pixelpet-test)"
@@ -12,12 +13,12 @@ run() {
     return "$(cat "$log.status")"
 }
 
-rm -rf .build/out/Intermediates.noindex/*.build/Debug/*Tests-p.build
+rm -f .build/manifest.pif
 run "$@"
 status=$?
 if [ "$status" -ne 0 ] && grep -q "plugin for module 'TestingMacros' not found" "$log"; then
-    echo "test.sh: Swift Testing macro cache broke, rebuilding intermediates and retrying" >&2
-    rm -rf .build/out/Intermediates.noindex
+    echo "test.sh: Swift Testing macro plugin still missing, wiping build output and retrying" >&2
+    rm -rf .build/out .build/manifest.pif
     run "$@"
     status=$?
 fi

@@ -14,6 +14,8 @@ public struct AgentSession: Equatable, Sendable {
     public var workingSince: Date?
     /// Active work in this turn before the latest wait, so time spent waiting for the user isn't counted.
     var workedBefore: TimeInterval = 0
+    /// The turn ended with a question for the user, so after Stop the session waits for a reply.
+    var askedUser = false
     public var finishedAt: Date?
     public var failedAt: Date?
     /// tool_use_id of an AskUserQuestion / ExitPlanMode call the user hasn't answered yet.
@@ -74,6 +76,7 @@ public struct SessionRegistry: Sendable {
         case .sessionStart(let model):
             if let model { s.model = model }
         case .promptSubmitted:
+            s.askedUser = false
             s.workedBefore = 0
             s.subagents.removeAll()
             s.failedAt = nil
@@ -97,6 +100,8 @@ public struct SessionRegistry: Sendable {
             } else if s.status == .waiting {
                 startWorking(&s, now)
             }
+        case .questionAsked:
+            s.askedUser = true
         case .permissionRequested:
             enterWaiting(&s, now)
         case .notification(let type):
@@ -106,9 +111,11 @@ public struct SessionRegistry: Sendable {
                 enterWaiting(&s, now)
             }
         case .stopped:
-            if activeWork(s, now) >= Self.celebrateAfter { reaction = .finished }
+            // A turn that ends with a question isn't "done" yet: no celebration, wait for the reply instead.
+            if !s.askedUser, activeWork(s, now) >= Self.celebrateAfter { reaction = .finished }
             becomeIdle(&s)
             s.finishedAt = now
+            if s.askedUser { s.status = .waiting }
         case .failed:
             becomeIdle(&s)
             s.status = .failed
@@ -129,7 +136,15 @@ public struct SessionRegistry: Sendable {
     public mutating func prune(now: Date) {
         for (id, var s) in sessions {
             let quiet = now.timeIntervalSince(s.lastEventAt)
-            if s.status == .waiting { continue }
+            if s.status == .waiting {
+                // Permission prompts wait as long as it takes; an unanswered turn-end question fades.
+                if s.askedUser, quiet > Self.staleAfter {
+                    becomeIdle(&s)
+                    s.askedUser = false
+                    sessions[id] = s
+                }
+                continue
+            }
             if quiet > Self.staleAfter {
                 sessions.removeValue(forKey: id)
             } else if s.status == .working, s.currentTool == nil, quiet > Self.silentWorkTimeout {
@@ -143,7 +158,7 @@ public struct SessionRegistry: Sendable {
     public func nextExpiry() -> Date? {
         sessions.values.compactMap { s -> Date? in
             switch s.status {
-            case .waiting: nil
+            case .waiting: s.askedUser ? s.lastEventAt.addingTimeInterval(Self.staleAfter) : nil
             case .working where s.currentTool == nil: s.lastEventAt.addingTimeInterval(Self.silentWorkTimeout)
             default: s.lastEventAt.addingTimeInterval(Self.staleAfter)
             }

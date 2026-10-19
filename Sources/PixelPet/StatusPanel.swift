@@ -2,21 +2,24 @@ import AppKit
 import PetCore
 import SwiftUI
 
-/// Card next to the pet with limits and live sessions. A borderless panel rather than NSPopover:
+/// Card next to the pet (status, translation). A borderless panel rather than NSPopover:
 /// glass popovers take their tint from the wallpaper, which fights a solid, readable card.
 @MainActor
-final class StatusPanel {
+final class CardPanel<Content: View> {
     private let panel: NSPanel
-    private let model: StatusModel
+    /// Called when the card opens, e.g. to refresh what it shows.
+    var onShow: (() -> Void)?
     private var monitors: [Any] = []
     private weak var anchor: NSView?
     /// Bumped on every show/close so a fade-out finishing late can't hide a card that was just reopened.
     private var generation = 0
     private var isClosing = false
     private var clock: Timer?
+    /// Every 30 s while open, for text that depends on the time.
+    var onTick: (() -> Void)?
+    var onClose: (() -> Void)?
 
-    init(model: StatusModel) {
-        self.model = model
+    init(content: Content) {
         panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -24,7 +27,7 @@ final class StatusPanel {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        panel.contentView = NSHostingView(rootView: StatusPanelView(model: model))
+        panel.contentView = NSHostingView(rootView: content)
     }
 
     var isShown: Bool { panel.isVisible && !isClosing }
@@ -33,30 +36,38 @@ final class StatusPanel {
         isShown ? close() : show(from: view)
     }
 
-    func show(from view: NSView) {
+    /// `animated: false` for cards opened from a hotkey: those must appear at once.
+    func show(from view: NSView, animated: Bool = true) {
         guard let petWindow = view.window else { return }
         generation += 1
         isClosing = false
         anchor = view
-        model.now = Date()
+        onShow?()
         panel.setContentSize(panel.contentView?.fittingSize ?? NSSize(width: 340, height: 200))
         let origin = position(for: panel.frame.size, near: petWindow.frame, on: petWindow.screen ?? NSScreen.main)
         // Enter: fade in while settling 6 pt toward the pet, ease-out, under 200 ms.
-        let lift: CGFloat = origin.y >= petWindow.frame.maxY ? 6 : -6
-        panel.setFrameOrigin(NSPoint(x: origin.x, y: origin.y + lift))
-        panel.alphaValue = 0
-        panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
-            panel.animator().alphaValue = 1
-            panel.animator().setFrameOrigin(origin)
+        if animated {
+            let lift: CGFloat = origin.y >= petWindow.frame.maxY ? 6 : -6
+            panel.setFrameOrigin(NSPoint(x: origin.x, y: origin.y + lift))
+            panel.alphaValue = 0
+            panel.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+                panel.animator().alphaValue = 1
+                panel.animator().setFrameOrigin(origin)
+            }
+        } else {
+            panel.setFrameOrigin(origin)
+            panel.alphaValue = 1
+            panel.orderFrontRegardless()
         }
         watchOutsideClicks()
-        // "Resets in" and "seen N min ago" keep moving while the card is open.
+        // "Resets in" and "seen N min ago" keep moving while the card is open (only cards that need it).
         clock?.invalidate()
+        guard onTick != nil else { return }
         let clock = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.model.now = Date() }
+            MainActor.assumeIsolated { self?.onTick?() }
         }
         clock.tolerance = 5
         RunLoop.main.add(clock, forMode: .common)
@@ -72,6 +83,7 @@ final class StatusPanel {
         monitors = []
         clock?.invalidate()
         clock = nil
+        onClose?()
         // Exit faster than enter.
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.12
@@ -106,20 +118,16 @@ final class StatusPanel {
         return NSPoint(x: x, y: max(y, area.minY))
     }
 
-    /// Clicks anywhere else close the card; clicks on the pet are left to its own toggle.
+    /// Clicks in other apps close the card. (No Esc: a global monitor can't consume it, so the frontmost
+    /// app would get it too, and it would need Accessibility just for that.)
     private func watchOutsideClicks() {
         monitors.forEach(NSEvent.removeMonitor)
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
         }
-        let local = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                if event.window !== self.panel && event.window !== self.anchor?.window { self.close() }
-            }
-            return event
-        }
-        monitors = [global, local].compactMap { $0 }
+        // Clicks inside our own windows don't close it: the pet toggles cards itself, and system sheets
+        // hosted by the card (Translation's language download) must stay usable.
+        monitors = [global].compactMap { $0 }
     }
 }
 
@@ -278,5 +286,16 @@ enum Format {
     /// "mcp__terminal__run_in_terminal" -> "run_in_terminal".
     static func tool(_ name: String) -> String {
         name.hasPrefix("mcp__") ? String(name.split(separator: "__").last ?? Substring(name)) : name
+    }
+}
+
+/// The status card: limits and sessions.
+typealias StatusPanel = CardPanel<StatusPanelView>
+
+extension CardPanel where Content == StatusPanelView {
+    convenience init(model: StatusModel) {
+        self.init(content: StatusPanelView(model: model))
+        onShow = { model.now = Date() }
+        onTick = { model.now = Date() }
     }
 }

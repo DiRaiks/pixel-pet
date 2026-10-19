@@ -16,6 +16,8 @@ final class PetController {
     /// The state the pet returns to after dragging: `mood` on the desk, its home version at home.
     private(set) var restingState = PetState.idle
     private var hoverPeek: DispatchWorkItem?
+    /// The pet "talks" while the translation card is open.
+    private var talking = false
     private var agents: [AgentCube] = []
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
@@ -136,7 +138,14 @@ final class PetController {
     }
 
     private func resolvedRest() -> PetState {
-        config.isHome ? PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) : mood
+        if config.isHome { return PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) }
+        // Talking (translation card open) yields to errors and waiting agents.
+        return talking && mood != .error && mood != .alert ? .talk : mood
+    }
+
+    func setTalking(_ on: Bool) {
+        talking = on
+        applyRest()
     }
 
     private func applyRest() {

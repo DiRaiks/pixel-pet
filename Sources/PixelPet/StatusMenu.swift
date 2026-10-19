@@ -19,6 +19,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let panelItem = NSMenuItem(title: "Панель статуса", action: #selector(showPanel), keyEquivalent: "")
     private let homeItem = NSMenuItem(title: "", action: #selector(toggleHome), keyEquivalent: "")
     private let dndItem = NSMenuItem(title: "Не беспокоить", action: #selector(toggleDND), keyEquivalent: "p")
+    private let translateItem = NSMenuItem(title: "Перевести выделенное", action: #selector(translate), keyEquivalent: "t")
+    var onTranslate: (() -> Void)?
     var onShowPanel: (() -> Void)?
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
@@ -52,6 +54,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         dndItem.target = self
         dndItem.keyEquivalentModifierMask = [.control, .option]
         menu.addItem(dndItem)
+        translateItem.target = self
+        translateItem.keyEquivalentModifierMask = [.control, .option]
+        menu.addItem(translateItem)
         menu.addItem(.separator())
         toggleItem.target = self
         menu.addItem(toggleItem)
@@ -125,6 +130,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func showPanel() { onShowPanel?() }
 
     @objc private func toggleHome() { pet.toggleHome() }
+
+    @objc private func translate() { onTranslate?() }
 
     @objc func toggleDND() { pet.setDoNotDisturb(!pet.doNotDisturb) }
 

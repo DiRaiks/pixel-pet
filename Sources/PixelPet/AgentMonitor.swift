@@ -86,6 +86,12 @@ final class AgentMonitor {
         refresh()
     }
 
+    /// Limits seen elsewhere (e.g. a Claude translation run).
+    func absorb(_ observed: UsageLimits) {
+        merge(observed)
+        refresh()
+    }
+
     private func merge(_ observed: UsageLimits) {
         limits = limits.map { $0.merged(with: observed) } ?? observed
         pet.rememberLimits(limits)

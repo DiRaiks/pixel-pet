@@ -25,6 +25,20 @@ import PetCore
         }
     }
 
+    /// A key lights up exactly on key-down beats; looking up at the screen lifts the eyes off the keys.
+    /// The typing loop has no smile sparkle anymore.
+    @Test func typingFollowsTheScript() {
+        let frames = SpriteFactory.frames(for: .working, agentCubes: false)
+        for (i, (beat, _)) in TypingScript.beats.enumerated() {
+            let lit = (9...21).contains { frames[i].pixel($0, 23) == Palette.tealLight }
+            if case .down = beat { #expect(lit, "frame \(i)") } else { #expect(!lit, "frame \(i)") }
+            #expect(frames[i].pixel(7, 10) != Palette.tealLight, "frame \(i)")
+        }
+        let read = TypingScript.beats.firstIndex { $0.beat == .read }!
+        let up = TypingScript.beats.firstIndex { $0.beat == .up }!
+        #expect(frames[read] != frames[up])
+    }
+
     /// The mug stands at the right end of the desk; the headband crosses the forehead with its knot outside.
     @Test func deskPropsShowOnlyWhenEarned() {
         let plain = SpriteFactory.frame(for: .working, index: 0, agentCubes: false)

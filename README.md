@@ -149,7 +149,7 @@ States are listed in priority order; a higher one wins.
 | <img src="docs/images/question.png" width="80" alt=""> | **Question**: leans in under a "?" | An agent waits for an answer: a question, a plan to approve, or a turn that ended with a question |
 | <img src="docs/images/exhausted.png" width="80" alt=""> | **Spent**: lies flat, a clock ticking | A limit is used up (100%); agents can't work until it resets |
 | <img src="docs/images/low-limit.png" width="80" alt=""> | **Low limit**: pale, sweating | 5-hour usage is at 85% or more, or weekly usage at 90% or more |
-| <img src="docs/images/working.png" width="80" alt=""> | **Working**: typing | At least one agent is working |
+| <img src="docs/images/working.png" width="80" alt=""> | **Working**: typing in bursts of uneven length, looking up at the screen between them | At least one agent is working |
 | <img src="docs/images/idle.png" width="80" alt=""> | **Idle**: breathes, blinks, looks around | Nothing is going on |
 | <img src="docs/images/tired.png" width="80" alt=""> | **Tired**: droopy, a red battery | Idle on a MacBook with 20% battery or less, not plugged in |
 | <img src="docs/images/sleep.png" width="80" alt=""> | **Sleep**: nightcap and a bubble | Idle, and you have been away longer than the sleep setting |
@@ -172,7 +172,7 @@ When plugged in, the tired cube perks up with a lightning bolt. Now and then, wi
 
 ### At the keyboard
 
-Agents can work for hours, so the typing loop doesn't run unbroken. Every 45–120 seconds the cube has a little moment, and when an agent block changes (one finishes, fails or appears) it looks over at that side:
+Agents can work for hours, so the typing doesn't run like a metronome: it comes in bursts of uneven length and pace, with pauses to look up at the screen. Every 45–120 seconds the cube has a little moment, and when an agent block changes (one finishes, fails or appears) it looks over at that side:
 
 | <img src="docs/images/work-sip.png" width="80" alt=""> | <img src="docs/images/work-stretch.png" width="80" alt=""> | <img src="docs/images/work-think.png" width="80" alt=""> | <img src="docs/images/work-rush.png" width="80" alt=""> | <img src="docs/images/work-glance.png" width="80" alt=""> |
 |:---:|:---:|:---:|:---:|:---:|

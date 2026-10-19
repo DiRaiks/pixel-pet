@@ -120,20 +120,27 @@ public enum SpriteFactory {
         c.body(s)
     }
 
-    /// Typing on a little keyboard: eyes down, a bob per key press, a pleased pause now and then.
+    /// Focused typing, played from `TypingScript`: bursts of uneven length and pace with pauses between them.
+    /// No smile here: seen every second for hours it got old; smiles come with the moments.
     static func working(_ i: Int, _ cubes: Bool, _ look: Look, _ props: WorkProps = [], _ c: inout PixelCanvas) {
-        let taps = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]
+        let beat = TypingScript.beats[i].beat
         var s = deskBody(look, props)
-        s.h = 14 - taps[i]
-        s.eyes = i == 8 ? .blink : .down
-        s.mouth = i == 8 ? .smile : .flat
+        var lit: [Int] = []
+        switch beat {
+        case .down(let key): s.h = 13; lit = [9 + 2 * key]
+        case .up, .hitch: break
+        case .read: s.lookY = 0; s.eyes = .open
+        case .blink: s.lookY = 0; s.eyes = .blink
+        }
+        if beat != .read, beat != .blink { s.eyes = .down }
+        s.mouth = .flat
         c.body(s)
-        let keys = [11, 15, 19, 13, 21, 9, 17, 11, 15, 19, 13, 21]
-        desk(&c, props, lit: taps[i] == 1 ? [keys[i]] : [], steam: i % 6 < 3 ? i % 3 : 0)
-        if i == 8 { c.set(7, 10, Palette.tealLight); c.set(6, 9, Palette.tealLight) }
+        // Beats run 50–650 ms, so steam and spinning blocks follow the clock (100 ms steps), not the beat.
+        let tick = Int(TypingScript.starts[i] / 100)
+        desk(&c, props, lit: lit, steam: tick % 6 < 3 ? tick % 3 : 0)
         guard cubes else { return }
-        c.agentCube(25, 24, Palette.teal, spin: i)
-        c.agentCube(25, 20, Palette.teal, spin: i + 4)
+        c.agentCube(25, 24, Palette.teal, spin: tick)
+        c.agentCube(25, 20, Palette.teal, spin: tick + 4)
     }
 
     /// The body at the desk: lower, eyes on the keys, the headband once work has gone on long.
@@ -210,7 +217,7 @@ public enum SpriteFactory {
     }
 
     /// Stops typing to think: eyes up and to the side, thought dots appear one by one, then an idea lights
-    /// up and the typing starts again with a smile.
+    /// up with a smile and the typing starts again.
     static func workThink(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
         var s = deskBody(look, props)
         let idea = (8...9).contains(i)

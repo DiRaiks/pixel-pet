@@ -142,7 +142,7 @@ enum ReadmeExport {
         let codex: [AgentCube] = [.init(status: .working, subagents: 0), .init(status: .idle, subagents: 0)]
         let clips: [(String, [Clip])] = [
             ("idle", [Clip(state: .idle)]),
-            ("working", [Clip(state: .working, seconds: 3, cubes: work)]),
+            ("working", [Clip(state: .working, seconds: PetState.working.totalDuration + 0.05, cubes: work)]),
             ("claude-and-codex", [Clip(state: .working, seconds: 3, cubes: work, codex: codex)]),
             ("alert", [Clip(state: .alert, seconds: 3, cubes: [.init(status: .waiting, subagents: 0)] + work.prefix(1))]),
             ("error", [Clip(state: .error, seconds: nil, cubes: [.init(status: .failed, subagents: 0)]), rest]),

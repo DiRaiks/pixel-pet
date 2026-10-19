@@ -49,7 +49,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .idle:
             Self.repeating(10, 140) + [70, 55, 70] + Self.repeating(4, 140) + [400] + Self.repeating(4, 170) + [140, 140]
         case .hop: [110, 150, 110, 50, 40, 50, 120, 120, 50, 40, 110, 90, 80, 160]
-        case .working: [90, 70, 90, 70, 110, 70, 90, 70, 300, 90, 70, 90]
+        case .working: TypingScript.beats.map(\.ms)
         case .alert: [80, 80, 70, 60, 60, 70, 80, 120, 90, 90, 90, 90]
         case .celebrate: [140, 90, 60, 50, 50, 60, 90, 90, 60, 50, 50, 110, 90, 80, 160, 200]
         case .sleep: Self.repeating(8, 300) + [120, 400, 300, 300]

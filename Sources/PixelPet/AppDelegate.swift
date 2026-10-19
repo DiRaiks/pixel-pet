@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeys: [HotKey] = []
     private var translator: Translator?
     private var asker: Asker?
+    private var desktop: DesktopSensor?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // One pet at a time: a second copy would fight over the socket and the screen.
@@ -113,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.menu = menu
         pet.start()
         agents.start()
+        let desktop = DesktopSensor(pet: pet)
+        pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
+        desktop.start()
+        self.desktop = desktop
     }
 
     func applicationWillTerminate(_ notification: Notification) {

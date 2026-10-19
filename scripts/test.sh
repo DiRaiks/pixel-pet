@@ -19,6 +19,11 @@ status=$?
 # Occasionally the first clean rebuild hits it too, so allow two clean retries.
 for attempt in 1 2; do
     [ "$status" -ne 0 ] && grep -q TestingMacros "$log" || break
+    # Real compile errors next to the macro noise: a clean rebuild won't help, show them instead.
+    if sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "error: " \
+        | grep -v -E "TestingMacros|SwiftCompile|Build failed|fatalError|SwiftDriver" | grep -q .; then
+        break
+    fi
     echo "test.sh: Swift Testing macro plugin still missing, wiping .build and retrying ($attempt/2)" >&2
     rm -rf .build
     run "$@"

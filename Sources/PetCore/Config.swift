@@ -22,6 +22,10 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var foreignLanguage = "en"
     /// Model for quick questions (⌃⌥K).
     public var askModel = "haiku"
+    /// Eyes follow the cursor, glances at newly focused windows, dimming over fullscreen apps.
+    public var desktopReactions = true
+    /// Doze off after this many minutes without input (0 = never).
+    public var sleepAfterMinutes = 10
 
     public init() {}
 
@@ -39,6 +43,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
         nativeLanguage = try c.decodeIfPresent(String.self, forKey: .nativeLanguage) ?? "ru"
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
+        desktopReactions = try c.decodeIfPresent(Bool.self, forKey: .desktopReactions) ?? true
+        sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }
 }
 

@@ -62,6 +62,12 @@ public enum PetBrain {
         doNotDisturb ? nil : .peek
     }
 
+    /// With nothing going on and the user away for a while, the pet dozes off.
+    public static func restState(mood: PetState, userIdle: TimeInterval, sleepAfter: TimeInterval) -> PetState {
+        guard mood == .idle, sleepAfter > 0, userIdle >= sleepAfter else { return mood }
+        return .sleep
+    }
+
     public static func activeCount(_ sessions: [AgentSession]) -> Int {
         sessions.filter { $0.status == .working || $0.status == .waiting }.count
     }

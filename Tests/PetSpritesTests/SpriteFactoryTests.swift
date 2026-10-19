@@ -122,3 +122,37 @@ import PetCore
         #expect(SpriteFactory.frames(for: .peek)[0].pixel(0, 0) == Palette.menuBar)
     }
 }
+
+@Suite struct GazeSpriteTests {
+    @Test func gazeMovesTheEyesInIdle() {
+        let plain = SpriteFactory.frames(for: .idle, agentCubes: false)[0]
+        let right = SpriteFactory.frames(for: .idle, agentCubes: false, gaze: Gaze(x: 1, y: 0))[0]
+        // Left eye glint at x=12 normally, one pixel to the right when looking right.
+        #expect(plain.pixel(12, 16) == Palette.glint)
+        #expect(right.pixel(13, 16) == Palette.glint)
+        let up = SpriteFactory.frames(for: .idle, agentCubes: false, gaze: Gaze(x: 0, y: -1))[0]
+        #expect(up.pixel(12, 15) == Palette.glint)
+    }
+
+    @Test func gazeKeepsBlinks() {
+        let blink = SpriteFactory.frames(for: .idle, agentCubes: false, gaze: Gaze(x: 1, y: 0))[11]
+        #expect(!blink.pixels.contains(Palette.glint))
+    }
+
+    @Test func otherStatesIgnoreGaze() {
+        #expect(SpriteFactory.frames(for: .sleep, agentCubes: false, gaze: Gaze(x: 1, y: 0))
+            == SpriteFactory.frames(for: .sleep, agentCubes: false))
+    }
+}
+
+@Suite struct SingleFrameTests {
+    @Test func singleFrameMatchesTheFullSet() {
+        let gaze = Gaze(x: -1, y: -1)
+        let all = SpriteFactory.frames(for: .idle, agentCubes: false, gaze: gaze)
+        for i in [0, 11, 23] {
+            #expect(SpriteFactory.frame(for: .idle, index: i, agentCubes: false, gaze: gaze) == all[i])
+        }
+        #expect(SpriteFactory.frame(for: .working, index: 3, agentCubes: false, gaze: gaze)
+            == SpriteFactory.frames(for: .working, agentCubes: false)[3])
+    }
+}

@@ -15,12 +15,20 @@ public enum SpriteFactory {
 
     /// `agentCubes: false` gives the app's bare frames: no prototype-only props (the fixed agent blocks,
     /// which the app draws live via AgentStack, and the fake menu-bar strips around the notch).
-    public static func frames(for state: PetState, agentCubes: Bool = true) -> [PixelCanvas] {
-        (0..<state.frameCount).map { i in
-            var c = PixelCanvas()
+    /// `gaze` points the eyes (cursor following, glances); only states with a plain open-eyed face use it.
+    public static func frames(for state: PetState, agentCubes: Bool = true, gaze: Gaze? = nil) -> [PixelCanvas] {
+        (0..<state.frameCount).map { frame(for: state, index: $0, agentCubes: agentCubes, gaze: gaze) }
+    }
+
+    /// One frame on its own, for variants made on demand (gaze, drain) without redrawing the whole state.
+    public static func frame(for state: PetState, index i: Int, agentCubes: Bool = true, gaze: Gaze? = nil) -> PixelCanvas {
+        var c = PixelCanvas()
+        if state == .idle, let gaze {
+            idle(i, &c, gaze: gaze)
+        } else {
             draw(state, frame: i, cubes: agentCubes, on: &c)
-            return c
         }
+        return c
     }
 
     /// 18x18 template icon: cube silhouette with the eyes and mouth punched out.
@@ -59,12 +67,14 @@ public enum SpriteFactory {
         }
     }
 
-    static func idle(_ i: Int, _ c: inout PixelCanvas) {
+    static func idle(_ i: Int, _ c: inout PixelCanvas, gaze: Gaze? = nil) {
         let breath = (4...8).contains(i) || (16...19).contains(i) ? 1 : 0
         var s = BodyStyle()
         s.h = 14 + breath
         s.eyes = i == 10 || i == 12 ? .half : i == 11 ? .blink : .open
-        s.lookX = (18...21).contains(i) ? -1 : 0
+        // Its own glance around (frames 18-21) gives way to whatever it's looking at.
+        s.lookX = gaze?.x ?? ((18...21).contains(i) ? -1 : 0)
+        s.lookY = gaze?.y ?? 0
         c.body(s)
     }
 

@@ -18,6 +18,18 @@ final class PetController {
     private var hoverPeek: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false
+    /// When to doze off, and a live reading of how long the user has been away (sampled each time the
+    /// rest state is decided, so a keyboard-only return is never judged from an old reading).
+    private var sleepAfter: TimeInterval { Double(config.sleepAfterMinutes) * 60 }
+    var userIdleProvider: () -> TimeInterval = {
+        CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+    }
+    private var cursorGaze: Gaze?
+    private var glance: Gaze?
+    private var glanceGeneration = 0
+    private var dimmed = false
+    /// The pet moved, changed screens, went home or out, or was hidden: desktop reactions re-check.
+    var onPlacementChange: (() -> Void)?
     private var agents: [AgentCube] = []
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
@@ -58,7 +70,10 @@ final class PetController {
         let center = NotificationCenter.default
         observers = [
             center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.placeOnScreen() }
+                MainActor.assumeIsolated {
+                    self?.placeOnScreen()
+                    self?.onPlacementChange?()
+                }
             },
             // Covered, hidden or on a sleeping display: stop waking up for frames nobody sees.
             center.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: panel, queue: .main) { [weak self] _ in
@@ -93,6 +108,7 @@ final class PetController {
         hidden ? panel.orderOut(nil) : panel.orderFrontRegardless()
         updateClock()
         persist()
+        onPlacementChange?()
     }
 
     /// Saved only when the numbers change; statusline snapshots arrive several times a second.
@@ -140,7 +156,72 @@ final class PetController {
     private func resolvedRest() -> PetState {
         if config.isHome { return PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) }
         // Talking (translation card open) yields to errors and waiting agents.
-        return talking && mood != .error && mood != .alert ? .talk : mood
+        if talking && mood != .error && mood != .alert { return .talk }
+        let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
+        return PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
+    }
+
+    // MARK: Desktop reactions
+
+    /// Re-decides sleep from the current idle time; greets with a hop when the user comes back.
+    func checkUserIdle() {
+        let wasAsleep = restingState == .sleep
+        applyRest()
+        if wasAsleep, restingState != .sleep { react(.hop) }
+    }
+
+    /// Eyes follow the cursor when it's near (nil: far away, the pet keeps its own glances).
+    func setCursorGaze(_ gaze: Gaze?) {
+        guard gaze != cursorGaze else { return }
+        let before = currentGaze
+        cursorGaze = gaze
+        if currentGaze != before, isOnScreen, !config.isHome, player.state == .idle { render() }
+    }
+
+    /// A short look toward a point on screen, e.g. the window the user just switched to.
+    /// Returns false when there's nothing to look at (straight ahead or at home).
+    @discardableResult
+    func glance(at point: PetPoint, for duration: TimeInterval = 1.5) -> Bool {
+        guard !config.isHome, let gaze = Gaze.toward(point, from: center, radius: .infinity),
+              gaze != Gaze(x: 0, y: 0) else { return false }
+        glanceGeneration += 1
+        let generation = glanceGeneration
+        glance = gaze
+        if isOnScreen, player.state == .idle { render() }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(duration))
+            guard let self, generation == glanceGeneration else { return }
+            glance = nil
+            if isOnScreen, player.state == .idle { render() }
+        }
+        return true
+    }
+
+    /// Fades out of the way over fullscreen apps (video, presentations) instead of hiding.
+    func setDimmed(_ on: Bool) {
+        guard on != dimmed else { return }
+        dimmed = on
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            panel.animator().alphaValue = on ? 0.3 : 1
+        }
+    }
+
+    var center: PetPoint { PetPoint(x: panel.frame.midX, y: panel.frame.midY) }
+    var screenFrame: NSRect? { panel.screen?.frame }
+
+    func greet() { react(.hop) }
+
+    /// Reactions off (or pet hidden/home): forget where the cursor was and undo dimming.
+    func resetDesktopReactions() {
+        cursorGaze = nil
+        glance = nil
+        setDimmed(false)
+        if isOnScreen { render() }
+    }
+
+    private var currentGaze: Gaze? {
+        glance ?? cursorGaze
     }
 
     func setTalking(_ on: Bool) {
@@ -236,6 +317,7 @@ final class PetController {
         renderAgents()
         updateClock()
         animateMove(to: HomeGeometry.windowOrigin(for: home.spot, size: PetSize(panel.frame.size)), persistDesk: false)
+        onPlacementChange?()
     }
 
     /// Leaving clears do-not-disturb only when the pet really ends up on the desk; a drag that snaps back
@@ -249,6 +331,7 @@ final class PetController {
         restingState = resolvedRest()
         player.setBase(restingState)
         renderAgents()
+        onPlacementChange?()
     }
 
     private func hover(_ inside: Bool) {
@@ -416,7 +499,8 @@ final class PetController {
 
     private func render() {
         // At home the top of the body is inside the hole, so a drained band would only show as a stray stripe.
-        let frame = sprites.frame(player.state, player.frame, drain: config.isHome ? 0 : drain)
+        let frame = sprites.frame(player.state, player.frame, drain: config.isHome ? 0 : drain,
+                                  gaze: config.isHome ? nil : currentGaze)
         view.show(frame.image, canvas: frame.canvas)
     }
 
@@ -461,6 +545,7 @@ final class PetController {
     private func persistOrigin() {
         config.origin = PetPoint(panel.frame.origin)
         persist()
+        onPlacementChange?()
     }
 
     private func persist() {

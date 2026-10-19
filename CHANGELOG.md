@@ -1,6 +1,6 @@
 # Changelog
 
-The project was built in milestones; each was merged into `main` once it had been checked live. All entries date from 2026-10-19. The detailed Russian log is in [docs/SPEC.md](docs/SPEC.md#журнал-изменений).
+The project was built in milestones; each was merged into `main` once it had been checked live. All entries date from 2026-10-19.
 
 ## Unreleased
 
@@ -94,4 +94,4 @@ The project was built in milestones; each was merged into `main` once it had bee
 
 ## M0: Spike
 
-Checked the assumptions behind the plan: hooks from desktop sessions, statusline, `claude -p`, rendering cost, notch geometry, Translation and hook latency. See [docs/spike-notes.md](docs/spike-notes.md).
+Checked the assumptions behind the plan: hooks from desktop sessions, statusline, `claude -p`, rendering cost, notch geometry, Translation and hook latency. The findings that still matter are in [DEVELOPMENT.md](docs/DEVELOPMENT.md#findings-worth-knowing).

@@ -7,7 +7,7 @@ public enum HookSettings {
         case unexpectedShape(String)
     }
 
-    /// Checked against the event names in Claude Code 2.1.299's binary (see docs/spike-notes.md).
+    /// Checked against the event names in Claude Code 2.1.299's binary.
     public static let events = [
         "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest",
         "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd",

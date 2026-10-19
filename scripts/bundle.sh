@@ -38,7 +38,7 @@ PLIST
 if security find-identity -v -p codesigning | grep -q "\"$IDENTITY\""; then
     codesign --force --options runtime --sign "$IDENTITY" "$APP"
 else
-    echo "note: '$IDENTITY' certificate not found, signing ad-hoc (see docs/spike-notes.md §7)" >&2
+    echo "note: '$IDENTITY' certificate not found, signing ad-hoc (see docs/DEVELOPMENT.md, "Code signing")" >&2
     codesign --force --sign - "$APP"
 fi
 echo "built $APP ($VERSION)"

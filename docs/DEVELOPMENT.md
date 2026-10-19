@@ -20,7 +20,7 @@ Sources/
 Tests/
   PetCoreTests/ PetSpritesTests/ PetIntegrationsTests/
 scripts/             bundle, run, install, test
-docs/                architecture, this file, spec and spike notes (Russian), animation prototype
+docs/                architecture, this file, README pictures, animation prototype
 spikes/m0/           throwaway spike code from the first milestone (panel, layer renderer, translation)
 ```
 
@@ -138,6 +138,26 @@ A self-signed code-signing certificate gives every build a stable identity. To c
 3. Rebuild with `./scripts/install.sh`, then grant Accessibility one last time.
 
 Notarization and distribution are out of scope. The app is meant to be built from source on your own Mac.
+
+## Known gaps and ideas
+
+- **Stable code signing.** Builds are signed ad-hoc until a "Pixel Pet Dev" certificate exists (see [Code signing](#code-signing)), so the Accessibility permission has to be granted again after each rebuild.
+- **The notch on real hardware.** Home in the notch is built from `auxiliaryTopLeftArea` / `auxiliaryTopRightArea` but was only ever checked on external displays with the lid closed: the window's seat under the notch and the peek need a look with the lid open.
+- **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
+- **Approve or deny from the panel.** A waiting agent's permission request could be answered from the status card.
+- **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.
+- **Codex waiting for approval.** Codex doesn't write approval prompts to its session files, so its blocks never turn amber; its hooks (`PermissionRequest`) could fill that in, if the desktop app runs them.
+
+## Findings worth knowing
+
+Measured or found out while building; they explain choices that look odd otherwise.
+
+- **Rendering cost.** SpriteKit idled at 2–8% CPU and about 125 MB (it keeps ticking even when paused); swapping `CGImage`s in a `CALayer` costs 0.1–0.2% and about 12 MB.
+- **Hook latency.** `sh` + `nc -U` to the socket takes about 10 ms per call (12 ms worst); `python3` alone takes about 20 ms to start, so the hook is a shell script.
+- **Socket path.** Unix socket paths are limited to about 104 bytes, which is why the socket lives at `~/.pixelpet/pet.sock` and not in a temporary folder.
+- **Hooks and desktop sessions.** Hooks fire for Claude desktop (Code tab) sessions too, and already open sessions start sending events as soon as `settings.json` changes, without a `SessionStart`. The statusline, on the other hand, never runs for desktop sessions: that is why limits come from `rate_limit_event` instead.
+- **`claude -p`.** `--bare` needs an API key and ignores the subscription, so it can't be used; `--setting-sources project` keeps user hooks out instead. With haiku the first token arrives after about 2.7 s, and `result` follows `message_stop` by about 1.4 s (the post-turn summary), which is why answers count as done at `message_stop`.
+- **Post-turn summary.** After each turn Claude Code runs a short internal subagent whose `SubagentStop` arrives without a `SubagentStart`; it is not one of the user's subagents.
 
 ## Conventions
 

@@ -310,4 +310,4 @@ Two things stay behind until you remove them yourself:
 - [Architecture](docs/ARCHITECTURE.md): modules, data flow and the rules behind the states.
 - [Development](docs/DEVELOPMENT.md): building, testing, debug flags and conventions.
 - [Changelog](CHANGELOG.md).
-- Background notes in Russian: the original [spec and plan](docs/SPEC.md), the [spike findings](docs/spike-notes.md), and the [animation prototype](docs/prototype/sprites.html), which opens in a browser.
+- The original [animation prototype](docs/prototype/sprites.html), which opens in a browser.

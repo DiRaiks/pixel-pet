@@ -22,6 +22,16 @@ final class SettingsModel {
     }
     var desktopReactions = true { didSet { update { $0.desktopReactions = desktopReactions } } }
     var sleepAfterMinutes = 10 { didSet { update { $0.sleepAfterMinutes = sleepAfterMinutes } } }
+    var uiLanguage = UILanguage.en {
+        didSet {
+            guard !loading, uiLanguage != oldValue else { return }
+            Loc.shared.language = uiLanguage
+            update { $0.uiLanguage = uiLanguage.rawValue }
+            onLanguage?()
+        }
+    }
+    /// The language changed: windows and menus built in AppKit retitle themselves.
+    @ObservationIgnored var onLanguage: (() -> Void)?
     var nativeLanguage = "ru" { didSet { update { $0.nativeLanguage = nativeLanguage } } }
     var foreignLanguage = "en" { didSet { update { $0.foreignLanguage = foreignLanguage } } }
     var askModel = "haiku" { didSet { update { $0.askModel = askModel } } }
@@ -84,6 +94,7 @@ final class SettingsModel {
         doNotDisturb = c.doNotDisturb
         desktopReactions = c.desktopReactions
         sleepAfterMinutes = c.sleepAfterMinutes
+        uiLanguage = UILanguage(rawValue: c.uiLanguage) ?? .en
         nativeLanguage = c.nativeLanguage
         foreignLanguage = c.foreignLanguage
         askModel = c.askModel
@@ -147,21 +158,34 @@ enum Choices {
         ("zh", "中文"), ("ja", "日本語"), ("ko", "한국어"),
     ]
     static let models = ["haiku", "sonnet", "opus"]
-    static let figures: [(name: String, title: String)] = [(Figure.cube.rawValue, "Кубик"), (Figure.lidman.rawValue, "LM")]
-    static let skins: [(name: String, title: String)] = [
-        ("lavender", "Лавандовый"), ("mint", "Мятный"), ("peach", "Персиковый"), ("mono", "Графитовый"),
-        ("sky", "Небесный"), ("sakura", "Сакура"), ("vanilla", "Ваниль"), ("night", "Ночной"),
-        (Look.daily, "Каждый день новый"),
-    ]
-    static let accessories: [(name: String, title: String)] = [
-        ("none", "Без аксессуара"), ("glasses", "Очки"), ("sunglasses", "Солнечные очки"), ("headphones", "Наушники"),
-        ("cap", "Кепка"), ("beanie", "Шапка-бини"), ("crown", "Корона"), ("bow", "Бантик"), ("flower", "Цветок"),
-        ("propeller", "Шапка с пропеллером"), ("scarf", "Шарф"), ("mustache", "Усы"),
-        (Look.daily, "Каждый день новый"),
-    ]
-    static let sleep: [(minutes: Int, title: String)] = [
-        (0, "никогда"), (5, "через 5 мин"), (10, "через 10 мин"), (15, "через 15 мин"), (30, "через 30 мин"), (60, "через час"),
-    ]
+    @MainActor static var figures: [(name: String, title: String)] {
+        [(Figure.cube.rawValue, L("Cube", "Кубик")), (Figure.lidman.rawValue, "LM")]
+    }
+    @MainActor static var skins: [(name: String, title: String)] {
+        [
+            ("lavender", L("Lavender", "Лавандовый")), ("mint", L("Mint", "Мятный")), ("peach", L("Peach", "Персиковый")),
+            ("mono", L("Graphite", "Графитовый")), ("sky", L("Sky", "Небесный")), ("sakura", L("Sakura", "Сакура")),
+            ("vanilla", L("Vanilla", "Ваниль")), ("night", L("Night", "Ночной")),
+            (Look.daily, L("New every day", "Каждый день новый")),
+        ]
+    }
+    @MainActor static var accessories: [(name: String, title: String)] {
+        [
+            ("none", L("None", "Без аксессуара")), ("glasses", L("Glasses", "Очки")),
+            ("sunglasses", L("Sunglasses", "Солнечные очки")), ("headphones", L("Headphones", "Наушники")),
+            ("cap", L("Cap", "Кепка")), ("beanie", L("Beanie", "Шапка-бини")), ("crown", L("Crown", "Корона")),
+            ("bow", L("Bow", "Бантик")), ("flower", L("Flower", "Цветок")),
+            ("propeller", L("Propeller hat", "Шапка с пропеллером")), ("scarf", L("Scarf", "Шарф")),
+            ("mustache", L("Mustache", "Усы")),
+            (Look.daily, L("New every day", "Каждый день новый")),
+        ]
+    }
+    @MainActor static var sleep: [(minutes: Int, title: String)] {
+        [
+            (0, L("never", "никогда")), (5, L("5 min", "через 5 мин")), (10, L("10 min", "через 10 мин")),
+            (15, L("15 min", "через 15 мин")), (30, L("30 min", "через 30 мин")), (60, L("1 hour", "через час")),
+        ]
+    }
 }
 
 struct SettingsView: View {
@@ -169,111 +193,121 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Кубик") {
-                Picker("Размер", selection: $model.scale) {
+            Section(L("Pet", "Кубик")) {
+                Picker("Language / Язык", selection: $model.uiLanguage) {
+                    ForEach(UILanguage.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker(L("Size", "Размер"), selection: $model.scale) {
                     ForEach(Array(PetConfig.scaleRange), id: \.self) { Text("×\($0)").tag($0) }
                 }
-                Picker("Персонаж", selection: $model.figure) {
+                Picker(L("Character", "Персонаж"), selection: $model.figure) {
                     ForEach(Choices.figures, id: \.name) { Text($0.title).tag($0.name) }
                 }
                 // LM keeps his own colors and wears nothing on his diamond.
                 Group {
-                    Picker("Цвет", selection: $model.skin) {
+                    Picker(L("Color", "Цвет"), selection: $model.skin) {
                         ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
                     }
-                    Picker("Аксессуар", selection: $model.accessory) {
+                    Picker(L("Accessory", "Аксессуар"), selection: $model.accessory) {
                         ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
                     }
                 }
                 .disabled(model.figure == Figure.lidman.rawValue)
-                Toggle("Не беспокоить (⌃⌥P)", isOn: $model.doNotDisturb)
-                Toggle("Реагировать на рабочий стол", isOn: $model.desktopReactions)
-                    .help("Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями")
-                Toggle("Кальян на перерывах", isOn: $model.hookah)
-                    .help("Иногда в покое и после больших задач кубик курит кальян")
-                Picker("Засыпать без активности", selection: $model.sleepAfterMinutes) {
+                Toggle(L("Do not disturb (⌃⌥P)", "Не беспокоить (⌃⌥P)"), isOn: $model.doNotDisturb)
+                Toggle(L("Desktop reactions", "Реагировать на рабочий стол"), isOn: $model.desktopReactions)
+                    .help(L("Eyes follow the cursor, glances at the window you switch to, fades over fullscreen apps",
+                             "Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями"))
+                Toggle(L("Hookah breaks", "Кальян на перерывах"), isOn: $model.hookah)
+                    .help(L("Now and then, when idle or after a big task, the cube smokes a hookah",
+                             "Иногда в покое и после больших задач кубик курит кальян"))
+                Picker(L("Fall asleep after", "Засыпать без активности"), selection: $model.sleepAfterMinutes) {
                     ForEach(Choices.sleep, id: \.minutes) { Text($0.title).tag($0.minutes) }
                 }
-                Toggle("Запускать при входе в систему", isOn: Binding(
+                Toggle(L("Launch at login", "Запускать при входе в систему"), isOn: Binding(
                     get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
             }
             Section("Claude Code") {
-                LabeledContent("Хуки") {
+                LabeledContent(L("Hooks", "Хуки")) {
                     HStack {
                         StatusDot(ok: model.hooksConnected)
-                        Text(model.hooksConnected ? "подключены" : "не подключены").foregroundStyle(.secondary)
-                        Button(model.hooksConnected ? "Отключить" : "Подключить…") { model.toggleHooks() }
+                        Text(model.hooksConnected ? L("connected", "подключены") : L("not connected", "не подключены")).foregroundStyle(.secondary)
+                        Button(model.hooksConnected ? L("Disconnect", "Отключить") : L("Connect…", "Подключить…")) { model.toggleHooks() }
                     }
                 }
-                LabeledContent("Statusline в терминале") {
+                LabeledContent(L("Terminal statusline", "Statusline в терминале")) {
                     HStack {
                         switch model.statusLine {
                         case .ours:
                             StatusDot(ok: true)
-                            Text("кубика").foregroundStyle(.secondary)
+                            Text(L("the cube's", "кубика")).foregroundStyle(.secondary)
                         case .foreign:
                             StatusDot(ok: true)
-                            Text("ваша, не трогаю").foregroundStyle(.secondary)
+                            Text(L("yours, left as is", "ваша, не трогаю")).foregroundStyle(.secondary)
                         case .absent:
                             StatusDot(ok: false)
-                            Text("нет").foregroundStyle(.secondary)
-                            if model.hooksConnected { Button("Добавить") { model.addStatusLine() } }
+                            Text(L("none", "нет")).foregroundStyle(.secondary)
+                            if model.hooksConnected { Button(L("Add", "Добавить")) { model.addStatusLine() } }
                         }
                     }
                 }
-                Picker("Модель для вопросов (⌃⌥K)", selection: $model.askModel) {
+                Picker(L("Model for questions (⌃⌥K)", "Модель для вопросов (⌃⌥K)"), selection: $model.askModel) {
                     ForEach(Choices.models, id: \.self) { Text($0).tag($0) }
                 }
-                Toggle("Журнал событий (~/.pixelpet/events.log)", isOn: $model.logEvents)
-                    .help("Только id сессий, проекты и имена событий, без текстов")
+                Toggle(L("Event log (~/.pixelpet/events.log)", "Журнал событий (~/.pixelpet/events.log)"), isOn: $model.logEvents)
+                    .help(L("Only session ids, projects and event names, no text", "Только id сессий, проекты и имена событий, без текстов"))
             }
-            Section("Звонки") {
-                Toggle("Напоминать о звонках", isOn: $model.meetingAlerts)
-                    .help("За 5 минут до встречи со ссылкой на звонок кубик надевает гарнитуру, в последнюю минуту звенит будильник")
+            Section(L("Calls", "Звонки")) {
+                Toggle(L("Remind about calls", "Напоминать о звонках"), isOn: $model.meetingAlerts)
+                    .help(L("5 minutes before a meeting with a call link the cube puts on a headset, and an alarm rings in the last minute",
+                             "За 5 минут до встречи со ссылкой на звонок кубик надевает гарнитуру, в последнюю минуту звенит будильник"))
                 if model.meetingAlerts {
-                    LabeledContent("Календари") {
+                    LabeledContent(L("Calendars", "Календари")) {
                         HStack {
                             switch model.calendarAccess {
                             case .granted:
                                 StatusDot(ok: model.calendarCount > 0)
-                                Text(model.calendarCount > 0 ? "видно: \(model.calendarCount)" : "ни одного: добавьте аккаунт в «Учётных записях интернета»")
+                                Text(model.calendarCount > 0
+                                     ? L("visible: \(model.calendarCount)", "видно: \(model.calendarCount)")
+                                     : L("none: add an account in Internet Accounts", "ни одного: добавьте аккаунт в «Учётных записях интернета»"))
                                     .foregroundStyle(.secondary)
                             case .denied:
                                 StatusDot(ok: false)
-                                Text("нет доступа").foregroundStyle(.secondary)
-                                Button("Открыть настройки…") { MeetingMonitor.openPrivacySettings() }
+                                Text(L("no access", "нет доступа")).foregroundStyle(.secondary)
+                                Button(L("Open Settings…", "Открыть настройки…")) { MeetingMonitor.openPrivacySettings() }
                             case .limited:
                                 StatusDot(ok: false)
-                                Text("доступ ограничен: нужен полный").foregroundStyle(.secondary)
-                                Button("Открыть настройки…") { MeetingMonitor.openPrivacySettings() }
+                                Text(L("limited access: full access needed", "доступ ограничен: нужен полный")).foregroundStyle(.secondary)
+                                Button(L("Open Settings…", "Открыть настройки…")) { MeetingMonitor.openPrivacySettings() }
                             case .notAsked:
-                                Text("нет доступа").foregroundStyle(.secondary)
-                                Button("Разрешить…") { model.onRequestCalendar?() }
+                                Text(L("no access", "нет доступа")).foregroundStyle(.secondary)
+                                Button(L("Allow…", "Разрешить…")) { model.onRequestCalendar?() }
                             }
                         }
                     }
                 }
             }
             Section("YubiKey") {
-                Toggle("Подсказывать касание ключа", isOn: $model.touchHint)
-                    .help("Когда ключ ждёт касания для GPG-подписи, кубик достаёт его и показывает. Читает только это сообщение системного журнала")
+                Toggle(L("Show when the key waits for a touch", "Подсказывать касание ключа"), isOn: $model.touchHint)
+                    .help(L("When the key waits for a touch to sign with GPG, the cube takes it out and shows it. Reads only that system log message",
+                             "Когда ключ ждёт касания для GPG-подписи, кубик достаёт его и показывает. Читает только это сообщение системного журнала"))
             }
             Section("Codex") {
-                Toggle("Следить за агентами Codex", isOn: $model.watchCodex)
-                    .help("Читает ~/.codex/sessions: кубики Codex слева, лимиты Codex в панели. Ничего не устанавливает")
+                Toggle(L("Follow Codex agents", "Следить за агентами Codex"), isOn: $model.watchCodex)
+                    .help(L("Reads ~/.codex/sessions: Codex cubes on the left, Codex limits in the panel. Installs nothing",
+                             "Читает ~/.codex/sessions: кубики Codex слева, лимиты Codex в панели. Ничего не устанавливает"))
             }
-            Section("Перевод (⌃⌥T)") {
-                Picker("Мой язык", selection: $model.nativeLanguage) {
+            Section(L("Translation (⌃⌥T)", "Перевод (⌃⌥T)")) {
+                Picker(L("My language", "Мой язык"), selection: $model.nativeLanguage) {
                     ForEach(Choices.languages, id: \.code) { Text($0.name).tag($0.code) }
                 }
-                Picker("Переводить мой язык на", selection: $model.foreignLanguage) {
+                Picker(L("Translate my language into", "Переводить мой язык на"), selection: $model.foreignLanguage) {
                     ForEach(Choices.languages, id: \.code) { Text($0.name).tag($0.code) }
                 }
-                LabeledContent("Доступ к выделенному тексту") {
+                LabeledContent(L("Access to selected text", "Доступ к выделенному тексту")) {
                     HStack {
                         StatusDot(ok: model.accessibility)
-                        Text(model.accessibility ? "есть" : "нет").foregroundStyle(.secondary)
-                        if !model.accessibility { Button("Разрешить…") { model.requestAccessibility() } }
+                        Text(model.accessibility ? L("granted", "есть") : L("none", "нет")).foregroundStyle(.secondary)
+                        if !model.accessibility { Button(L("Allow…", "Разрешить…")) { model.requestAccessibility() } }
                     }
                 }
             }

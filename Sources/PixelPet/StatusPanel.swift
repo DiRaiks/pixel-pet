@@ -156,7 +156,7 @@ struct StatusPanelView: View {
 
     private func meetingLine(_ meeting: Meeting) -> String {
         let minutes = Int((meeting.start.timeIntervalSince(model.now) / 60).rounded(.up))
-        let when = minutes <= 0 ? "Звонок начинается" : "Звонок через \(minutes) мин"
+        let when = minutes <= 0 ? L("Call starting", "Звонок начинается") : L("Call in \(minutes) min", "Звонок через \(minutes) мин")
         return meeting.title.isEmpty ? when : "\(when): \(meeting.title)"
     }
 
@@ -187,7 +187,7 @@ private struct LimitsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Лимиты").font(.headline)
+                Text(L("Limits", "Лимиты")).font(.headline)
                 Spacer()
                 // With Codex on, each group says how fresh it is instead.
                 if !model.codexEnabled, let observed = model.limits?.observedAt {
@@ -200,7 +200,7 @@ private struct LimitsSection: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(model.isProbing)
-                .help("Обновить лимиты")
+                .help(L("Refresh limits", "Обновить лимиты"))
             }
             if model.codexEnabled {
                 LimitGroup(title: "Claude", limits: model.limits, probing: model.isProbing, now: model.now)
@@ -231,10 +231,10 @@ private struct LimitGroup: View {
                 }
             }
             if let current, !current.isEmpty {
-                LimitRow(title: "5 ч", window: current.fiveHour, low: UsageLimits.fiveHourLow, now: now)
-                LimitRow(title: "7 дн", window: current.sevenDay, low: UsageLimits.sevenDayLow, now: now)
+                LimitRow(title: L("5h", "5 ч"), window: current.fiveHour, low: UsageLimits.fiveHourLow, now: now)
+                LimitRow(title: L("7d", "7 дн"), window: current.sevenDay, low: UsageLimits.sevenDayLow, now: now)
             } else {
-                Text(probing ? "Узнаю лимиты…" : "Лимиты пока неизвестны")
+                Text(probing ? L("Checking limits…", "Узнаю лимиты…") : L("Limits not known yet", "Лимиты пока неизвестны"))
                     .font(.callout).foregroundStyle(.secondary)
             }
         }
@@ -259,9 +259,10 @@ private struct LimitRow: View {
                 Text(Format.duration(window.resetsAt.timeIntervalSince(now)))
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     .frame(width: 84, alignment: .trailing)
-                    .help("Сброс через \(Format.duration(window.resetsAt.timeIntervalSince(now)))")
+                    .help(L("Resets in \(Format.duration(window.resetsAt.timeIntervalSince(now)))",
+                             "Сброс через \(Format.duration(window.resetsAt.timeIntervalSince(now)))"))
             } else {
-                Text("нет данных").font(.callout).foregroundStyle(.secondary)
+                Text(L("no data", "нет данных")).font(.callout).foregroundStyle(.secondary)
                 Spacer()
             }
         }
@@ -273,7 +274,7 @@ private struct SessionsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Сессии").font(.headline)
+            Text(L("Sessions", "Сессии")).font(.headline)
             if model.sessions.isEmpty && model.codexSessions.isEmpty {
                 Text(emptyText).font(.callout).foregroundStyle(.secondary)
             } else {
@@ -289,9 +290,13 @@ private extension SessionsSection {
         let claude = model.hooksConnected ? "Claude Code" : nil
         let codex = model.codexEnabled ? "Codex" : nil
         switch (claude, codex) {
-        case (nil, nil): return "Подключите кубика к Claude Code в меню-баре"
-        case (nil, _): return "Сейчас нет сессий Codex. Claude Code можно подключить в меню-баре"
-        default: return "Сейчас нет сессий " + [claude, codex].compactMap { $0 }.joined(separator: " и ")
+        case (nil, nil): return L("Connect the cube to Claude Code from the menu bar", "Подключите кубика к Claude Code в меню-баре")
+        case (nil, _): return L("No Codex sessions right now. Claude Code can be connected from the menu bar",
+                                "Сейчас нет сессий Codex. Claude Code можно подключить в меню-баре")
+        default:
+            let names = [claude, codex].compactMap { $0 }
+            return L("No \(names.joined(separator: " or ")) sessions right now",
+                     "Сейчас нет сессий " + names.joined(separator: " и "))
         }
     }
 }
@@ -327,35 +332,39 @@ private struct SessionRow: View {
         switch session.status {
         case .working:
             let since = session.workingSince.map { " · " + Format.duration(now.timeIntervalSince($0)) } ?? ""
-            return (session.currentTool.map { "работает · \(Format.tool($0))" } ?? "работает") + since
-        case .waiting: return "ждёт ввода"
-        case .failed: return "ошибка"
-        case .idle: return "простаивает"
+            let working = L("working", "работает")
+            return (session.currentTool.map { "\(working) · \(Format.tool($0))" } ?? working) + since
+        case .waiting: return L("waiting for input", "ждёт ввода")
+        case .failed: return L("error", "ошибка")
+        case .idle: return L("idle", "простаивает")
         }
     }
 
     private var meta: String? {
         let parts = [AgentSession.shortModel(session.model),
                      session.contextPercent.map { "ctx \(Int($0.rounded()))%" },
-                     session.subagents.isEmpty ? nil : "+\(session.subagents.count) саб."]
+                     session.subagents.isEmpty ? nil : L("+\(session.subagents.count) sub.", "+\(session.subagents.count) саб.")]
             .compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
+@MainActor
 enum Format {
     static func ago(_ date: Date, now: Date) -> String {
         let seconds = now.timeIntervalSince(date)
-        return seconds < 60 ? "только что" : "\(duration(seconds)) назад"
+        return seconds < 60 ? L("just now", "только что") : L("\(duration(seconds)) ago", "\(duration(seconds)) назад")
     }
 
     static func duration(_ seconds: TimeInterval) -> String {
         let minutes = max(0, Int(seconds / 60))
-        if minutes < 1 { return "<1 мин" }
-        if minutes < 60 { return "\(minutes) мин" }
+        if minutes < 1 { return L("<1 min", "<1 мин") }
+        if minutes < 60 { return L("\(minutes) min", "\(minutes) мин") }
         let hours = minutes / 60
-        if hours < 24 { return minutes % 60 == 0 ? "\(hours) ч" : "\(hours) ч \(minutes % 60) мин" }
-        return "\(hours / 24) д \(hours % 24) ч"
+        if hours < 24 {
+            return minutes % 60 == 0 ? L("\(hours) h", "\(hours) ч") : L("\(hours) h \(minutes % 60) min", "\(hours) ч \(minutes % 60) мин")
+        }
+        return L("\(hours / 24) d \(hours % 24) h", "\(hours / 24) д \(hours % 24) ч")
     }
 
     /// "mcp__terminal__run_in_terminal" -> "run_in_terminal".

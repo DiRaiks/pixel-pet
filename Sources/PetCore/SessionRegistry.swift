@@ -27,6 +27,8 @@ public struct AgentSession: Equatable, Sendable {
     public var failedAt: Date?
     /// tool_use_id of an AskUserQuestion / ExitPlanMode call the user hasn't answered yet.
     var pendingQuestion: String?
+    /// The turn has ended but background subagents still run: the session finishes when the last one stops.
+    var turnEnded = false
 
     public init(id: String, firstSeenAt: Date, lastEventAt: Date) {
         self.id = id
@@ -100,8 +102,8 @@ public struct SessionRegistry: Sendable {
             if let model { s.model = model }
         case .promptSubmitted:
             s.askedUser = false
+            s.turnEnded = false
             s.workedBefore = 0
-            s.subagents.removeAll()
             s.failedAt = nil
             s.pendingQuestion = nil
             startWorking(&s, now)
@@ -136,28 +138,22 @@ public struct SessionRegistry: Sendable {
         case .compacting:
             reaction = .compacted
         case .stopped:
-            // A turn that ends with a question isn't "done" yet: no celebration, wait for the reply instead.
-            if !s.askedUser {
-                let work = activeWork(s, now)
-                if work >= Self.bigFinishAfter {
-                    reaction = .finishedBig
-                } else if work >= Self.celebrateAfter {
-                    reaction = .finished
-                }
-            }
-            becomeIdle(&s)
-            s.finishedAt = now
-            if s.askedUser {
-                s.status = .waiting
-                s.waitingFor = .question
-                s.waitingSince = now
+            // Background subagents outlive the turn: keep working until the last one reports back.
+            if !s.subagents.isEmpty, !s.askedUser, s.status != .failed {
+                s.turnEnded = true
+                startWorking(&s, now)
+            } else {
+                reaction = finish(&s, now)
             }
         case .interrupted:
+            // Esc stops the subagents too; their stops may never arrive.
             becomeIdle(&s)
+            s.subagents.removeAll()
         case .stillWorking:
             if s.status != .waiting, s.status != .failed { startWorking(&s, now) }
         case .failed:
             becomeIdle(&s)
+            s.subagents.removeAll()
             s.status = .failed
             s.failedAt = now
             reaction = .failed
@@ -168,6 +164,8 @@ public struct SessionRegistry: Sendable {
         case .sessionEnded:
             break
         }
+        // The turn ended earlier and the last background subagent is done (also once a wait in between is over).
+        if s.turnEnded, s.subagents.isEmpty, s.status == .working { reaction = finish(&s, now) }
         sessions[event.sessionID] = s
         return reaction
     }
@@ -200,6 +198,8 @@ public struct SessionRegistry: Sendable {
                 sessions.removeValue(forKey: id)
             } else if let silentTimeout, s.status == .working, s.currentTool == nil, quiet > silentTimeout {
                 becomeIdle(&s)
+                // Nothing heard for this long: subagents whose stop never came are gone too.
+                s.subagents.removeAll()
                 sessions[id] = s
             }
         }
@@ -233,7 +233,30 @@ public struct SessionRegistry: Sendable {
         s.status = .waiting
     }
 
+    /// The turn is over: celebrate by how long it worked, unless it ends with a question for the user.
+    private func finish(_ s: inout AgentSession, _ now: Date) -> AgentReaction? {
+        var reaction: AgentReaction?
+        // A turn that ends with a question isn't "done" yet: no celebration, wait for the reply instead.
+        if !s.askedUser {
+            let work = activeWork(s, now)
+            if work >= Self.bigFinishAfter {
+                reaction = .finishedBig
+            } else if work >= Self.celebrateAfter {
+                reaction = .finished
+            }
+        }
+        becomeIdle(&s)
+        s.finishedAt = now
+        if s.askedUser {
+            s.status = .waiting
+            s.waitingFor = .question
+            s.waitingSince = now
+        }
+        return reaction
+    }
+
     private func becomeIdle(_ s: inout AgentSession) {
+        s.turnEnded = false
         s.status = .idle
         s.waitingFor = nil
         s.waitingSince = nil

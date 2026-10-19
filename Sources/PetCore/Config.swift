@@ -17,6 +17,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var homeDisplay: UInt32?
     /// Stay home and only come out for errors.
     public var doNotDisturb = false
+    /// Interface language: "en" (default) or "ru".
+    public var uiLanguage = "en"
     /// Translation: text in your language goes to `foreignLanguage`, anything else into `nativeLanguage`.
     public var nativeLanguage = "ru"
     public var foreignLanguage = "en"
@@ -57,6 +59,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         isHome = try c.decodeIfPresent(Bool.self, forKey: .isHome) ?? false
         homeDisplay = try c.decodeIfPresent(UInt32.self, forKey: .homeDisplay)
         doNotDisturb = try c.decodeIfPresent(Bool.self, forKey: .doNotDisturb) ?? false
+        uiLanguage = try c.decodeIfPresent(String.self, forKey: .uiLanguage) ?? "en"
         nativeLanguage = try c.decodeIfPresent(String.self, forKey: .nativeLanguage) ?? "ru"
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"

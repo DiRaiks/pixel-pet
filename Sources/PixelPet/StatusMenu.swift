@@ -10,17 +10,23 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let pet: PetController
     private let hooks: HookInstaller
     private let hooksItem = NSMenuItem(title: "", action: #selector(toggleHooks), keyEquivalent: "")
-    private let statusLineItem = NSMenuItem(title: "Добавить statusline для терминала", action: #selector(addStatusLine),
-                                            keyEquivalent: "")
-    private let logItem = NSMenuItem(title: "Записывать события", action: #selector(toggleLog), keyEquivalent: "")
-    private let openLogItem = NSMenuItem(title: "Открыть журнал событий", action: #selector(openLog), keyEquivalent: "")
+    private let statusLineItem = NSMenuItem(title: "", action: #selector(addStatusLine), keyEquivalent: "")
+    private let logItem = NSMenuItem(title: "", action: #selector(toggleLog), keyEquivalent: "")
+    private let openLogItem = NSMenuItem(title: "", action: #selector(openLog), keyEquivalent: "")
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
-    private let limitsItem = NSMenuItem(title: "Лимиты: пока неизвестны", action: nil, keyEquivalent: "")
-    private let panelItem = NSMenuItem(title: "Панель статуса", action: #selector(showPanel), keyEquivalent: "")
+    private let limitsItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let panelItem = NSMenuItem(title: "", action: #selector(showPanel), keyEquivalent: "")
     private let homeItem = NSMenuItem(title: "", action: #selector(toggleHome), keyEquivalent: "")
-    private let dndItem = NSMenuItem(title: "Не беспокоить", action: #selector(toggleDND), keyEquivalent: "p")
-    private let translateItem = NSMenuItem(title: "Перевести выделенное", action: #selector(translate), keyEquivalent: "t")
-    private let askItem = NSMenuItem(title: "Спросить Claude", action: #selector(ask), keyEquivalent: "k")
+    private let dndItem = NSMenuItem(title: "", action: #selector(toggleDND), keyEquivalent: "p")
+    private let translateItem = NSMenuItem(title: "", action: #selector(translate), keyEquivalent: "t")
+    private let askItem = NSMenuItem(title: "", action: #selector(ask), keyEquivalent: "k")
+    private let statesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let scalesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let settingsItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
+    private let welcomeItem = NSMenuItem(title: "", action: #selector(openWelcome), keyEquivalent: "")
+    private let quitItem = NSMenuItem(title: "", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+    /// The last limits passed to `update`, so the limits line can be retitled when the language changes.
+    private var lastLimits: (claude: UsageLimits?, codex: UsageLimits?) = (nil, nil)
     var onTranslate: (() -> Void)?
     var onSettings: (() -> Void)?
     var onWelcome: (() -> Void)?
@@ -29,19 +35,34 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
 
-    private static let stateTitles: [PetState: String] = [
-        .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
-        .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
-        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drip: "Капля (LM)", .melt: "Растекается (LM)", .wave: "Машет", .launch: "Ракета", .purr: "Гладят", .sneeze: "Чихает", .drop: "Приземление", .talk: "Отвечает",
-        .workSip: "Пьёт кофе", .workStretch: "Потягивается", .workThink: "Задумался", .workRush: "Строчит",
-        .glanceLeft: "Смотрит на Codex", .glanceRight: "Смотрит на Claude",
-        .touchKey: "Ждёт касания ключа", .touchDone: "Ключ коснулись", .touchKeyHome: "Ждёт касания (дома)",
-        .question: "Агент спрашивает", .refill: "Лимит обновился", .exhausted: "Лимит исчерпан",
-        .spawn: "Сабагенты", .recall: "Сабагенты вернулись", .compact: "Сжимает контекст",
-        .tired: "Батарея садится", .plugIn: "Зарядка", .thrown: "Кувырок", .dizzy: "Кружится голова",
-        .splatLeft: "Шлёп о левый край", .splatRight: "Шлёп о правый край", .hookah: "Кальян", .hookahCloud: "Кальян: облако",
-        .meetingSoon: "Скоро звонок", .meetingNow: "Звонок сейчас",
-    ]
+    private static var stateTitles: [PetState: String] {
+        [
+            .idle: L("Idle", "Покой"), .hop: L("Hop", "Прыжок"), .working: L("Agents working", "Агенты работают"),
+            .alert: L("Agent is waiting for input", "Агент ждёт ввода"),
+            .celebrate: L("Task done", "Задача готова"), .sleep: L("Sleep", "Сон"), .lowLimit: L("Low limit", "Лимит на исходе"),
+            .error: L("Error", "Ошибка"),
+            .peek: L("Out of the notch", "Из чёлки"), .burrowed: L("At home (eyes)", "Дома (глаза)"),
+            .peekHold: L("Peeking out", "Выглядывает"), .dive: L("Diving home", "Ныряет домой"), .yawn: L("Yawn", "Зевает"),
+            .shy: L("Shy", "Смущается"), .angry: L("Angry", "Сердится"), .flip: L("Flip", "Сальто"), .tumble: L("Roll", "Перекат"),
+            .drip: L("Drop (LM)", "Капля (LM)"), .melt: L("Puddle (LM)", "Растекается (LM)"), .wave: L("Wave", "Машет"),
+            .launch: L("Rocket", "Ракета"), .purr: L("Petted", "Гладят"), .sneeze: L("Sneeze", "Чихает"),
+            .drop: L("Landing", "Приземление"), .talk: L("Talking", "Отвечает"),
+            .workSip: L("Sips coffee", "Пьёт кофе"), .workStretch: L("Stretches", "Потягивается"),
+            .workThink: L("Thinking", "Задумался"), .workRush: L("Typing fast", "Строчит"),
+            .glanceLeft: L("Looks at Codex", "Смотрит на Codex"), .glanceRight: L("Looks at Claude", "Смотрит на Claude"),
+            .touchKey: L("Waits for a key touch", "Ждёт касания ключа"), .touchDone: L("Key touched", "Ключ коснулись"),
+            .touchKeyHome: L("Waits for a touch (home)", "Ждёт касания (дома)"),
+            .question: L("Agent asks", "Агент спрашивает"), .refill: L("Limit reset", "Лимит обновился"),
+            .exhausted: L("Limit spent", "Лимит исчерпан"),
+            .spawn: L("Subagents", "Сабагенты"), .recall: L("Subagents back", "Сабагенты вернулись"),
+            .compact: L("Compacting context", "Сжимает контекст"),
+            .tired: L("Battery low", "Батарея садится"), .plugIn: L("Charging", "Зарядка"), .thrown: L("Thrown", "Кувырок"),
+            .dizzy: L("Dizzy", "Кружится голова"),
+            .splatLeft: L("Splat on the left edge", "Шлёп о левый край"), .splatRight: L("Splat on the right edge", "Шлёп о правый край"),
+            .hookah: L("Hookah", "Кальян"), .hookahCloud: L("Hookah: cloud", "Кальян: облако"),
+            .meetingSoon: L("Call soon", "Скоро звонок"), .meetingNow: L("Call now", "Звонок сейчас"),
+        ]
+    }
 
     init(pet: PetController, hooks: HookInstaller) {
         self.pet = pet
@@ -81,10 +102,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(statusLineItem)
         menu.addItem(.separator())
 
-        let states = NSMenuItem(title: "Состояние", action: nil, keyEquivalent: "")
+        let states = statesItem
         // `dragged` only makes sense under the cursor, so it isn't offered here.
         for state in PetState.allCases where state != .dragged {
-            let entry = NSMenuItem(title: Self.stateTitles[state] ?? state.rawValue, action: #selector(pickState(_:)), keyEquivalent: "")
+            let entry = NSMenuItem(title: state.rawValue, action: #selector(pickState(_:)), keyEquivalent: "")
             entry.target = self
             entry.representedObject = state.rawValue
             stateMenu.addItem(entry)
@@ -92,7 +113,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         states.submenu = stateMenu
         menu.addItem(states)
 
-        let scales = NSMenuItem(title: "Размер", action: nil, keyEquivalent: "")
+        let scales = scalesItem
         for scale in PetConfig.scaleRange {
             let entry = NSMenuItem(title: "×\(scale)", action: #selector(pickScale(_:)), keyEquivalent: "")
             entry.target = self
@@ -108,21 +129,44 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(logItem)
         menu.addItem(openLogItem)
         menu.addItem(.separator())
-        let settings = NSMenuItem(title: "Настройки…", action: #selector(openSettings), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-        let welcome = NSMenuItem(title: "Добро пожаловать…", action: #selector(openWelcome), keyEquivalent: "")
-        welcome.target = self
-        menu.addItem(welcome)
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        welcomeItem.target = self
+        menu.addItem(welcomeItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Выйти", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(quitItem)
+        applyTitles()
+    }
+
+    /// Titles in the current language; applied on build and each time the menu opens.
+    private func applyTitles() {
+        statusLineItem.title = L("Add statusline for the terminal", "Добавить statusline для терминала")
+        logItem.title = L("Log events", "Записывать события")
+        openLogItem.title = L("Open event log", "Открыть журнал событий")
+        panelItem.title = L("Status panel", "Панель статуса")
+        dndItem.title = L("Do not disturb", "Не беспокоить")
+        translateItem.title = L("Translate selection", "Перевести выделенное")
+        askItem.title = L("Ask Claude", "Спросить Claude")
+        statesItem.title = L("State", "Состояние")
+        scalesItem.title = L("Size", "Размер")
+        settingsItem.title = L("Settings…", "Настройки…")
+        welcomeItem.title = L("Welcome…", "Добро пожаловать…")
+        quitItem.title = L("Quit Pixel Pet", "Выйти")
+        let titles = Self.stateTitles
+        for entry in stateMenu.items {
+            guard let raw = entry.representedObject as? String, let state = PetState(rawValue: raw) else { continue }
+            entry.title = titles[state] ?? raw
+        }
+        applyLimits()
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        toggleItem.title = pet.isHidden ? "Показать кубика" : "Спрятать кубика"
-        homeItem.title = pet.isHome ? "Выпустить на стол" : "Отправить домой"
+        applyTitles()
+        toggleItem.title = pet.isHidden ? L("Show the cube", "Показать кубика") : L("Hide the cube", "Спрятать кубика")
+        homeItem.title = pet.isHome ? L("Let out on the desk", "Выпустить на стол") : L("Send home", "Отправить домой")
         dndItem.state = pet.doNotDisturb ? .on : .off
-        hooksItem.title = hooks.isInstalled ? "Отключить от Claude Code" : "Подключить к Claude Code…"
+        hooksItem.title = hooks.isInstalled
+            ? L("Disconnect from Claude Code", "Отключить от Claude Code") : L("Connect to Claude Code…", "Подключить к Claude Code…")
         // Connections made before statuslines existed can pick one up here; a user's own statusline is never replaced.
         statusLineItem.isHidden = !(hooks.isInstalled && hooks.statusLineState == .absent)
         // LM's own fidgets are drawn around his diamond; the cube doesn't offer them.
@@ -148,16 +192,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// Count of working or waiting agents next to the icon (nothing when all is quiet) and the limits line.
     func update(active: Int, limits: UsageLimits?, codexLimits: UsageLimits? = nil) {
         item.button?.title = active > 0 ? " \(active)" : ""
+        lastLimits = (limits, codexLimits)
+        applyLimits()
+    }
+
+    private func applyLimits() {
         func parts(_ l: UsageLimits?) -> String? {
-            let p = [l?.fiveHour.map { "5 ч \(Int($0.usedPercent.rounded()))%" },
-                     l?.sevenDay.map { "7 дн \(Int($0.usedPercent.rounded()))%" }].compactMap { $0 }
+            let p = [l?.fiveHour.map { L("5h \(Int($0.usedPercent.rounded()))%", "5 ч \(Int($0.usedPercent.rounded()))%") },
+                     l?.sevenDay.map { L("7d \(Int($0.usedPercent.rounded()))%", "7 дн \(Int($0.usedPercent.rounded()))%") }]
+                .compactMap { $0 }
             return p.isEmpty ? nil : p.joined(separator: " · ")
         }
-        let claude = parts(limits), codex = parts(codexLimits)
+        let claude = parts(lastLimits.claude), codex = parts(lastLimits.codex)
         switch (claude, codex) {
-        case (nil, nil): limitsItem.title = "Лимиты: пока неизвестны"
-        case (let c?, nil): limitsItem.title = "Лимиты: " + c
-        case (let c, let x?): limitsItem.title = "Лимиты: Claude " + (c ?? "—") + " · Codex " + x
+        case (nil, nil): limitsItem.title = L("Limits: not known yet", "Лимиты: пока неизвестны")
+        case (let c?, nil): limitsItem.title = L("Limits: ", "Лимиты: ") + c
+        case (let c, let x?): limitsItem.title = L("Limits: Claude ", "Лимиты: Claude ") + (c ?? "—") + " · Codex " + x
         }
     }
 

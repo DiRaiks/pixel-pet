@@ -183,10 +183,80 @@ import Testing
         #expect(r.apply(ev(.stopped), at: at(110)) == .finished)
     }
 
-    @Test func newPromptClearsLeftoverSubagents() {
+    /// Background subagents outlive the turn: the session keeps working until the last one stops, and only
+    /// then finishes (and celebrates by the work done).
+    @Test func backgroundSubagentsKeepTheSessionWorkingPastStop() {
         var r = SessionRegistry()
-        r.apply(ev(.subagentStarted(id: "a")), at: t0)
-        r.apply(ev(.promptSubmitted), at: at(1))
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+        r.apply(ev(.subagentStarted(id: "b")), at: at(1))
+        #expect(r.apply(ev(.stopped), at: at(30)) == nil)
+        #expect(r.ordered[0].status == .working)
+        r.apply(ev(.subagentStopped(id: "a")), at: at(60))
+        #expect(r.ordered[0].status == .working)
+        #expect(r.apply(ev(.subagentStopped(id: "b")), at: at(90)) == .finished)
+        #expect(r.ordered[0].status == .idle)
+    }
+
+    /// A new message while they run doesn't forget them; the next Stop still waits for them.
+    @Test func subagentsSurviveANewPrompt() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+        r.apply(ev(.stopped), at: at(5))
+        r.apply(ev(.promptSubmitted), at: at(10))
+        #expect(r.ordered[0].subagents == ["a"])
+        r.apply(ev(.stopped), at: at(15))
+        #expect(r.ordered[0].status == .working)
+    }
+
+    /// A wait for the user between the turn's end and the last subagent stop doesn't lose the finish.
+    @Test func waitDuringBackgroundSubagentsStillFinishes() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+        r.apply(ev(.stopped), at: at(30))
+        r.apply(ev(.permissionRequested), at: at(40))
+        #expect(r.ordered[0].status == .waiting)
+        r.apply(ev(.subagentStopped(id: "a")), at: at(50))
+        #expect(r.apply(ev(.toolStarted(name: "Bash", useID: "x")), at: at(60)) == .finished)
+        #expect(r.ordered[0].status == .idle)
+        // Late events after the finish don't celebrate again.
+        #expect(r.apply(ev(.subagentStopped(id: "a")), at: at(61)) == nil)
+    }
+
+    /// Esc or a failure takes the subagents down with the turn: the next Stop finishes right away.
+    @Test func interruptAndFailureForgetSubagents() {
+        for end in [AgentEvent.Kind.interrupted, .failed] {
+            var r = SessionRegistry()
+            r.apply(ev(.promptSubmitted), at: t0)
+            r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+            r.apply(ev(end), at: at(5))
+            #expect(r.ordered[0].subagents.isEmpty)
+            r.apply(ev(.promptSubmitted), at: at(10))
+            r.apply(ev(.stopped), at: at(40))
+            #expect(r.ordered[0].status == .idle, "\(end)")
+        }
+    }
+
+    /// A turn ending with a question waits for the reply even with subagents still out.
+    @Test func questionAtStopWaitsDespiteSubagents() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+        r.apply(ev(.questionAsked), at: at(20))
+        #expect(r.apply(ev(.stopped), at: at(30)) == nil)
+        #expect(r.ordered[0].status == .waiting)
+    }
+
+    /// A subagent whose stop never arrives doesn't keep the session busy forever: silence settles it.
+    @Test func silenceClearsLeftoverSubagents() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.subagentStarted(id: "a")), at: at(1))
+        r.apply(ev(.stopped), at: at(5))
+        r.prune(now: at(5 + SessionRegistry.silentWorkTimeout + 1))
+        #expect(r.ordered[0].status == .idle)
         #expect(r.ordered[0].subagents.isEmpty)
     }
 

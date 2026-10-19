@@ -83,6 +83,7 @@ The hook script itself is `sh` + `nc -U -w 1`. It measured about 10 ms per call 
 - **Subagents.** These are tracked between `SubagentStart` and `SubagentStop`, so the post-turn summary agent that stops without having started is ignored.
 - **Reactions.** A finished turn earns a celebration only after at least 20 s of active work; time spent waiting for the user does not count. A turn of 10 minutes or more earns the somersault (`finishedBig` → `flip`).
 - **Interrupts.** A working session with no tool running and no events for 5 minutes is treated as interrupted, because Esc sends no `Stop`.
+- **Background subagents.** A `Stop` while subagents are still running (background agents) keeps the session working (`turnEnded`); it finishes, celebrating by the work done, when the last `SubagentStop` arrives. Subagents carry over a new prompt; the silent-work timeout clears ones whose stop never came.
 - **Expiry.** Sessions with no events for 30 minutes are dropped. Sessions waiting on a permission prompt or an open question tool never go stale; a turn-end question from Claude desktop fades to idle after 30 minutes. Ended session ids are remembered (up to 500), so late events cannot bring them back.
 
 ### Turning sessions into a picture (`PetBrain`)
@@ -299,6 +300,7 @@ How the pet moves between the desk and home:
 | `sleepAfterMinutes` | 10 | 0 means never; clamped to 0–1440 |
 | `nativeLanguage` / `foreignLanguage` | `ru` / `en` | Translation direction |
 | `askModel` | `haiku` | Model for quick questions |
+| `uiLanguage` | `en` | Interface language: `en` or `ru` |
 | `skin` / `accessory` | `lavender` / `none` | Look |
 | `figure` | `cube` | `cube` or `lidman` (LM); LM ignores `skin` and `accessory` |
 | `watchCodex` | true | Follow Codex sessions and limits |

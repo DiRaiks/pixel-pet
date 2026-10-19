@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("PixelPet: failed to refresh hook script: \(error.localizedDescription)")
         }
         let store = ConfigStore()
+        Loc.shared.language = UILanguage(rawValue: store.load().uiLanguage) ?? .en
         // Sprites are drawn once, straight in the saved look.
         let pet = PetController(store: store, sprites: SpriteLibrary(look: PetController.look(from: store.load())))
         let agents = AgentMonitor(pet: pet, hooks: hooks)
@@ -154,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsModel = SettingsModel(pet: pet, hooks: hooks)
         self.settingsModel = settingsModel
         settingsModel.onWatchCodex = { [weak agents] on in agents?.setWatchingCodex(on) }
-        let settings = AppWindow(title: "Pixel Pet — настройки", content: SettingsView(model: settingsModel))
+        let settings = AppWindow(title: L("Pixel Pet Settings", "Pixel Pet — настройки"), content: SettingsView(model: settingsModel))
         settings.onKey = { settingsModel.refresh() }
         settings.onPoll = { settingsModel.refreshAccessibility() }
         var openSettings: () -> Void = {}
@@ -174,6 +175,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onWelcome = { [weak welcome] in welcome?.show() }
         self.settings = settings
         self.welcome = welcome
+        // The welcome window's title is just the app name, the same in every language.
+        settingsModel.onLanguage = { [weak settings] in
+            settings?.window.title = L("Pixel Pet Settings", "Pixel Pet — настройки")
+        }
         if CommandLine.arguments.contains("--show-settings") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak settings] in settings?.show() }
         }

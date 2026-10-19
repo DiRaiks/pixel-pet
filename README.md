@@ -51,7 +51,7 @@
 </tr>
 <tr>
 <td align="center"><img src="docs/images/meeting.png" width="120" alt="Headset on, an alarm clock ringing"></td>
-<td><b>Calls coming up.</b> Turn on "Напоминать о звонках" and the cube reads your Mac's calendars: 5 minutes before a meeting with a call link it puts on a headset with an alarm clock ticking by its head, and in the last minute the clock rings. Click the cube to dismiss the reminder for that call. Off by default; macOS asks for calendar access when you turn it on.</td>
+<td><b>Calls coming up.</b> Turn on "Remind about calls" and the cube reads your Mac's calendars: 5 minutes before a meeting with a call link it puts on a headset with an alarm clock ticking by its head, and in the last minute the clock rings. Click the cube to dismiss the reminder for that call. Off by default; macOS asks for calendar access when you turn it on.</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/sleep.png" width="120" alt="Asleep in a nightcap"></td>
@@ -66,13 +66,13 @@
 </tr>
 <tr>
 <td><b>Quick question, ⌃⌥K.</b> Ask Claude in a card next to the cube. The answer streams in, and follow-ups continue the same conversation.</td>
-<td><b>Translate the selection, ⌃⌥T.</b> Apple Translation works offline and takes about 0.2 s. "Через Claude" (via Claude) sends the text to Claude instead.</td>
+<td><b>Translate the selection, ⌃⌥T.</b> Apple Translation works offline and takes about 0.2 s. "Via Claude" sends the text to Claude instead.</td>
 </tr>
 </table>
 
 The app runs entirely on your Mac. It never talks to the network itself; the only network access is through the Claude Code CLI you already use.
 
-> The app's UI is in Russian. Where this document names a menu item, the English meaning comes first, followed by the Russian label in quotes.
+> The interface is in English by default; Settings → Language switches it to Russian.
 
 ## Requirements
 
@@ -94,7 +94,7 @@ cd pixel-pet && ./scripts/install.sh
 
 On first launch, a welcome window walks you through two steps and lists the hotkeys:
 
-1. **Connect to Claude Code** (menu: "Подключить к Claude Code…"). This adds the pet's hooks to `~/.claude/settings.json`; the file is backed up first. See [What it changes on your Mac](#what-it-changes-on-your-mac).
+1. **Connect to Claude Code** (menu: "Connect to Claude Code…"). This adds the pet's hooks to `~/.claude/settings.json`; the file is backed up first. See [What it changes on your Mac](#what-it-changes-on-your-mac).
 2. **Allow Accessibility.** This is needed only for ⌃⌥T, to read the selected text.
 
 The first time a translation language pack is missing, the translation card offers a button to download it.
@@ -172,7 +172,7 @@ On top of these, it plays one-off animations:
 | <img src="docs/images/sneeze.png" width="80" alt=""> | <img src="docs/images/pumpkin.png" width="80" alt=""> | <img src="docs/images/fir.png" width="80" alt=""> | |
 | Idle fidget: a sneeze | October 25–31: a jack-o'-lantern | December 20 – January 7: a little fir | |
 
-When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Кальян на перерывах" in Settings turns it off.
+When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Hookah breaks" in Settings turns it off.
 
 ### At the keyboard
 
@@ -223,11 +223,11 @@ Codex blocks never turn amber: Codex doesn't write "waiting for approval" to its
 3. Twelve minutes later, the longest task finishes. Its block flashes green, and the cube does a somersault.
 4. You go for lunch. With nothing running, the cube falls asleep in its nightcap, and wakes with a hop when you are back.
 
-**Busy day, no distractions.** Press ⌃⌥P. The cube dives into the notch and stays there; only an error brings it out. Press ⌃⌥P again and it stays home but peeks out for alerts again. To bring it back to the desk, drag it out or use "Выпустить на стол" (Let out on the desk) in the menu.
+**Busy day, no distractions.** Press ⌃⌥P. The cube dives into the notch and stays there; only an error brings it out. Press ⌃⌥P again and it stays home but peeks out for alerts again. To bring it back to the desk, drag it out or use "Let out on the desk" in the menu.
 
 **Translate a paragraph.** Select text in any app and press ⌃⌥T. Text in your language goes to the other language, anything else comes into yours. With the defaults (Russian and English), English becomes Russian and Russian becomes English.
 
-**Quick question without a terminal.** Press ⌃⌥K, type the question, press Return. Ask a follow-up in the same card. "Новый" (New) starts a fresh conversation, and Esc closes the card.
+**Quick question without a terminal.** Press ⌃⌥K, type the question, press Return. Ask a follow-up in the same card. "New" starts a fresh conversation, and Esc closes the card.
 
 **Limits from the terminal too.** If you have no statusline of your own, connecting adds one for terminal sessions. It feeds the pet and prints a compact line:
 
@@ -235,7 +235,7 @@ Codex blocks never turn amber: Codex doesn't write "waiting for approval" to its
 Opus · ctx 42% · 5h 18% · 7d 9%
 ```
 
-**See what the hooks report.** Turn on the event log (menu: "Записывать события") and watch it while an agent runs:
+**See what the hooks report.** Turn on the event log (menu: "Log events") and watch it while an agent runs:
 
 ```bash
 tail -f ~/.pixelpet/events.log
@@ -253,10 +253,11 @@ Only session-id prefixes, project folder names and event names are logged.
 
 ### Settings
 
-Open settings from the menu (menu: "Настройки…", ⌘,):
+Open settings from the menu (menu: "Settings…", ⌘,):
 
 | Setting | Notes |
 |---|---|
+| Language | English (default) or Russian; switches the whole interface at once |
 | Size | ×2 to ×6 |
 | Character | The cube, or LM (a drop under a diamond). LM keeps his own aqua colors and wears no accessory, so Color and Accessory are greyed out for him |
 | Color | Lavender, mint, peach, graphite, sky, sakura, vanilla or night (dark, for dark wallpapers), or "every day new" |
@@ -283,6 +284,7 @@ Settings are stored in `~/.pixelpet/config.json`. You can edit it by hand while 
 {
   "accessory" : "headphones",
   "askModel" : "haiku",
+  "uiLanguage" : "en",
   "desktopReactions" : true,
   "doNotDisturb" : false,
   "foreignLanguage" : "en",
@@ -312,7 +314,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |
 | `$TMPDIR/pixelpet-claude` | Empty working folder for the pet's own `claude -p` runs |
 
-Disconnecting (menu: "Отключить от Claude Code") removes the pet's hook entries, its statusline and both scripts.
+Disconnecting (menu: "Disconnect from Claude Code") removes the pet's hook entries, its statusline and both scripts.
 
 **Privacy.** Hook payloads are reduced to event names, session ids, the project folder name, the tool name and the model as soon as they arrive. Prompt text and tool input are never stored. From Codex session files the pet keeps only session ids, folders, models, turn starts and ends, and limits. Selected text is read only when you press ⌃⌥T. Password fields are never read. The clipboard fallback restores your clipboard exactly, or is skipped if it cannot.
 
@@ -335,12 +337,12 @@ Two things stay behind until you remove them yourself:
 ## Troubleshooting
 
 - **⌃⌥T stopped reading the selection after an update.** The app is signed ad-hoc, so macOS treats every build as a new app. In System Settings → Privacy & Security → Accessibility, remove Pixel Pet with the "−" button and allow it again. A stable signing certificate fixes this for good; see [DEVELOPMENT.md](docs/DEVELOPMENT.md#code-signing).
-- **No agent blocks appear.** Check that the menu says "Отключить от Claude Code", which means hooks are connected. Then turn on the event log and watch `~/.pixelpet/events.log` while an agent runs.
-- **No Codex blocks or limits.** Check that "Следить за агентами Codex" is on in Settings. Blocks show up once a Codex session writes to `~/.codex/sessions`. Limits need a native Codex binary: the one inside ChatGPT.app, a standalone release in `~/.codex/packages`, or `codex` on the PATH (the npm one needs Node, which apps started from Finder don't have).
+- **No agent blocks appear.** Check that the menu says "Disconnect from Claude Code", which means hooks are connected. Then turn on the event log and watch `~/.pixelpet/events.log` while an agent runs.
+- **No Codex blocks or limits.** Check that "Follow Codex agents" is on in Settings. Blocks show up once a Codex session writes to `~/.codex/sessions`. Limits need a native Codex binary: the one inside ChatGPT.app, a standalone release in `~/.codex/packages`, or `codex` on the PATH (the npm one needs Node, which apps started from Finder don't have).
 - **Limits show "unknown".** The app finds limits by running a tiny `claude -p` request. Check that Claude Code is installed and signed in.
 - **A hotkey does nothing.** Hotkeys are global. If another app already owns the combination, Pixel Pet cannot register it; it only writes `hotkey N not registered` to the unified log.
 - **The cube doesn't show the YubiKey.** It reads the touch request from macOS's smart-card service, which GnuPG uses when it talks to the key through PC/SC (the usual setup on macOS). If `scdaemon` uses GnuPG's own CCID driver instead, nothing reaches the system log. FIDO2 touches (`sk-` SSH keys, passkeys) aren't shown yet.
-- **No call reminders.** The cube reads the calendars macOS itself knows about. Apps with their own sync (Notion Calendar, for one) don't put their events there: add the same Google or Microsoft account in System Settings → Internet Accounts with Calendars turned on. Settings → "Звонки" shows how many calendars the cube sees. Only events with a call link (Zoom, Meet, Teams, Webex, Jitsi, Whereby, FaceTime, Slack huddles) count, and not all-day, cancelled or declined ones.
+- **No call reminders.** The cube reads the calendars macOS itself knows about. Apps with their own sync (Notion Calendar, for one) don't put their events there: add the same Google or Microsoft account in System Settings → Internet Accounts with Calendars turned on. Settings → "Calls" shows how many calendars the cube sees. Only events with a call link (Zoom, Meet, Teams, Webex, Jitsi, Whereby, FaceTime, Slack huddles) count, and not all-day, cancelled or declined ones.
 - **Translation says the language is not installed.** Use the download button in the card. Alternatively, open System Settings → General → Language & Region → Translation Languages.
 
 ## Documentation

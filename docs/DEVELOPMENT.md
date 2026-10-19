@@ -71,7 +71,7 @@ What gets covered:
 
 Pass flags with `open build/PixelPet.app --args <flags>`, or run the binary inside the bundle directly.
 
-Quit the running pet first (menu: "Выйти", or `pkill -x PixelPet`). The app is single-instance: a second copy quits at launch, and `open` on an already running app only activates it, ignoring the flags. The one exception is `--export-sprites`, which is handled before the instance check.
+Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is single-instance: a second copy quits at launch, and `open` on an already running app only activates it, ignoring the flags. The one exception is `--export-sprites`, which is handled before the instance check.
 
 | Flag | Effect |
 |---|---|
@@ -104,8 +104,8 @@ They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alp
 
 ### Other aids
 
-- **State picker.** The menu item "Состояние" (State) plays any state, so you can check an animation without staging it. Mood states follow the same home and do-not-disturb rules as real agent activity.
-- **Event log.** Turn on "Записывать события" (Record events) in the menu or settings. Then watch the log while an agent runs:
+- **State picker.** The menu item "State" plays any state, so you can check an animation without staging it. Mood states follow the same home and do-not-disturb rules as real agent activity.
+- **Event log.** Turn on "Log events" in the menu or settings. Then watch the log while an agent runs:
 
   ```bash
   tail -f ~/.pixelpet/events.log
@@ -145,6 +145,7 @@ Notarization and distribution are out of scope. The app is meant to be built fro
 - **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
 - **Approve or deny from the panel.** A waiting agent's permission request could be answered from the status card.
 - **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.
+- **Subagent animation.** Revisit how the pet shows subagents being created (`spawn` / `recall`).
 - **Codex waiting for approval.** Codex doesn't write approval prompts to its session files, so its blocks never turn amber; its hooks (`PermissionRequest`) could fill that in, if the desktop app runs them.
 
 ## Findings worth knowing
@@ -166,7 +167,7 @@ Measured or found out while building; they explain choices that look odd otherwi
 - **Main actor.** UI code is `@MainActor`. `EventServer` runs on its own serial queue and hands payloads to the main actor through one ordered `AsyncStream`.
 - **Performance budget.** Aim for under 1% CPU while idle and under 3% while animating, under 60 MB of RAM, and under 20 ms per hook call. Do not add fast polling: schedule a timer for the next known change instead. The only repeating timer is the slow 20 s idle check in `DesktopSensor`.
 - **Privacy.** Never store prompt text, tool input or window titles. New uses of the selection or the clipboard go through `SelectionDecision`.
-- **Strings.** The UI is in Russian. Keep new UI strings consistent with the existing wording.
+- **Strings.** The UI is English by default with Russian as an option (Settings → Language). Write every UI string as `L("English", "Русский")` (`Sources/PixelPet/Localization.swift`); tables of titles are computed (`static var`) so they follow a language change. SwiftUI views redraw on their own; the menu bar menu retitles itself each time it opens.
 
 ### Adding a pet state
 

@@ -35,6 +35,18 @@ import Testing
         #expect(config.isHidden == false)
     }
 
+    /// The interface is English unless Russian was chosen; older configs without the key get English.
+    @Test func interfaceLanguageDefaultsToEnglish() throws {
+        #expect(PetConfig().uiLanguage == "en")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"{"scale":3}"#.utf8).write(to: url)
+        #expect(ConfigStore(url: url).load().uiLanguage == "en")
+        var config = PetConfig()
+        config.uiLanguage = "ru"
+        try ConfigStore(url: url).save(config)
+        #expect(ConfigStore(url: url).load().uiLanguage == "ru")
+    }
+
     @Test func figureDefaultsToTheCubeAndRoundTrips() throws {
         #expect(PetConfig().figure == "cube")
         let store = ConfigStore(url: url)

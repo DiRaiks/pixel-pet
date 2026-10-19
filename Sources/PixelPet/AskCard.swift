@@ -32,18 +32,19 @@ struct AskView: View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Text("Спросить Claude").font(.headline)
+                Text(L("Ask Claude", "Спросить Claude")).font(.headline)
                 Text(model.modelName).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if !model.conversation.turns.isEmpty {
-                    Button("Новый", action: onNew).buttonStyle(.borderless).help("Начать новый диалог")
+                    Button(L("New", "Новый"), action: onNew).buttonStyle(.borderless)
+                        .help(L("Start a new conversation", "Начать новый диалог"))
                 }
                 Button(action: onClose) { Image(systemName: "xmark") }
-                    .buttonStyle(.borderless).help("Закрыть (Esc)")
+                    .buttonStyle(.borderless).help(L("Close (Esc)", "Закрыть (Esc)"))
             }
             if !model.conversation.turns.isEmpty { history }
             HStack(alignment: .bottom, spacing: 8) {
-                TextField(model.conversation.turns.isEmpty ? "Спросите что-нибудь…" : "Уточните…",
+                TextField(model.conversation.turns.isEmpty ? L("Ask anything…", "Спросите что-нибудь…") : L("Follow up…", "Уточните…"),
                           text: $model.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...6)
@@ -52,12 +53,12 @@ struct AskView: View {
                     .disabled(model.conversation.isStreaming)
                 if model.conversation.isStreaming {
                     Button(action: onStop) { Image(systemName: "stop.circle.fill").font(.title3) }
-                        .buttonStyle(.borderless).help("Остановить")
+                        .buttonStyle(.borderless).help(L("Stop", "Остановить"))
                 } else {
                     Button(action: onSend) { Image(systemName: "arrow.up.circle.fill").font(.title3) }
                         .buttonStyle(.borderless)
                         .disabled(model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .help("Отправить (Enter)")
+                        .help(L("Send (Return)", "Отправить (Enter)"))
                 }
             }
             .padding(8)
@@ -66,7 +67,7 @@ struct AskView: View {
             if let answer = model.conversation.lastAnswer, !model.conversation.isStreaming {
                 HStack {
                     Spacer()
-                    Button("Копировать ответ") {
+                    Button(L("Copy answer", "Копировать ответ")) {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(answer, forType: .string)
                     }
@@ -139,7 +140,7 @@ private struct TurnView: View {
             case .failed(let message):
                 Text(message).font(.callout).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             case .stopped:
-                Text("Остановлено").font(.caption).foregroundStyle(.secondary)
+                Text(L("Stopped", "Остановлено")).font(.caption).foregroundStyle(.secondary)
             case .streaming, .done:
                 EmptyView()
             }
@@ -247,7 +248,7 @@ final class Asker {
         let question = model.conversation.turns[ticket.turn].question
         model.draft = ""
         guard let claude = ClaudeLocator.find() else {
-            model.conversation.fail("Не нашёл Claude Code CLI.", ticket: ticket)
+            model.conversation.fail(L("Couldn't find the Claude Code CLI.", "Не нашёл Claude Code CLI."), ticket: ticket)
             return
         }
         let askModel = pet.config.askModel
@@ -313,12 +314,13 @@ final class Asker {
         case .failure(.claude(let message)):
             if resumed, message.localizedCaseInsensitiveContains("no conversation found") {
                 model.conversation.forgetSession()
-                model.conversation.fail("Контекст прошлого диалога потерян. Спросите ещё раз, начнём заново.", ticket: ticket)
+                model.conversation.fail(L("The previous conversation's context was lost. Ask again to start over.",
+                                               "Контекст прошлого диалога потерян. Спросите ещё раз, начнём заново."), ticket: ticket)
             } else {
                 model.conversation.fail("Claude: \(message)", ticket: ticket)
             }
         case .failure(.noOutput):
-            model.conversation.fail("Claude ничего не ответил.", ticket: ticket)
+            model.conversation.fail(L("Claude didn't answer.", "Claude ничего не ответил."), ticket: ticket)
         }
     }
 

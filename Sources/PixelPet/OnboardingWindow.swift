@@ -16,31 +16,35 @@ struct OnboardingView: View {
                     Image(nsImage: cube).interpolation(.none).resizable().frame(width: 64, height: 64)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Привет, я кубик").font(.title2.weight(.semibold))
-                    Text("Живу на рабочем столе, слежу за агентами Claude Code и помогаю по мелочи.")
+                    Text(L("Hi, I'm the cube", "Привет, я кубик")).font(.title2.weight(.semibold))
+                    Text(L("I live on your desktop, keep an eye on Claude Code agents and help with small things.",
+                            "Живу на рабочем столе, слежу за агентами Claude Code и помогаю по мелочи."))
                         .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Step(number: 1, title: "Подключить к Claude Code", done: model.hooksConnected,
-                 detail: "Тогда я вижу, когда агенты работают, ждут вас или закончили, и показываю лимиты.") {
-                if !model.hooksConnected { Button("Подключить…") { model.toggleHooks() } }
+            Step(number: 1, title: L("Connect to Claude Code", "Подключить к Claude Code"), done: model.hooksConnected,
+                 detail: L("Then I see when agents are working, waiting for you or done, and show your limits.",
+                           "Тогда я вижу, когда агенты работают, ждут вас или закончили, и показываю лимиты.")) {
+                if !model.hooksConnected { Button(L("Connect…", "Подключить…")) { model.toggleHooks() } }
             }
-            Step(number: 2, title: "Доступ к выделенному тексту", done: model.accessibility,
-                 detail: "Нужен только для перевода по ⌃⌥T. Без него всё остальное работает.") {
-                if !model.accessibility { Button("Разрешить…") { model.requestAccessibility() } }
+            Step(number: 2, title: L("Access to selected text", "Доступ к выделенному тексту"), done: model.accessibility,
+                 detail: L("Only needed to translate with ⌃⌥T. Everything else works without it.",
+                           "Нужен только для перевода по ⌃⌥T. Без него всё остальное работает.")) {
+                if !model.accessibility { Button(L("Allow…", "Разрешить…")) { model.requestAccessibility() } }
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Горячие клавиши").font(.headline)
-                Shortcut(keys: "⌃⌥K", title: "спросить Claude")
-                Shortcut(keys: "⌃⌥T", title: "перевести выделенный текст")
-                Shortcut(keys: "⌃⌥P", title: "не беспокоить: спрятаться в нору")
+                Text(L("Keyboard shortcuts", "Горячие клавиши")).font(.headline)
+                Shortcut(keys: "⌃⌥K", title: L("ask Claude", "спросить Claude"))
+                Shortcut(keys: "⌃⌥T", title: L("translate the selected text", "перевести выделенный текст"))
+                Shortcut(keys: "⌃⌥P", title: L("do not disturb: hide at home", "не беспокоить: спрятаться в нору"))
             }
-            Text("Клик по мне открывает лимиты и сессии. Меня можно таскать мышью, а если бросить к верхнему краю экрана, уйду в нору.")
+            Text(L("Click me to see limits and sessions. You can drag me around, and if you throw me at the top edge of the screen, I go home.",
+                    "Клик по мне открывает лимиты и сессии. Меня можно таскать мышью, а если бросить к верхнему краю экрана, уйду в нору."))
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button("Настройки…", action: onSettings)
+                Button(L("Settings…", "Настройки…"), action: onSettings)
                 Spacer()
-                Button("Готово", action: onDone).keyboardShortcut(.defaultAction)
+                Button(L("Done", "Готово"), action: onDone).keyboardShortcut(.defaultAction)
             }
         }
         .padding(24)

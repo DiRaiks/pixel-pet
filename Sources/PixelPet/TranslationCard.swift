@@ -97,13 +97,13 @@ struct TranslationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Перевод").font(.headline)
+                Text(L("Translation", "Перевод")).font(.headline)
                 if let plan = model.plan {
-                    Text("\(plan.source ?? "авто") → \(plan.target)").font(.caption).foregroundStyle(.secondary)
+                    Text("\(plan.source ?? L("auto", "авто")) → \(plan.target)").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button(action: onClose) { Image(systemName: "xmark") }
-                    .buttonStyle(.borderless).help("Закрыть")
+                    .buttonStyle(.borderless).help(L("Close", "Закрыть"))
             }
             content
         }
@@ -133,12 +133,12 @@ struct TranslationView: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .reading:
-            Text("Читаю выделение…").font(.callout).foregroundStyle(.secondary)
+            Text(L("Reading the selection…", "Читаю выделение…")).font(.callout).foregroundStyle(.secondary)
         case .translating:
             original
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Перевожу…").font(.callout).foregroundStyle(.secondary)
+                Text(L("Translating…", "Перевожу…")).font(.callout).foregroundStyle(.secondary)
             }
         case .done(let text):
             original
@@ -149,22 +149,25 @@ struct TranslationView: View {
             claudeSection
             HStack {
                 Spacer()
-                if model.claude == nil { Button("Через Claude", action: onAskClaude).help("Точнее по контексту, ~3 с") }
-                Button("Копировать") { model.copyResult() }
+                if model.claude == nil { Button(L("Via Claude", "Через Claude"), action: onAskClaude)
+                        .help(L("More accurate in context, ~3 s", "Точнее по контексту, ~3 с")) }
+                Button(L("Copy", "Копировать")) { model.copyResult() }
             }
         case .needsPermission:
-            Text("Чтобы читать выделенный текст, кубику нужен доступ в «Универсальном доступе».")
+            Text(L("To read selected text, the cube needs Accessibility access.",
+                    "Чтобы читать выделенный текст, кубику нужен доступ в «Универсальном доступе»."))
                 .font(.callout).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("Открыть настройки") { SelectionReader.requestPermission() }
+                Button(L("Open Settings", "Открыть настройки")) { SelectionReader.requestPermission() }
             }
         case .nothingSelected:
-            Text("Выделите текст и нажмите ⌃⌥T.").font(.callout).foregroundStyle(.secondary)
+            Text(L("Select some text and press ⌃⌥T.", "Выделите текст и нажмите ⌃⌥T.")).font(.callout).foregroundStyle(.secondary)
         case .secureField:
-            Text("Это поле пароля, его кубик не читает.").font(.callout).foregroundStyle(.secondary)
+            Text(L("This is a password field; the cube doesn't read it.", "Это поле пароля, его кубик не читает.")).font(.callout).foregroundStyle(.secondary)
         case .clipboardBusy:
-            Text("В буфере обмена данные, которые нельзя вернуть в точности (например, файлы), поэтому выделение здесь не читаю. Скопируйте текст сами и нажмите ⌃⌥T ещё раз.")
+            Text(L("The clipboard holds data that can't be restored exactly (files, for example), so the selection isn't read here. Copy the text yourself and press ⌃⌥T again.",
+                    "В буфере обмена данные, которые нельзя вернуть в точности (например, файлы), поэтому выделение здесь не читаю. Скопируйте текст сами и нажмите ⌃⌥T ещё раз."))
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         case .failed(let message):
             original
@@ -173,7 +176,7 @@ struct TranslationView: View {
             if model.claude == nil {
                 HStack {
                     Spacer()
-                    Button("Через Claude", action: onAskClaude)
+                    Button(L("Via Claude", "Через Claude"), action: onAskClaude)
                 }
             }
         }
@@ -207,14 +210,14 @@ struct TranslationView: View {
         if let error = error as? TranslationError {
             switch error {
             case .unsupportedLanguagePairing, .unsupportedSourceLanguage, .unsupportedTargetLanguage:
-                return "Эту пару языков Apple Translation не поддерживает."
+                return L("Apple Translation doesn't support this language pair.", "Эту пару языков Apple Translation не поддерживает.")
             case .unableToIdentifyLanguage:
-                return "Не удалось определить язык текста."
+                return L("Couldn't detect the language of the text.", "Не удалось определить язык текста.")
             default:
                 break
             }
         }
-        return "Не получилось перевести: \(error.localizedDescription)"
+        return L("Couldn't translate: \(error.localizedDescription)", "Не получилось перевести: \(error.localizedDescription)")
     }
 }
 
@@ -293,7 +296,7 @@ final class Translator {
     func translateWithClaude() {
         guard let plan = model.plan, claudeTask == nil else { return }
         guard let claude = ClaudeLocator.find() else {
-            model.claude = .failed("Не нашёл Claude Code CLI.")
+            model.claude = .failed(L("Couldn't find the Claude Code CLI.", "Не нашёл Claude Code CLI."))
             return
         }
         let request = model.request
@@ -325,7 +328,7 @@ final class Translator {
             case .success(let text): if case .running = model.claude { model.claude = .done(text) }
             case .failure(.cancelled): break
             case .failure(.claude(let message)): model.claude = .failed("Claude: \(message)")
-            case .failure(.noOutput): model.claude = .failed("Claude ничего не ответил.")
+            case .failure(.noOutput): model.claude = .failed(L("Claude didn't answer.", "Claude ничего не ответил."))
             }
         }
     }

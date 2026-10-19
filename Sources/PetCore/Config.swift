@@ -20,6 +20,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Translation: text in your language goes to `foreignLanguage`, anything else into `nativeLanguage`.
     public var nativeLanguage = "ru"
     public var foreignLanguage = "en"
+    /// Model for quick questions (⌃⌥K).
+    public var askModel = "haiku"
 
     public init() {}
 
@@ -36,6 +38,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         doNotDisturb = try c.decodeIfPresent(Bool.self, forKey: .doNotDisturb) ?? false
         nativeLanguage = try c.decodeIfPresent(String.self, forKey: .nativeLanguage) ?? "ru"
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
+        askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
     }
 }
 

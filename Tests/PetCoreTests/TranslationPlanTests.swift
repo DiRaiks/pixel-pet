@@ -37,6 +37,7 @@ import Testing
         let old = try JSONDecoder().decode(PetConfig.self, from: Data(#"{"scale":4}"#.utf8))
         #expect(old.nativeLanguage == "ru")
         #expect(old.foreignLanguage == "en")
+        #expect(old.askModel == "haiku")
         var c = PetConfig()
         c.nativeLanguage = "uk"
         #expect(try JSONDecoder().decode(PetConfig.self, from: JSONEncoder().encode(c)).nativeLanguage == "uk")

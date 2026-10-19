@@ -15,12 +15,24 @@ final class CardPanel<Content: View> {
     private var generation = 0
     private var isClosing = false
     private var clock: Timer?
+    private var resignObserver: NSObjectProtocol?
     /// Every 30 s while open, for text that depends on the time.
     var onTick: (() -> Void)?
     var onClose: (() -> Void)?
 
-    init(content: Content) {
-        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+    /// `keyboard: true` lets the card take typing (like Spotlight) without activating the app.
+    init(content: Content, keyboard: Bool = false) {
+        let panel = CardWindow(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.acceptsKey = keyboard
+        self.panel = panel
+        if keyboard, Self.closesOnOutsideClick {
+            // A typing card closes when the user moves to another app (⌘Tab, Mission Control, a click).
+            resignObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.close() }
+            }
+        }
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -28,6 +40,7 @@ final class CardPanel<Content: View> {
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.contentView = NSHostingView(rootView: content)
+        panel.onCancel = { [weak self] in self?.close() }
     }
 
     var isShown: Bool { panel.isVisible && !isClosing }
@@ -62,6 +75,7 @@ final class CardPanel<Content: View> {
             panel.alphaValue = 1
             panel.orderFrontRegardless()
         }
+        if panel.canBecomeKey { panel.makeKey() }
         watchOutsideClicks()
         // "Resets in" and "seen N min ago" keep moving while the card is open (only cards that need it).
         clock?.invalidate()
@@ -118,10 +132,15 @@ final class CardPanel<Content: View> {
         return NSPoint(x: x, y: max(y, area.minY))
     }
 
+    /// Debug aid (`--keep-cards`): scripted checks shouldn't be cut short by clicks elsewhere.
+    static var closesOnOutsideClick: Bool { !CommandLine.arguments.contains("--keep-cards") }
+
     /// Clicks in other apps close the card. (No Esc: a global monitor can't consume it, so the frontmost
     /// app would get it too, and it would need Accessibility just for that.)
     private func watchOutsideClicks() {
         monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        guard Self.closesOnOutsideClick else { return }
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
         }
@@ -286,6 +305,19 @@ enum Format {
     /// "mcp__terminal__run_in_terminal" -> "run_in_terminal".
     static func tool(_ name: String) -> String {
         name.hasPrefix("mcp__") ? String(name.split(separator: "__").last ?? Substring(name)) : name
+    }
+}
+
+/// Borderless windows can't become key unless told; only cards with a text field ask for it.
+final class CardWindow: NSPanel {
+    var acceptsKey = false
+    var onCancel: (() -> Void)?
+    override var canBecomeKey: Bool { acceptsKey }
+    override var canBecomeMain: Bool { false }
+
+    /// Esc, wherever focus is inside the card (even with the text field disabled while streaming).
+    override func cancelOperation(_ sender: Any?) {
+        onCancel?()
     }
 }
 

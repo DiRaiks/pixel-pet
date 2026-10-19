@@ -16,10 +16,12 @@ run() {
 rm -f .build/manifest.pif
 run "$@"
 status=$?
-if [ "$status" -ne 0 ] && grep -q TestingMacros "$log"; then
-    echo "test.sh: Swift Testing macro plugin still missing, wiping .build and retrying" >&2
+# Occasionally the first clean rebuild hits it too, so allow two clean retries.
+for attempt in 1 2; do
+    [ "$status" -ne 0 ] && grep -q TestingMacros "$log" || break
+    echo "test.sh: Swift Testing macro plugin still missing, wiping .build and retrying ($attempt/2)" >&2
     rm -rf .build
     run "$@"
     status=$?
-fi
+done
 exit "$status"

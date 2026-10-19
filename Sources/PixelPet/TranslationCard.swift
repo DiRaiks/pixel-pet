@@ -308,14 +308,21 @@ final class Translator {
         let onLimits: @Sendable (UsageLimits) -> Void = { [weak self] limits in
             Task { @MainActor in self?.onLimits?(limits) }
         }
+        // The spinner stops at message_stop, not when the CLI exits a second later.
+        let onDone: @Sendable (String) -> Void = { text in
+            Task { @MainActor in
+                guard request == model.request, case .running = model.claude else { return }
+                model.claude = .done(text)
+            }
+        }
         claudeTask = Task { @MainActor [weak self] in
             let result = await ClaudeTranslation.run(claude: claude, text: plan.text, target: plan.target,
-                                                     onText: onText, onLimits: onLimits)
+                                                     onText: onText, onDone: onDone, onLimits: onLimits)
             guard let self else { return }
             claudeTask = nil
             guard request == model.request else { return }
             switch result {
-            case .success(let text): model.claude = .done(text)
+            case .success(let text): if case .running = model.claude { model.claude = .done(text) }
             case .failure(.cancelled): break
             case .failure(.claude(let message)): model.claude = .failed("Claude: \(message)")
             case .failure(.noOutput): model.claude = .failed("Claude ничего не ответил.")

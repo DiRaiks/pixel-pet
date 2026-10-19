@@ -164,6 +164,32 @@ public enum Palette {
     public static let crystalDark = RGBA(0x4CB8C6)
     /// A drop of water (LM's fidgets).
     public static let water = RGBA(0x3FA3E8)
+    // Tool icons, the rocket, holiday props.
+    public static let terminal = RGBA(0x23232B)
+    public static let terminalBar = RGBA(0x5F5E5A)
+    public static let prompt = RGBA(0x5DCAA5)
+    public static let steel = RGBA(0x8C93A3)
+    public static let page = RGBA(0xF7F5EE)
+    public static let pageLine = RGBA(0xC9C6BB)
+    public static let cover = RGBA(0x2F7F86)
+    public static let pencil = RGBA(0xF2B33D)
+    public static let pencilShade = RGBA(0xC98A1E)
+    public static let eraser = RGBA(0xEE8FA8)
+    public static let rocket = RGBA(0xF4F4F8)
+    public static let rocketShade = RGBA(0xC4C7D2)
+    public static let rocketRed = RGBA(0xE4574C)
+    public static let flame = RGBA(0xFFD34D)
+    public static let heart = RGBA(0xF06A8E)
+    public static let heartLight = RGBA(0xFFB3C6)
+    public static let mist = RGBA(0xE6E8EE, alpha: 230)
+    public static let pumpkin = RGBA(0xF08A24)
+    public static let pumpkinDark = RGBA(0xB65A16)
+    public static let stem = RGBA(0x5C8A2E)
+    public static let candle = RGBA(0xFFD34D)
+    public static let candleDim = RGBA(0xF0A63A)
+    public static let fir = RGBA(0x2E8B57)
+    public static let firDark = RGBA(0x1F6B43)
+    public static let trunk = RGBA(0x7A4E2D)
     public static let waterLight = RGBA(0xD6F2FF)
     /// The coffee mug on the desk during long work (its steam reuses `steam`).
     public static let mug = RGBA(0xF1EFE8)
@@ -205,4 +231,13 @@ public struct WorkProps: OptionSet, Hashable, Sendable {
     /// Late at night: a desk lamp, and tea instead of coffee in the mug.
     public static let lamp = WorkProps(rawValue: 4)
     public static let tea = WorkProps(rawValue: 8)
+    /// What the agent is doing, as a small icon above the keyboard: running a command, searching, reading, editing.
+    public static let toolRun = WorkProps(rawValue: 16)
+    public static let toolSearch = WorkProps(rawValue: 32)
+    public static let toolRead = WorkProps(rawValue: 64)
+    public static let toolEdit = WorkProps(rawValue: 128)
+    /// Holiday props on the floor: a jack-o'-lantern, a little fir with lights.
+    public static let pumpkin = WorkProps(rawValue: 256)
+    public static let fir = WorkProps(rawValue: 512)
+    public static let holiday: WorkProps = [.pumpkin, .fir]
 }

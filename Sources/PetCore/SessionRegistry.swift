@@ -12,6 +12,8 @@ public struct AgentSession: Equatable, Sendable {
     /// What a waiting session waits for: a permission to grant, or an answer to give.
     public var waitingFor: WaitReason?
     public var currentTool: String?
+    /// When the current wait for the user began.
+    public var waitingSince: Date?
     /// Context window fill from the statusline (terminal sessions only).
     public var contextPercent: Double?
     public var subagents: Set<String> = []
@@ -148,6 +150,7 @@ public struct SessionRegistry: Sendable {
             if s.askedUser {
                 s.status = .waiting
                 s.waitingFor = .question
+                s.waitingSince = now
             }
         case .interrupted:
             becomeIdle(&s)
@@ -216,6 +219,7 @@ public struct SessionRegistry: Sendable {
 
     private func startWorking(_ s: inout AgentSession, _ now: Date) {
         s.waitingFor = nil
+        s.waitingSince = nil
         guard s.status != .working else { return }
         s.status = .working
         s.workingSince = now
@@ -225,12 +229,14 @@ public struct SessionRegistry: Sendable {
         s.waitingFor = reason
         if s.status == .working, let since = s.workingSince { s.workedBefore += now.timeIntervalSince(since) }
         s.workingSince = nil
+        if s.status != .waiting { s.waitingSince = now }
         s.status = .waiting
     }
 
     private func becomeIdle(_ s: inout AgentSession) {
         s.status = .idle
         s.waitingFor = nil
+        s.waitingSince = nil
         s.currentTool = nil
         s.pendingQuestion = nil
         s.workingSince = nil

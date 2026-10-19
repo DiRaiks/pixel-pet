@@ -200,6 +200,22 @@ enum ReadmeExport {
         write(render([Clip(state: .idle, seconds: 1.2, look: lm), Clip(state: .working, seconds: 1.6, look: lm),
                       Clip(state: .hop, look: lm), Clip(state: .idle, seconds: 0.6, look: lm)], scale: 6),
               to: directory.appendingPathComponent("lm.png"))
+        // Waving after a long wait, the push rocket, petting, a sneeze.
+        let still = Clip(state: .idle, seconds: 0.7)
+        write(render([Clip(state: .alert, seconds: 1.0), Clip(state: .wave), Clip(state: .alert, seconds: 1.0)], scale: 6),
+              to: directory.appendingPathComponent("wave.png"))
+        for state in [PetState.launch, .purr, .sneeze] {
+            write(render([still, Clip(state: state), still], scale: 6), to: directory.appendingPathComponent("\(state.rawValue).png"))
+        }
+        // The tool bubble over the keyboard, and the holiday props.
+        for (name, tool) in [("run", WorkProps.toolRun), ("search", .toolSearch), ("read", .toolRead), ("edit", .toolEdit)] {
+            write(render([Clip(state: .working, seconds: 3.2, props: tool)], scale: 6),
+                  to: directory.appendingPathComponent("tool-\(name).png"))
+        }
+        for (name, prop) in [("pumpkin", WorkProps.pumpkin), ("fir", .fir)] {
+            write(render([Clip(state: .idle, seconds: 3.0, props: prop)], scale: 6),
+                  to: directory.appendingPathComponent("\(name).png"))
+        }
         // LM's idle fidgets, in place of the cube's roll.
         for state in [PetState.drip, .melt] {
             let clips = [Clip(state: .idle, seconds: 0.8, look: lm), Clip(state: state, look: lm),

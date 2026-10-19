@@ -27,11 +27,14 @@ public struct AgentEvent: Equatable, Sendable {
     public let sessionID: String
     public let cwd: String?
     public let kind: Kind
+    /// A Bash call that ran `git push` and succeeded (the command itself is not kept).
+    public let pushed: Bool
 
-    public init(sessionID: String, cwd: String?, kind: Kind) {
+    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false) {
         self.sessionID = sessionID
         self.cwd = cwd
         self.kind = kind
+        self.pushed = pushed
     }
 
     /// Parses a raw hook payload; nil for events the pet ignores or malformed input.
@@ -63,7 +66,19 @@ public struct AgentEvent: Equatable, Sendable {
         case "PreCompact": kind = .compacting
         default: return nil
         }
-        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind)
+        let pushed = name == "PostToolUse" && tool == "Bash"
+            && isGitPush((json["tool_input"] as? [String: Any])?["command"] as? String)
+        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed)
+    }
+
+    /// `git push` as a command in a shell line (also `git -C dir push`), not a dry run. Quoted text is
+    /// blanked first, so a commit message or an echo that mentions "git push" doesn't count.
+    static func isGitPush(_ command: String?) -> Bool {
+        guard var line = command else { return false }
+        line = line.replacingOccurrences(of: #""(\\.|[^"\\])*"|'[^']*'"#, with: "Q", options: .regularExpression)
+        guard let push = line.range(of: #"(^|[\s;&|(])git(\s+-\S+(\s+[^\s-]\S*)?)*\s+push\b[^;&|\n]*"#,
+                                    options: .regularExpression) else { return false }
+        return line[push].range(of: #"\s(-n|--dry-run)\b"#, options: .regularExpression) == nil
     }
 
     /// The desktop app ends a turn that needs the user's decision with a wrap-up call carrying a non-empty `ask`.

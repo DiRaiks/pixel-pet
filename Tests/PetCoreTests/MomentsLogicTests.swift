@@ -278,6 +278,15 @@ import Testing
         }
     }
 
+    /// A sixth of the non-hookah fidgets are a sneeze, for both figures.
+    @Test func aSneezeNowAndThen() {
+        let rolls = 0..<600
+        for lm in [false, true] {
+            let breaks = rolls.map { Breaks.fidget(hookahAllowed: false, roll: $0, cloudRoll: 1, lidMan: lm) }
+            #expect(breaks.filter { $0 == .sneeze }.count == 100)
+        }
+    }
+
     @Test func aCloudNowAndThen() {
         let breaks = (0..<100).map { Breaks.hookah(cloudRoll: $0) }
         #expect(breaks.filter { $0 == .hookahCloud }.count == 25)

@@ -98,7 +98,12 @@ public enum SpriteFactory {
         case .tumble: tumble(i, look, &c)
         case .drip: drip(i, look, &c)
         case .melt: melt(i, look, &c)
+        case .wave: wave(i, look, &c)
+        case .launch: launch(i, look, &c)
+        case .purr: purr(i, look, &c)
+        case .sneeze: sneeze(i, look, &c)
         }
+        overlays(state, i, props, &c)
     }
 
     /// Breathes with the highlight instead of the outline, blinks twice now and then, glances around.

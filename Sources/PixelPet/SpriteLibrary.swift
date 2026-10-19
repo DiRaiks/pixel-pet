@@ -49,13 +49,15 @@ final class SpriteLibrary {
     private var variants: [VariantKey: Frame] = [:]
 
     /// `drain` empties the top body rows (used 5-hour limit); `gaze` points the idle face; `props` are the
-    /// mug and headband at the keyboard.
+    /// mug, headband, tool bubble and lamp at the keyboard, and the holiday prop.
     func frame(_ state: PetState, _ index: Int, drain: Int = 0, gaze: Gaze? = nil, props: WorkProps = []) -> Frame {
         let list = frames[state]!
         let i = min(index, list.count - 1)
         let base = list[i]
         let gaze = state == .idle ? gaze : nil
-        let props = state.isAtDesk ? props : []
+        // Desk props at the desk; holiday props stand by the pet wherever it's on the floor.
+        let props = state.isAtDesk ? props
+            : SpriteFactory.showsFloorProps(state) ? props.intersection(.holiday) : []
         guard drain > 0 || gaze != nil || !props.isEmpty else { return base }
         let key = VariantKey(state: state, index: i, rows: drain, gaze: gaze, props: props.rawValue)
         if let cached = variants[key] { return cached }

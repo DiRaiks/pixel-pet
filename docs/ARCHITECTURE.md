@@ -194,7 +194,7 @@ Codex has hooks too, but they must be trusted one by one in its CLI, they replac
   - **Rotation** (flip, tumble) uses 3×3 supersampling with a deterministic majority vote. Accessories turn with the body, while the face is redrawn upright.
 - **Timing.** Each `PetState` has a duration per frame, so key poses are held and in-betweens are quick. `PetPlayer` plays a looping base state with an optional one-shot on top. `PetController` schedules exactly one timer per frame, timed to the end of the current frame, with a tolerance of 25% capped at 50 ms. While agent blocks are visible, the clock also keeps their shared 10 Hz beat. The timer stops entirely while the pet is hidden or occluded, or frozen under Reduce Motion.
 - **Agent stack.** `AgentStack` draws the 3×3 blocks on a separate 32×32 overlay: Claude Code at x 27–29 to the right of the body, Codex mirrored at x 2–4 on the left, each with its subagent dot on the outer side. Poses the pet holds while agents run keep clear of both columns (a test checks the left one). At home the stack is hidden, and the menu-bar counter stands in for it.
-- **Reduce Motion.** `MotionPolicy` lists the states that hold one frame (alert, error, dragged, low limit) and the one-shots that are skipped (hop, celebrate, drop, dive, peek, flip, tumble, drip, melt, yawn, shy, angry). Some skipped events get a held "cue" frame for 1.5 s instead, so they still register.
+- **Reduce Motion.** `MotionPolicy` lists the states that hold one frame (alert, error, dragged, low limit) and the one-shots that are skipped (hop, celebrate, drop, dive, peek, flip, tumble, drip, melt, wave, launch, purr, sneeze, yawn, shy, angry). Some skipped events get a held "cue" frame for 1.5 s instead, so they still register.
 
 ### States
 
@@ -204,7 +204,7 @@ Codex has hooks too, but they must be trusted one by one in its CLI, they replac
 |---|---|
 | Looping (moods) | `idle`, `working`, `alert`, `lowLimit`, `error`, `sleep` |
 | Looping (home and helpers) | `burrowed`, `peekHold`, `dragged`, `talk` |
-| One-shots | `hop`, `celebrate`, `drop`, `peek`, `dive`, `yawn`, `shy`, `angry`, `flip`, `tumble`, `drip`, `melt` |
+| One-shots | `hop`, `celebrate`, `drop`, `peek`, `dive`, `yawn`, `shy`, `angry`, `flip`, `tumble`, `drip`, `melt`, `wave`, `launch`, `purr`, `sneeze` |
 
 ## Home: notch and burrow
 
@@ -235,7 +235,12 @@ How the pet moves between the desk and home:
 
 `PetController` adds the personality layer:
 
-- **Fidgets** (yawn, tumble; for LM `drip` or `melt` about half and half in place of tumble, `Breaks.fidget(lidMan:)`) play every 90–240 s, only while idle on the desk with reactions on, no card open and Reduce Motion off.
+- **Fidgets** (yawn, tumble, sneeze; for LM `drip` or `melt` about half and half in place of tumble, `Breaks.fidget(lidMan:)`; about a sixth are sneezes) play every 90–240 s, only while idle on the desk with reactions on, no card open and Reduce Motion off.
+- **Tool bubble.** `ToolKind.current` takes the `currentTool` of the working Claude session heard from last and maps built-in tools to an icon (run, search, read, edit); `PetController.workProps` adds it at the desk (`WorkProps.toolRun` and friends), and it lingers 2.5 s after a tool ends so it doesn't blink between calls. Other tools, Codex and MCP show none.
+- **Waving.** `SessionRegistry` keeps `waitingSince` per session; `AgentMonitor` passes the oldest wait to `PetController.setWaitingSince`, which schedules `wave` with `WaitNudge.next` (a minute in, then every 45 s) over a resting `alert` or `question`, not at home, over a card or under Reduce Motion; a wave the pet was too busy for is retried a few seconds later.
+- **Rocket.** `AgentEvent.parse` marks a successful `PostToolUse` of Bash whose command runs `git push` (`isGitPush`: quoted text blanked first, so a commit message mentioning it doesn't count; not `-n`/`--dry-run`) as `pushed`; the command itself is not kept. `AgentMonitor` plays `launch` through `moment`, at most once a minute (a launch that couldn't play doesn't use up the minute).
+- **Petting.** `PetView` reports mouse moves; `PettingDetector` counts direction changes of 4 pt+ strokes, three within 1.2 s pet the pet (`purr`), at most every 10 s, on the desk over an idle, working or tired pet; strokes only count while the pet is free to answer.
+- **Holidays.** `Holiday.on` by the Mac's date adds `WorkProps.pumpkin` (October 25–31) or `.fir` (December 20 – January 7), drawn wherever the pet stands on the floor (`SpriteFactory.showsFloorProps`: not at home, in the air or against a wall); the midnight redraw changes them. New art keeps out of the agent columns (0-4 and 27-31) below row 8; a test checks it.
 - **Shy** after the cursor rests on the pet for 2 s, at most once a minute.
 - **Hookah breaks** (`Breaks`): about one idle fidget in four is a hookah when the setting allows it, and a big finished task (the somersault) is followed by one about a third of the time, if the pet is idling on the desk by then. About one in four ends in a big cloud (`hookahCloud`) instead of rings. The hookah stands in columns 20–26, clear of the Claude blocks.
 - **Angry** after 5 clicks within 3 s. The status card still opens, and clicks at home do not count.

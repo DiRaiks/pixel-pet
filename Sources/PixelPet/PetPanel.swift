@@ -14,6 +14,7 @@ final class PetPanel: NSPanel {
         hidesOnDeactivate = false
         isMovableByWindowBackground = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        acceptsMouseMovedEvents = true
     }
 
     override var canBecomeKey: Bool { false }
@@ -40,6 +41,8 @@ final class PetView: NSView {
     var onDragEnded: ((PetPoint, Bool) -> Void)?
     var onContextMenu: ((NSEvent) -> Void)?
     var onHover: ((Bool) -> Void)?
+    /// The cursor moved over the pet: its x in screen points (for petting).
+    var onMouseMove: ((Double) -> Void)?
 
     private var tracker: DragTracker?
     private var grabOffset = NSPoint.zero
@@ -89,12 +92,13 @@ final class PetView: NSView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                                        owner: self, userInfo: nil))
     }
 
     override func mouseEntered(with event: NSEvent) { onHover?(true) }
     override func mouseExited(with event: NSEvent) { onHover?(false) }
+    override func mouseMoved(with event: NSEvent) { onMouseMove?(NSEvent.mouseLocation.x) }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)

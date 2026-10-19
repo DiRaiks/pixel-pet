@@ -24,6 +24,13 @@ final class PetController {
     private var recentClicks: [Date] = []
     private var shyTimer: DispatchWorkItem?
     private var lastShy = Date.distantPast
+    /// Rubbing the cursor over the pet pets it.
+    private var petting = PettingDetector()
+    /// What the agent is doing (the bubble over the keyboard), and the oldest wait for the user (waving).
+    private var toolKind: ToolKind?
+    private var waitingSince: Date?
+    private var lastWave: Date?
+    private var waveTimer: DispatchWorkItem?
     /// Rare idle fidgets (yawn, a roll) at random intervals, so the idle loop doesn't feel canned.
     private var nextFidget = Date().addingTimeInterval(PetController.fidgetDelay())
     /// The same at the keyboard while agents work: a sip, a stretch, a think, a burst of typing.
@@ -457,7 +464,88 @@ final class PetController {
         case .headband: props = [.mug, .headband]
         }
         if NightDesk.isLate(at: Date()) { props.formUnion([.lamp, .tea]) }
+        switch toolKind {
+        case .run: props.insert(.toolRun)
+        case .search: props.insert(.toolSearch)
+        case .read: props.insert(.toolRead)
+        case .edit: props.insert(.toolEdit)
+        case nil: break
+        }
+        switch Holiday.on(Date()) {
+        case .halloween: props.insert(.pumpkin)
+        case .newYear: props.insert(.fir)
+        case nil: break
+        }
         return props
+    }
+
+    /// The tool the latest working Claude session runs, shown in a bubble while typing. It lingers 2.5 s
+    /// after the tool ends, so the bubble doesn't blink between back-to-back tools.
+    func setTool(_ kind: ToolKind?) {
+        toolClear?.cancel()
+        toolClear = nil
+        guard kind != toolKind else { return }
+        if kind == nil {
+            let work = DispatchWorkItem { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.toolKind = nil
+                    if self.player.state.isAtDesk { self.render() }
+                }
+            }
+            toolClear = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.toolLinger, execute: work)
+            return
+        }
+        toolKind = kind
+        if player.state.isAtDesk { render() }
+    }
+
+    static let toolLinger: TimeInterval = 2.5
+    private var toolClear: DispatchWorkItem?
+
+    /// The oldest wait for the user, or nil: after a minute the pet starts waving now and then.
+    func setWaitingSince(_ since: Date?) {
+        guard since != waitingSince else { return }
+        waitingSince = since
+        scheduleWave()
+    }
+
+    /// `retry` is set after a wave that couldn't play (the pet was busy): try again a few seconds later.
+    private func scheduleWave(retry: Bool = false) {
+        waveTimer?.cancel()
+        waveTimer = nil
+        guard let since = waitingSince else { return }
+        let due = retry ? Date().addingTimeInterval(5) : WaitNudge.next(since: since, lastWave: lastWave)
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                guard !self.config.isHome, !self.reduceMotion, [.alert, .question].contains(self.restingState),
+                      self.player.state == self.restingState, self.held == nil, !self.isCardOpen() else {
+                    // At home there is nothing to wave from: wait for the next interval instead of polling.
+                    self.config.isHome ? self.scheduleWave() : self.scheduleWave(retry: true)
+                    return
+                }
+                self.player.play(.wave)
+                self.render()
+                self.updateClock()
+                self.lastWave = Date()
+                self.scheduleWave()
+            }
+        }
+        waveTimer = work
+        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, due.timeIntervalSinceNow), execute: work)
+    }
+
+    /// Rubbing the cursor back and forth over the pet on the desk: eyes shut, hearts.
+    private func mouseMoved(x: Double) {
+        // Only a pet free to react counts strokes, so a rub it couldn't answer doesn't use up the cooldown.
+        guard !config.isHome, config.desktopReactions, [.idle, .working, .tired].contains(restingState),
+              player.state == restingState, !isCardOpen() else { return petting.reset() }
+        guard petting.move(x: x, at: ProcessInfo.processInfo.systemUptime) else { return }
+        shyTimer?.cancel()
+        shyTimer = nil
+        react(.purr)
     }
 
     /// Redraws at the next 22:00 or 05:00, when the lamp goes on or off.
@@ -510,11 +598,12 @@ final class PetController {
 
     /// A one-off about agents, limits or power: only on the desk, over a calm or working pet, not on top of
     /// another moment. At home these pass quietly.
-    func moment(_ state: PetState) {
+    @discardableResult
+    func moment(_ state: PetState) -> Bool {
         guard !config.isHome, player.state != .dragged,
               [.idle, .working, .tired, .question].contains(restingState),
-              player.state == restingState else { return }
-        react(state)
+              player.state == restingState else { return false }
+        return react(state)
     }
 
     /// 1.5–4 minutes between fidgets: rare enough to stay a surprise.
@@ -678,6 +767,7 @@ final class PetController {
         hoverPeek = nil
         shyTimer?.cancel()
         shyTimer = nil
+        petting.reset()
         if inside, !config.isHome { scheduleShy() }
         guard inside, config.isHome, player.state == .burrowed else { return }
         // A short delay so passing the cursor over the menu bar doesn't trigger it.
@@ -735,6 +825,7 @@ final class PetController {
     private func wireInput() {
         view.onPress = { [weak self] in self?.cancelFlick() }
         view.onHover = { [weak self] inside in self?.hover(inside) }
+        view.onMouseMove = { [weak self] x in self?.mouseMoved(x: x) }
         view.onClick = { [weak self] in
             guard let self else { return }
             if restingState == .meetingSoon || restingState == .meetingNow, !config.isHome {

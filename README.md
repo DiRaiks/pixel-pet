@@ -167,14 +167,22 @@ On top of these, it plays one-off animations:
 | The 5-hour limit reset | Subagents start, and come back | Claude compacts its context | Thrown hard, into a wall |
 | <img src="docs/images/dizzy.png" width="80" alt=""> | <img src="docs/images/late-night.png" width="80" alt=""> | | |
 | Shaken while dragged | From 10 pm: a lamp and tea | | |
-| <img src="docs/images/hookah.png" width="80" alt=""> | | | |
-| A hookah break | | | |
+| <img src="docs/images/hookah.png" width="80" alt=""> | <img src="docs/images/wave.png" width="80" alt=""> | <img src="docs/images/launch.png" width="80" alt=""> | <img src="docs/images/purr.png" width="80" alt=""> |
+| A hookah break | An agent has waited on you for over a minute: a wave every ~45 s | An agent's `git push` went through: a rocket | Petted: rub the cursor back and forth over it |
+| <img src="docs/images/sneeze.png" width="80" alt=""> | <img src="docs/images/pumpkin.png" width="80" alt=""> | <img src="docs/images/fir.png" width="80" alt=""> | |
+| Idle fidget: a sneeze | October 25–31: a jack-o'-lantern | December 20 – January 7: a little fir | |
 
 When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Кальян на перерывах" in Settings turns it off.
 
 ### At the keyboard
 
 Agents can work for hours, so the typing doesn't run like a metronome: it comes in bursts of uneven length and pace, with pauses to look up at the screen. Every 45–120 seconds the cube has a little moment, and when an agent block changes (one finishes, fails or appears) it looks over at that side:
+
+A bubble over its head shows what the latest Claude Code agent is doing: running a command, searching, reading or editing. It goes away between tools; Codex and MCP tools show none.
+
+| <img src="docs/images/tool-run.png" width="80" alt=""> | <img src="docs/images/tool-search.png" width="80" alt=""> | <img src="docs/images/tool-read.png" width="80" alt=""> | <img src="docs/images/tool-edit.png" width="80" alt=""> |
+|:---:|:---:|:---:|:---:|
+| A command (Bash) | Searching (Grep, Glob, WebSearch) | Reading (Read, WebFetch) | Editing (Edit, Write) |
 
 | <img src="docs/images/work-sip.png" width="80" alt=""> | <img src="docs/images/work-stretch.png" width="80" alt=""> | <img src="docs/images/work-think.png" width="80" alt=""> | <img src="docs/images/work-rush.png" width="80" alt=""> | <img src="docs/images/work-glance.png" width="80" alt=""> |
 |:---:|:---:|:---:|:---:|:---:|

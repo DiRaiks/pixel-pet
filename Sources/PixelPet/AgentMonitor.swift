@@ -17,6 +17,8 @@ final class AgentMonitor {
     private let hooks: HookInstaller
     let status = StatusModel()
     private var registry = SessionRegistry()
+    private var lastLaunch = Date.distantPast
+    static let launchCooldown: TimeInterval = 60
     private var limits: UsageLimits?
     private var probePolicy = ProbePolicy()
     private var launchProbe: Task<Void, Never>?
@@ -115,6 +117,10 @@ final class AgentMonitor {
         switch Inbound.parse(data, at: now) {
         case .hook(let event):
             if pet.config.logEvents { EventLog.append(event.logLine) }
+            // A successful `git push`: a rocket, at most once a minute.
+            if event.pushed, now.timeIntervalSince(lastLaunch) >= Self.launchCooldown, pet.moment(.launch) {
+                lastLaunch = now
+            }
             switch registry.apply(event, at: now) {
             case .finished: pet.react(.celebrate)
             case .finishedBig:
@@ -238,6 +244,8 @@ final class AgentMonitor {
         // Desk props grow over the whole stretch of work, across turns and short pauses.
         workSession.update(working: (sessions + codex).contains { $0.status == .working }, now: now)
         pet.setWorkStage(WorkStage.stage(worked: workSession.worked(now: now)))
+        pet.setTool(ToolKind.current(in: sessions))
+        pet.setWaitingSince((sessions + codex).filter { $0.status == .waiting }.compactMap(\.waitingSince).min())
         let active = PetBrain.activeCount(sessions + codex)
         onChange?(active, current, codexWatcher == nil ? nil : codexLimits?.current(at: now))
         status.sessions = sessions

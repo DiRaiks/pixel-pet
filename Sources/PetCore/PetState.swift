@@ -10,6 +10,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// LM's own idle fidgets in place of the roll: a drop falls on his diamond and splashes; he melts into
     /// a puddle and gathers back up.
     case drip, melt
+    /// Ideas under review: waving for attention, a rocket launch, being petted, a sneeze.
+    case wave, launch, purr, sneeze
     /// At the keyboard while agents work: a sip from the mug, a stretch, a pause to think, a burst of fast
     /// typing, and a look over at the agent blocks on either side.
     case workSip, workStretch, workThink, workRush, glanceLeft, glanceRight
@@ -72,6 +74,10 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .tumble: [220, 80, 70, 70, 70, 90, 140, 220, 80, 70, 70, 70, 90, 140]
         case .drip: [350, 120, 90, 70, 70, 70, 80, 90, 120, 400, 250, 300]
         case .melt: [300, 120, 100, 100, 100, 500, 120, 300, 80, 90, 90, 90, 100, 300]
+        case .wave: [160, 90, 110, 110, 110, 110, 110, 110, 110, 110, 90, 70, 60, 90, 110, 200]
+        case .launch: [500, 300, 90, 90, 90, 90, 120, 80, 70, 60, 60, 60, 60, 80, 90, 120, 150, 100, 100, 140, 160, 300]
+        case .purr: [140, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 200, 300]
+        case .sneeze: [300, 220, 180, 180, 260, 80, 90, 110, 90, 90, 90, 160, 120, 300]
         case .workSip: [180, 90, 90, 250, 500, 250, 90, 120, 500, 200]
         case .workStretch: [150, 90, 90, 500, 300, 90, 100, 90, 250, 200]
         case .workThink: [200, 150, 300, 300, 400, 300, 300, 250, 150, 350, 150, 150]
@@ -102,6 +108,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     public var loops: Bool {
         switch self {
         case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble, .drip, .melt,
+             .wave, .launch, .purr, .sneeze,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true

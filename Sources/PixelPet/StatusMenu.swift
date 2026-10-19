@@ -32,7 +32,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private static let stateTitles: [PetState: String] = [
         .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
         .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
-        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drip: "Капля (LM)", .melt: "Растекается (LM)", .drop: "Приземление", .talk: "Отвечает",
+        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drip: "Капля (LM)", .melt: "Растекается (LM)", .wave: "Машет", .launch: "Ракета", .purr: "Гладят", .sneeze: "Чихает", .drop: "Приземление", .talk: "Отвечает",
         .workSip: "Пьёт кофе", .workStretch: "Потягивается", .workThink: "Задумался", .workRush: "Строчит",
         .glanceLeft: "Смотрит на Codex", .glanceRight: "Смотрит на Claude",
         .touchKey: "Ждёт касания ключа", .touchDone: "Ключ коснулись", .touchKeyHome: "Ждёт касания (дома)",

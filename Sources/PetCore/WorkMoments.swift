@@ -145,13 +145,15 @@ public enum Breaks {
     /// Share of big finished tasks followed by a hookah break.
     public static let afterBigTaskShare = 3
 
-    /// `roll` and `cloudRoll` are any random numbers. LM doesn't roll over his edge like the cube: in its place
-    /// he catches a drop on his diamond or melts into a puddle, about half and half.
+    /// `roll` and `cloudRoll` are any random numbers. A third roll over (LM instead catches a drop on his
+    /// diamond or melts into a puddle, about half and half), a sixth sneeze, the rest yawn.
     public static func fidget(hookahAllowed: Bool, roll: Int, cloudRoll: Int, lidMan: Bool = false) -> PetState {
         if hookahAllowed, abs(roll) % hookahShare == 0 { return hookah(cloudRoll: cloudRoll) }
-        guard abs(roll) % 3 == 1 else { return .yawn }
-        guard lidMan else { return .tumble }
-        return (abs(roll) / 3) % 2 == 0 ? .drip : .melt
+        switch abs(roll) % 6 {
+        case 1, 4: return lidMan ? ((abs(roll) / 3) % 2 == 0 ? .drip : .melt) : .tumble
+        case 5: return .sneeze
+        default: return .yawn
+        }
     }
 
     public static func hookah(cloudRoll: Int) -> PetState {

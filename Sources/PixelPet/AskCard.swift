@@ -120,9 +120,20 @@ private struct TurnView: View {
             if turn.answer.isEmpty, turn.state == .streaming {
                 ProgressView().controlSize(.small)
             } else if !turn.answer.isEmpty {
-                Text(Self.markdown(turn.answer)).font(.body).textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ForEach(Array(AnswerText.segments(turn.answer).enumerated()), id: \.offset) { _, segment in
+                    switch segment {
+                    case .prose(let text):
+                        Text(Self.markdown(text)).font(.body).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    case .code(let code):
+                        Text(code).font(.callout.monospaced()).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8).padding(.vertical, 6)
+                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
             }
             switch turn.state {
             case .failed(let message):

@@ -7,6 +7,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// Fidgets and reactions: a yawn and stretch, shy when fussed over, cross when clicked too much,
     /// a somersault for big finished tasks, a roll over its edge.
     case yawn, shy, angry, flip, tumble
+    /// LM's own idle fidgets in place of the roll: a drop falls on his diamond and splashes; he melts into
+    /// a puddle and gathers back up.
+    case drip, melt
     /// At the keyboard while agents work: a sip from the mug, a stretch, a pause to think, a burst of fast
     /// typing, and a look over at the agent blocks on either side.
     case workSip, workStretch, workThink, workRush, glanceLeft, glanceRight
@@ -67,6 +70,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .angry: [120, 80, 120, 80, 120, 80, 200, 150, 150, 150, 300, 300]
         case .flip: [140, 90, 60, 50, 50, 50, 50, 50, 60, 80, 90, 140, 160, 200, 200, 300]
         case .tumble: [220, 80, 70, 70, 70, 90, 140, 220, 80, 70, 70, 70, 90, 140]
+        case .drip: [350, 120, 90, 70, 70, 70, 80, 90, 120, 400, 250, 300]
+        case .melt: [300, 120, 100, 100, 100, 500, 120, 300, 80, 90, 90, 90, 100, 300]
         case .workSip: [180, 90, 90, 250, 500, 250, 90, 120, 500, 200]
         case .workStretch: [150, 90, 90, 500, 300, 90, 100, 90, 250, 200]
         case .workThink: [200, 150, 300, 300, 400, 300, 300, 250, 150, 350, 150, 150]
@@ -96,7 +101,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// One-shots play once and hand control back to the base state.
     public var loops: Bool {
         switch self {
-        case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble,
+        case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble, .drip, .melt,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true

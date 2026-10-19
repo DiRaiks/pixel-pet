@@ -23,7 +23,7 @@ import Testing
     }
 
     @Test func jumpsAndDivesAreSkipped() {
-        for state in [PetState.hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .yawn] {
+        for state in [PetState.hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .drip, .melt, .yawn] {
             #expect(!MotionPolicy.allowsOneShot(state), "\(state)")
         }
     }

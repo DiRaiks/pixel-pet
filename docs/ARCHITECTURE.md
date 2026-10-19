@@ -189,12 +189,12 @@ Codex has hooks too, but they must be trusted one by one in its CLI, they replac
 - **Style.** Shading is hue-shifted: two shade steps, a rim light, a colored outline, blush, and breathing through the highlight.
   - **Skins:** lavender, mint, peach, graphite (`mono`), sky, sakura, vanilla and night (dark body, light outline and face), plus the red `error` skin. New skins stay clear of the agent colors (teal, amber, red) so the pet is never mistaken for a block's state.
   - **Accessories:** glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf, mustache. Head accessories (`isOnHead`) keep the work headband off.
-  - **Figures:** the cube, or LM (`Figure.lidman`), the Lido mascot built from the logo: a round drop with a V cut into its top and a two-tone diamond above it, big white eyes. `drawLidMan` replaces only the body and `lidManFace` the face, so states and props are shared. The diamond gets the rows above the body (at least 4: the top of a big jump comes a little lower for LM), so it squashes rather than leaving the canvas; turning frames can still graze an edge. LM always uses the `lidman` skin and no accessory, and marks drawn over the middle of the head ("!", the spent clock) step aside for the diamond (`Look.headMarkShift`); smaller marks (sparkles, spawn copies) may overlap it.
+  - **Figures:** the cube, or LM (`Figure.lidman`), the Lido mascot built from the logo: a round drop with a V cut into its top and a two-tone diamond above it, big white eyes. `drawLidMan` replaces only the body and `lidManFace` the face, so states and props are shared. The diamond gets the rows above the body (at least 4: the top of a big jump comes a little lower for LM), so it squashes rather than leaving the canvas; turning frames can still graze an edge. His big pupils follow the gaze (cursor, glances) like the cube's eyes. LM always uses the `lidman` skin and no accessory, and marks drawn over the middle of the head ("!", the spent clock) step aside for the diamond (`Look.headMarkShift`); smaller marks (sparkles, spawn copies) may overlap it.
   - **Every day new** (`Look.resolve` with `daily`): the skin and the accessory are picked from the date alone, so a day keeps its look across restarts and two days in a row never match; the pet redraws at midnight and after waking.
   - **Rotation** (flip, tumble) uses 3×3 supersampling with a deterministic majority vote. Accessories turn with the body, while the face is redrawn upright.
 - **Timing.** Each `PetState` has a duration per frame, so key poses are held and in-betweens are quick. `PetPlayer` plays a looping base state with an optional one-shot on top. `PetController` schedules exactly one timer per frame, timed to the end of the current frame, with a tolerance of 25% capped at 50 ms. While agent blocks are visible, the clock also keeps their shared 10 Hz beat. The timer stops entirely while the pet is hidden or occluded, or frozen under Reduce Motion.
 - **Agent stack.** `AgentStack` draws the 3×3 blocks on a separate 32×32 overlay: Claude Code at x 27–29 to the right of the body, Codex mirrored at x 2–4 on the left, each with its subagent dot on the outer side. Poses the pet holds while agents run keep clear of both columns (a test checks the left one). At home the stack is hidden, and the menu-bar counter stands in for it.
-- **Reduce Motion.** `MotionPolicy` lists the states that hold one frame (alert, error, dragged, low limit) and the one-shots that are skipped (hop, celebrate, drop, dive, peek, flip, tumble, yawn, shy, angry). Some skipped events get a held "cue" frame for 1.5 s instead, so they still register.
+- **Reduce Motion.** `MotionPolicy` lists the states that hold one frame (alert, error, dragged, low limit) and the one-shots that are skipped (hop, celebrate, drop, dive, peek, flip, tumble, drip, melt, yawn, shy, angry). Some skipped events get a held "cue" frame for 1.5 s instead, so they still register.
 
 ### States
 
@@ -204,7 +204,7 @@ Codex has hooks too, but they must be trusted one by one in its CLI, they replac
 |---|---|
 | Looping (moods) | `idle`, `working`, `alert`, `lowLimit`, `error`, `sleep` |
 | Looping (home and helpers) | `burrowed`, `peekHold`, `dragged`, `talk` |
-| One-shots | `hop`, `celebrate`, `drop`, `peek`, `dive`, `yawn`, `shy`, `angry`, `flip`, `tumble` |
+| One-shots | `hop`, `celebrate`, `drop`, `peek`, `dive`, `yawn`, `shy`, `angry`, `flip`, `tumble`, `drip`, `melt` |
 
 ## Home: notch and burrow
 
@@ -235,7 +235,7 @@ How the pet moves between the desk and home:
 
 `PetController` adds the personality layer:
 
-- **Fidgets** (yawn, tumble) play every 90–240 s, only while idle on the desk with reactions on, no card open and Reduce Motion off.
+- **Fidgets** (yawn, tumble; for LM `drip` or `melt` about half and half in place of tumble, `Breaks.fidget(lidMan:)`) play every 90–240 s, only while idle on the desk with reactions on, no card open and Reduce Motion off.
 - **Shy** after the cursor rests on the pet for 2 s, at most once a minute.
 - **Hookah breaks** (`Breaks`): about one idle fidget in four is a hookah when the setting allows it, and a big finished task (the somersault) is followed by one about a third of the time, if the pet is idling on the desk by then. About one in four ends in a big cloud (`hookahCloud`) instead of rings. The hookah stands in columns 20–26, clear of the Claude blocks.
 - **Angry** after 5 clicks within 3 s. The status card still opens, and clicks at home do not count.

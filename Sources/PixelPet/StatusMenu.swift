@@ -32,7 +32,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private static let stateTitles: [PetState: String] = [
         .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
         .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
-        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drop: "Приземление", .talk: "Отвечает",
+        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .yawn: "Зевает", .shy: "Смущается", .angry: "Сердится", .flip: "Сальто", .tumble: "Перекат", .drip: "Капля (LM)", .melt: "Растекается (LM)", .drop: "Приземление", .talk: "Отвечает",
         .workSip: "Пьёт кофе", .workStretch: "Потягивается", .workThink: "Задумался", .workRush: "Строчит",
         .glanceLeft: "Смотрит на Codex", .glanceRight: "Смотрит на Claude",
         .touchKey: "Ждёт касания ключа", .touchDone: "Ключ коснулись", .touchKeyHome: "Ждёт касания (дома)",
@@ -125,8 +125,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         hooksItem.title = hooks.isInstalled ? "Отключить от Claude Code" : "Подключить к Claude Code…"
         // Connections made before statuslines existed can pick one up here; a user's own statusline is never replaced.
         statusLineItem.isHidden = !(hooks.isInstalled && hooks.statusLineState == .absent)
+        // LM's own fidgets are drawn around his diamond; the cube doesn't offer them.
+        let lidMan = pet.config.figure == Figure.lidman.rawValue
         for entry in stateMenu.items {
             entry.state = entry.representedObject as? String == pet.restingState.rawValue ? .on : .off
+            let raw = entry.representedObject as? String
+            entry.isHidden = !lidMan && (raw == PetState.drip.rawValue || raw == PetState.melt.rawValue)
         }
         logItem.state = pet.config.logEvents ? .on : .off
         openLogItem.isHidden = !FileManager.default.fileExists(atPath: EventLog.url.path)

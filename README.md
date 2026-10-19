@@ -17,7 +17,9 @@
 
 <p align="center">
   <img src="docs/images/lm.png" width="120" alt="LM, the Lido mascot: a round drop under a diamond, typing and hopping"><br>
-  Or pick <b>LM</b>, the Lido mascot, instead of the cube.
+  Or pick <b>LM</b>, the Lido mascot, instead of the cube. Where the cube rolls over, LM catches a drop or melts into a puddle:<br>
+  <img src="docs/images/lm-drip.png" width="120" alt="LM catches a drop on his diamond">
+  <img src="docs/images/lm-melt.png" width="120" alt="LM melts into a puddle and gathers back up">
 </p>
 
 ## What it does
@@ -160,7 +162,7 @@ On top of these, it plays one-off animations:
 |:---:|:---:|:---:|:---:|
 | A turn with 20 s+ of work finished | A task of 10 min+ finished | You clicked it, or came back | Dragged, then dropped |
 | <img src="docs/images/yawn.png" width="80" alt=""> | <img src="docs/images/tumble.png" width="80" alt=""> | <img src="docs/images/shy.png" width="80" alt=""> | <img src="docs/images/angry.png" width="80" alt=""> |
-| Idle fidget: a yawn | Idle fidget: a roll | Cursor resting on it for 2 s | 5 clicks in 3 s |
+| Idle fidget: a yawn | Idle fidget: a roll (LM: a drop or a puddle) | Cursor resting on it for 2 s | 5 clicks in 3 s |
 | <img src="docs/images/refill.png" width="80" alt=""> | <img src="docs/images/spawn.png" width="80" alt=""> | <img src="docs/images/compact.png" width="80" alt=""> | <img src="docs/images/thrown.png" width="80" alt=""> |
 | The 5-hour limit reset | Subagents start, and come back | Claude compacts its context | Thrown hard, into a wall |
 | <img src="docs/images/dizzy.png" width="80" alt=""> | <img src="docs/images/late-night.png" width="80" alt=""> | | |

@@ -162,6 +162,9 @@ public enum Palette {
     /// LM's diamond: light left half, dark right half.
     public static let crystalLight = RGBA(0xBFF3F5)
     public static let crystalDark = RGBA(0x4CB8C6)
+    /// A drop of water (LM's fidgets).
+    public static let water = RGBA(0x3FA3E8)
+    public static let waterLight = RGBA(0xD6F2FF)
     /// The coffee mug on the desk during long work (its steam reuses `steam`).
     public static let mug = RGBA(0xF1EFE8)
     public static let mugShade = RGBA(0xB4B2A9)

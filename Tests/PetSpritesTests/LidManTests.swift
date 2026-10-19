@@ -63,6 +63,51 @@ import PetCore
         #expect(c.pixels.contains(Palette.white))
     }
 
+    /// The pupils follow the gaze both ways (they used to stay on the right whatever the cursor did).
+    @Test func pupilsFollowTheGaze() {
+        func pupilsX(_ x: Int) -> Int {
+            let f = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, gaze: Gaze(x: x, y: 0), look: lm)
+            // Only the eye rows (body top 12, eyes from row 17), so the smile below doesn't count.
+            return (0..<32).filter { px in (17..<21).contains { f.pixel(px, $0) == Skin.lidman.eye } }.min()!
+        }
+        #expect(pupilsX(-1) + 2 < pupilsX(1))
+        #expect(pupilsX(-1) < pupilsX(0) && pupilsX(0) < pupilsX(1))
+    }
+
+    /// A drop falls onto the diamond, splashes, and leaves two little puddles on the floor that dry up.
+    @Test func dripFallsSplashesAndPuddles() {
+        let frames = SpriteFactory.frames(for: .drip, look: lm)
+        func water(_ f: PixelCanvas, rows: Range<Int>) -> Bool {
+            rows.contains { y in (0..<32).contains { f.pixel($0, y) == Palette.water } }
+        }
+        #expect(water(frames[2], rows: 0..<4))
+        #expect(!water(frames[0], rows: 0..<32))
+        #expect(water(frames[8], rows: 27..<28))
+        #expect(!water(frames[11], rows: 0..<32))
+    }
+
+    /// Melting, he lies flat for a while, then gathers up into a tall drop before settling back.
+    @Test func meltSpreadsLowThenStretchesUp() {
+        let frames = SpriteFactory.frames(for: .melt, look: lm)
+        func top(_ f: PixelCanvas) -> Int { (0..<32).first { y in (0..<32).contains { f.pixel($0, y) != nil } }! }
+        #expect(top(frames[5]) > top(frames[0]) + 8)
+        #expect(top(frames[9]) < top(frames[0]))
+        // As a puddle the face stays inside the body: nothing dark on the floor rows.
+        for (i, f) in frames.enumerated() {
+            #expect(!(26..<32).contains { y in (0..<32).contains { f.pixel($0, y) == Skin.lidman.eye } }, "frame \(i)")
+        }
+    }
+
+    /// The cube has no diamond to drip on: played from the State menu it just stands there, no water.
+    @Test func cubeDoesNotDripOrMelt() {
+        for state in [PetState.drip, .melt] {
+            for f in SpriteFactory.frames(for: state, agentCubes: false) {
+                #expect(!f.pixels.contains(Palette.water))
+                #expect(f == SpriteFactory.frames(for: state, agentCubes: false)[0])
+            }
+        }
+    }
+
     /// "!" steps aside so the diamond stays visible.
     @Test func alertMarkClearsTheDiamond() {
         let frame = SpriteFactory.frame(for: .alert, index: 0, agentCubes: false, look: lm)

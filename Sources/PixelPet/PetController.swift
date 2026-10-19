@@ -527,7 +527,7 @@ final class PetController {
         guard !config.isHome, config.desktopReactions, player.state == .idle, restingState == .idle, !reduceMotion,
               held == nil, glance == nil, !isCardOpen() else { return }
         player.play(Breaks.fidget(hookahAllowed: config.hookah, roll: Int.random(in: 0..<1000),
-                                  cloudRoll: Int.random(in: 0..<1000)))
+                                  cloudRoll: Int.random(in: 0..<1000), lidMan: config.figure == Figure.lidman.rawValue))
         render()
     }
 

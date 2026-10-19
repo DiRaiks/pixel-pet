@@ -200,6 +200,12 @@ enum ReadmeExport {
         write(render([Clip(state: .idle, seconds: 1.2, look: lm), Clip(state: .working, seconds: 1.6, look: lm),
                       Clip(state: .hop, look: lm), Clip(state: .idle, seconds: 0.6, look: lm)], scale: 6),
               to: directory.appendingPathComponent("lm.png"))
+        // LM's idle fidgets, in place of the cube's roll.
+        for state in [PetState.drip, .melt] {
+            let clips = [Clip(state: .idle, seconds: 0.8, look: lm), Clip(state: state, look: lm),
+                         Clip(state: .idle, seconds: 0.8, look: lm)]
+            write(render(clips, scale: 6), to: directory.appendingPathComponent("lm-\(state.rawValue).png"))
+        }
         let wearable = Accessory.allCases.filter { $0 != .none }
         write(lineup(wearable.prefix(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
               to: directory.appendingPathComponent("accessories-1.png"))

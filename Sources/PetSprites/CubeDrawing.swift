@@ -200,12 +200,13 @@ extension PixelCanvas {
     }
 
     /// LM's face, shared by the upright body and the rotated one (where it's redrawn upright). Big white eyes
-    /// with pupils looking aside (lower when typing) need a body of 12+ rows; squashed frames and other
+    /// with pupils following the gaze (lower when typing) need a body of 12+ rows; squashed frames and other
     /// expressions use the cube's eyes.
     mutating func lidManFace(_ s: BodyStyle, cx: Int, ey: Int, bottom: Int) {
         let k = s.skin
         if s.h >= 12, [.open, .wide, .down, .shy].contains(s.eyes) {
-            let pupil = s.eyes == .open || s.eyes == .down ? 2 : 1, low = s.eyes == .down ? 1 : 0
+            // Pupils go where the face looks (the cursor, a glance), centered when it looks ahead.
+            let pupil = s.lookX < 0 ? 0 : s.lookX > 0 ? 2 : 1, low = s.eyes == .down ? 1 : 0
             for ex in [cx - 5, cx + 1] {
                 fill(ex, ey - 1, 4, 5, Palette.white)
                 for (dx, dy) in [(0, -1), (3, -1), (0, 3), (3, 3)] { set(ex + dx, ey + dy, k.fill) }
@@ -214,15 +215,17 @@ extension PixelCanvas {
             mouth(cx, min(ey + 5, bottom - 3), s.mouth == .flat ? .smile : s.mouth, k)
         } else {
             eyes(cx, ey, s.eyes, k)
-            mouth(cx, min(ey + 4, bottom - 3), s.mouth == .flat ? .smile : s.mouth, k)
+            // Too flat for a mouth below the eyes.
+            if bottom - ey >= 6 { mouth(cx, min(ey + 4, bottom - 3), s.mouth == .flat ? .smile : s.mouth, k) }
         }
     }
 
-    static func lidEyeRow(_ h: Int) -> Int { max(4, jsRound(Double(h) * 0.45)) }
+    /// Low frames (a puddle) keep the eyes inside the body.
+    static func lidEyeRow(_ h: Int) -> Int { h >= 10 ? max(4, jsRound(Double(h) * 0.45)) : max(1, (h - 3) / 2) }
 
     /// Lido's mascot, built from the Lido logo: a round drop with a V cut into its top, and above it, apart,
-    /// a diamond (light left half, dark right half) whose lower point sits in that V. Big white eyes looking
-    /// aside, a smile (see `lidManFace`).
+    /// a diamond (light left half, dark right half) whose lower point sits in that V. Big white eyes following
+    /// the gaze, a smile (see `lidManFace`).
     mutating func drawLidMan(_ s: BodyStyle, at m: Int, face: Bool, headroom: Int) {
         let k = s.skin, w = s.w, h = s.h
         // A circle at the usual 16×14, stretched into an ellipse for tall frames (a splat against a wall).
@@ -274,7 +277,7 @@ extension PixelCanvas {
         let cx = m + w / 2 + s.lookX
         let ey = m + Self.lidEyeRow(h) + s.lookY
         if face { lidManFace(s, cx: cx, ey: ey, bottom: m + h) }
-        if s.blush > 0 {
+        if s.blush > 0, ey + 4 < m + h - 1 {
             fill(cx - 7, ey + 4, s.blush, 1, k.blush)
             fill(cx + 7 - s.blush, ey + 4, s.blush, 1, k.blush)
         }

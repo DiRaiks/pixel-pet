@@ -96,6 +96,8 @@ public enum SpriteFactory {
         case .angry: angry(i, look, &c)
         case .flip: flip(i, look, &c)
         case .tumble: tumble(i, look, &c)
+        case .drip: drip(i, look, &c)
+        case .melt: melt(i, look, &c)
         }
     }
 

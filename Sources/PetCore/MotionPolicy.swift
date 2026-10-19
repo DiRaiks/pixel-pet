@@ -19,7 +19,7 @@ public enum MotionPolicy {
     /// One-shots that are pure movement are skipped altogether.
     public static func allowsOneShot(_ state: PetState) -> Bool {
         switch state {
-        case .hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .yawn, .shy, .angry,
+        case .hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .drip, .melt, .yawn, .shy, .angry,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true

@@ -264,6 +264,18 @@ import Testing
         #expect(!rolls.map { Breaks.fidget(hookahAllowed: false, roll: $0, cloudRoll: 0) }.contains { $0 == .hookah || $0 == .hookahCloud })
     }
 
+    /// LM catches a drop or melts where the cube would roll; the yawns and hookahs stay the same.
+    @Test func lidManDripsOrMeltsInsteadOfRolling() {
+        let rolls = 0..<100
+        let cube = rolls.map { Breaks.fidget(hookahAllowed: true, roll: $0, cloudRoll: 1) }
+        let lm = rolls.map { Breaks.fidget(hookahAllowed: true, roll: $0, cloudRoll: 1, lidMan: true) }
+        #expect(!lm.contains(.tumble))
+        #expect(lm.contains(.drip) && lm.contains(.melt))
+        for (a, b) in zip(cube, lm) {
+            if a == .tumble { #expect(b == .drip || b == .melt) } else { #expect(a == b) }
+        }
+    }
+
     @Test func aCloudNowAndThen() {
         let breaks = (0..<100).map { Breaks.hookah(cloudRoll: $0) }
         #expect(breaks.filter { $0 == .hookahCloud }.count == 25)

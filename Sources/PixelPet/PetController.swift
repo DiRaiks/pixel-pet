@@ -544,17 +544,18 @@ final class PetController {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.shyAfter, execute: work)
     }
 
-    /// Skin and accessory changed in settings: redraw everything in the new look.
-    func setLook(skin: String, accessory: String) {
+    /// Character, skin or accessory changed in settings: redraw everything in the new look.
+    func setLook(skin: String, accessory: String, figure: String) {
         config.skin = skin
         config.accessory = accessory
+        config.figure = figure
         persist()
         sprites.setLook(Self.look(from: config))
         render()
     }
 
     static func look(from config: PetConfig, on date: Date = Date()) -> Look {
-        Look.resolve(skin: config.skin, accessory: config.accessory, on: date)
+        Look.resolve(skin: config.skin, accessory: config.accessory, figure: config.figure, on: date)
     }
 
     /// With "every day new", the look changes at midnight.

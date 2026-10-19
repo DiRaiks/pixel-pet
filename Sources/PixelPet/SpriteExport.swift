@@ -195,6 +195,11 @@ enum ReadmeExport {
         write(render(reel, scale: 6), to: directory.appendingPathComponent("showreel.png"))
         // Every look, idling side by side.
         write(lineup(Skin.all.map { Look(skin: $0) }, scale: 3), to: directory.appendingPathComponent("looks.png"))
+        // LM, the Lido mascot: idle, typing, a hop.
+        let lm = Look(figure: .lidman)
+        write(render([Clip(state: .idle, seconds: 1.2, look: lm), Clip(state: .working, seconds: 1.6, look: lm),
+                      Clip(state: .hop, look: lm), Clip(state: .idle, seconds: 0.6, look: lm)], scale: 6),
+              to: directory.appendingPathComponent("lm.png"))
         let wearable = Accessory.allCases.filter { $0 != .none }
         write(lineup(wearable.prefix(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
               to: directory.appendingPathComponent("accessories-1.png"))

@@ -14,7 +14,7 @@ PetCore          pure logic, no AppKit: events, sessions, states, limits, config
 | Target | Depends on | Holds |
 |---|---|---|
 | `PetCore` | — | `AgentEvent`, `SessionRegistry`, `PetBrain`, `PetState`, `PetPlayer`, `MotionPolicy`, `UsageLimits` and `Inbound`, `ProbePolicy`, `PetConfig` and `ConfigStore`, `HookSettings` and `HookInstaller`, `HomeSpot` and `HomeGeometry`, `Placement`, `DragTracker`, `Gaze`, `ReactionThrottle` and `Fullscreen`, `TranslationPlan` and `SelectionDecision`, `AskConversation`, `ClaudeStream` and `ClaudeTranslation`, `CodexRollout`, `AnswerText` |
-| `PetSprites` | `PetCore` | `PixelCanvas`, `Palette` (`Skin`, `Accessory`, `Look`), `CubeDrawing` (`BodyStyle`), `SpriteFactory`, `AgentStack` |
+| `PetSprites` | `PetCore` | `PixelCanvas`, `Palette` (`Skin`, `Accessory`, `Figure`, `Look`), `CubeDrawing` (`BodyStyle`), `SpriteFactory`, `AgentStack` |
 | `PetIntegrations` | `PetCore` | `EventServer`, `ClaudeLocator`, `ClaudeProcess`, `LimitsProbe`, `ClaudeChat` and `ClaudeAsk`, the `ClaudeTranslation` runner (an extension), `CodexWatcher`, `CodexLocator`, `CodexLimitsProbe` |
 | `PixelPet` | all three | `AppDelegate`, `PetController`, `PetPanel`, `SpriteLibrary`, `AgentMonitor`, `StatusMenu`, `StatusPanel` (cards), `TranslationCard`, `AskCard`, `SelectionReader`, `DesktopSensor`, `HotKey`, `SettingsWindow`, `OnboardingWindow`, `HookActions`, `SpriteExport` |
 
@@ -189,6 +189,7 @@ Codex has hooks too, but they must be trusted one by one in its CLI, they replac
 - **Style.** Shading is hue-shifted: two shade steps, a rim light, a colored outline, blush, and breathing through the highlight.
   - **Skins:** lavender, mint, peach, graphite (`mono`), sky, sakura, vanilla and night (dark body, light outline and face), plus the red `error` skin. New skins stay clear of the agent colors (teal, amber, red) so the pet is never mistaken for a block's state.
   - **Accessories:** glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf, mustache. Head accessories (`isOnHead`) keep the work headband off.
+  - **Figures:** the cube, or LM (`Figure.lidman`), the Lido mascot built from the logo: a round drop with a V cut into its top and a two-tone diamond above it, big white eyes. `drawLidMan` replaces only the body and `lidManFace` the face, so states and props are shared. The diamond gets the rows above the body (at least 4: the top of a big jump comes a little lower for LM), so it squashes rather than leaving the canvas; turning frames can still graze an edge. LM always uses the `lidman` skin and no accessory, and marks drawn over the middle of the head ("!", the spent clock) step aside for the diamond (`Look.headMarkShift`); smaller marks (sparkles, spawn copies) may overlap it.
   - **Every day new** (`Look.resolve` with `daily`): the skin and the accessory are picked from the date alone, so a day keeps its look across restarts and two days in a row never match; the pet redraws at midnight and after waking.
   - **Rotation** (flip, tumble) uses 3×3 supersampling with a deterministic majority vote. Accessories turn with the body, while the face is redrawn upright.
 - **Timing.** Each `PetState` has a duration per frame, so key poses are held and in-betweens are quick. `PetPlayer` plays a looping base state with an optional one-shot on top. `PetController` schedules exactly one timer per frame, timed to the end of the current frame, with a tolerance of 25% capped at 50 ms. While agent blocks are visible, the clock also keeps their shared 10 Hz beat. The timer stops entirely while the pet is hidden or occluded, or frozen under Reduce Motion.
@@ -293,6 +294,7 @@ How the pet moves between the desk and home:
 | `nativeLanguage` / `foreignLanguage` | `ru` / `en` | Translation direction |
 | `askModel` | `haiku` | Model for quick questions |
 | `skin` / `accessory` | `lavender` / `none` | Look |
+| `figure` | `cube` | `cube` or `lidman` (LM); LM ignores `skin` and `accessory` |
 | `watchCodex` | true | Follow Codex sessions and limits |
 | `touchHint` | true | Show when a YubiKey waits for a touch |
 | `hookah` | true | Hookah breaks |

@@ -46,7 +46,7 @@ extension SpriteFactory {
         let b = c.body(s)
         c.set(b.x0 + 1, b.y0 + 3, Palette.sweat)
         // Clock: a ring with one hand going round.
-        let (cx, cy) = (b.cx, b.y0 - 6)
+        let (cx, cy) = (b.cx + look.headMarkShift, b.y0 - 6)
         for (dx, dy) in [(-1, -2), (0, -2), (1, -2), (2, -1), (2, 0), (2, 1), (1, 2), (0, 2), (-1, 2), (-2, 1), (-2, 0), (-2, -1)] {
             c.set(cx + dx, cy + dy, look.skin.shade)
         }

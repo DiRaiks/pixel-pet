@@ -35,6 +35,15 @@ import Testing
         #expect(config.isHidden == false)
     }
 
+    @Test func figureDefaultsToTheCubeAndRoundTrips() throws {
+        #expect(PetConfig().figure == "cube")
+        let store = ConfigStore(url: url)
+        var config = PetConfig()
+        config.figure = "lidman"
+        try store.save(config)
+        #expect(store.load().figure == "lidman")
+    }
+
     @Test func scaleIsClampedToSupportedRange() throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data(#"{"scale":40}"#.utf8).write(to: url)

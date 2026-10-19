@@ -45,7 +45,7 @@ The `CFBundleVersion` comes from `git describe --tags --always --dirty`. `CFBund
 ./scripts/test.sh
 ```
 
-The tests use Swift Testing. There are about 260 tests in three targets, covering `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests: it is kept thin on purpose.
+The tests use Swift Testing. There are about 390 tests in three targets, covering `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests: it is kept thin on purpose.
 
 Always run tests through `scripts/test.sh` rather than plain `swift test`. With only the Command Line Tools installed, `swift test` often fails to load the Swift Testing macro plugin (`TestingMacros`) when it reuses the build description that a plain `swift build` left in `.build`. The script works around it:
 
@@ -75,7 +75,7 @@ Quit the running pet first (menu: "Выйти", or `pkill -x PixelPet`). The app
 
 | Flag | Effect |
 |---|---|
-| `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: `lavender`, `mint`, `peach`, `mono`. Accessories: `none`, `glasses`, `headphones`, `cap` |
+| `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: any of `Skin.all` by name, or `lidman` for LM. Accessories: any `Accessory` raw value, such as `none`, `glasses`, `headphones`, `cap` |
 | `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
 | `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |

@@ -26,7 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let i = exportArgs.firstIndex(of: "--export-sprites"), i + 1 < exportArgs.count {
             let skin = i + 2 < exportArgs.count ? Skin.named(exportArgs[i + 2]) : .lavender
             let accessory = i + 3 < exportArgs.count ? Accessory(rawValue: exportArgs[i + 3]) ?? .none : .none
-            SpriteExport.run(to: URL(fileURLWithPath: exportArgs[i + 1]), look: Look(skin: skin, accessory: accessory))
+            let figure: Figure = i + 2 < exportArgs.count && exportArgs[i + 2] == Figure.lidman.rawValue ? .lidman : .cube
+            SpriteExport.run(to: URL(fileURLWithPath: exportArgs[i + 1]), look: Look(skin: skin, accessory: accessory, figure: figure))
             NSApp.terminate(nil)
             return
         }

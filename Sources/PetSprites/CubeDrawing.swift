@@ -22,12 +22,14 @@ struct BodyStyle {
     var headband = false
     /// A call headset with a mic; it takes the place of a head accessory while it's on.
     var headset = false
+    var figure = Figure.cube
     /// Degrees clockwise, around the body's center.
     var rotation = 0.0
 
     init(look: Look) {
         skin = look.skin
         accessory = look.accessory
+        figure = look.figure
     }
 }
 
@@ -41,14 +43,18 @@ extension PixelCanvas {
     /// rotated when asked, so face, blush and accessories turn with it.
     @discardableResult
     mutating func body(_ s: BodyStyle) -> BodyFrame {
-        let cx = s.cx + s.dx, by = s.by + s.dy, x0 = cx - s.w / 2, y0 = by - s.h
+        // LM's diamond needs room above the body: at least 4 rows, so the top of a big jump comes a bit lower.
+        let lid = s.figure == .lidman
+        let lift = lid && s.rotation == 0 ? max(0, 4 - (s.by + s.dy - s.h)) : 0
+        let cx = s.cx + s.dx, by = s.by + s.dy + lift, x0 = cx - s.w / 2, y0 = by - s.h
         if s.shadow {
             let sw = max(4, s.w - 2 - jsRound(Double(s.ground - 1 - by) / 1.5))
             fill(s.cx + s.dx - sw / 2, s.ground, sw, 1, Palette.shadow)
         }
-        let m = 5
+        let m = lid ? 12 : 5
         var local = PixelCanvas(width: s.w + 2 * m, height: s.h + 2 * m)
-        local.drawCube(s, at: m, face: s.rotation == 0)
+        // Upright, LM's diamond gets only the rows above the body, so jumps squash it instead of cutting it off.
+        if lid { local.drawLidMan(s, at: m, face: s.rotation == 0, headroom: s.rotation == 0 ? y0 : m) } else { local.drawCube(s, at: m, face: s.rotation == 0) }
         if s.rotation == 0 {
             blit(local, x: x0 - m, y: y0 - m)
         } else {
@@ -57,9 +63,13 @@ extension PixelCanvas {
                         sourceCenterX: Double(m) + Double(s.w) / 2, sourceCenterY: Double(m) + Double(s.h) / 2)
             // A 1-pixel face falls apart when rotated; like hand-drawn spins, it stays upright on the turning body,
             // on the same rows as without rotation (props and blush turn with the body).
-            let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
-            eyes(cx + s.lookX, ey, s.eyes, s.skin)
-            mouth(cx + s.lookX, min(ey + 4, by - 4), s.mouth, s.skin)
+            if lid {
+                lidManFace(s, cx: cx + s.lookX, ey: y0 + Self.lidEyeRow(s.h) + s.lookY, bottom: by)
+            } else {
+                let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
+                eyes(cx + s.lookX, ey, s.eyes, s.skin)
+                mouth(cx + s.lookX, min(ey + 4, by - 4), s.mouth, s.skin)
+            }
         }
         return BodyFrame(x0: x0, y0: y0, cx: cx)
     }
@@ -186,6 +196,91 @@ extension PixelCanvas {
             fill(cx - 2, my + 1, 4, 1, color)
             set(cx - 4, my, color); set(cx + 3, my, color)
             set(cx - 5, my - 1, color); set(cx + 4, my - 1, color)
+        }
+    }
+
+    /// LM's face, shared by the upright body and the rotated one (where it's redrawn upright). Big white eyes
+    /// with pupils looking aside (lower when typing) need a body of 12+ rows; squashed frames and other
+    /// expressions use the cube's eyes.
+    mutating func lidManFace(_ s: BodyStyle, cx: Int, ey: Int, bottom: Int) {
+        let k = s.skin
+        if s.h >= 12, [.open, .wide, .down, .shy].contains(s.eyes) {
+            let pupil = s.eyes == .open || s.eyes == .down ? 2 : 1, low = s.eyes == .down ? 1 : 0
+            for ex in [cx - 5, cx + 1] {
+                fill(ex, ey - 1, 4, 5, Palette.white)
+                for (dx, dy) in [(0, -1), (3, -1), (0, 3), (3, 3)] { set(ex + dx, ey + dy, k.fill) }
+                fill(ex + pupil, ey + low, 2, 2, k.eye)
+            }
+            mouth(cx, min(ey + 5, bottom - 3), s.mouth == .flat ? .smile : s.mouth, k)
+        } else {
+            eyes(cx, ey, s.eyes, k)
+            mouth(cx, min(ey + 4, bottom - 3), s.mouth == .flat ? .smile : s.mouth, k)
+        }
+    }
+
+    static func lidEyeRow(_ h: Int) -> Int { max(4, jsRound(Double(h) * 0.45)) }
+
+    /// Lido's mascot, built from the Lido logo: a round drop with a V cut into its top, and above it, apart,
+    /// a diamond (light left half, dark right half) whose lower point sits in that V. Big white eyes looking
+    /// aside, a smile (see `lidManFace`).
+    mutating func drawLidMan(_ s: BodyStyle, at m: Int, face: Bool, headroom: Int) {
+        let k = s.skin, w = s.w, h = s.h
+        // A circle at the usual 16×14, stretched into an ellipse for tall frames (a splat against a wall).
+        // Its center stays in the upper half so squashed and square frames still get a cut top (and the V
+        // a nonzero width); those simply round off less at the bottom.
+        let mid = Double(w) / 2, rx = Double(w) / 2, ry = rx * max(1, Double(h) / (Double(w) * 0.875))
+        let cyc = min(max(Double(h) - ry, ry * 0.45), ry * 0.85)
+        let half = rx * (1 - (cyc * cyc) / (ry * ry)).squareRoot(), depth = Double(h) * 0.16
+        func notch(_ d: Double) -> Double { depth * (1 - min(d, half) / half) }
+        func inBody(_ x: Int, _ y: Int) -> Bool {
+            guard x >= 0, y >= 0, x < w, y < h else { return false }
+            let px = Double(x) + 0.5, py = Double(y) + 0.5
+            // More than half an ellipse, cut at the top corners like the logo's bowl.
+            let dx = px - mid, dy = py - cyc
+            return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1 && py >= notch(abs(dx))
+        }
+        for y in 0..<h {
+            for x in 0..<w where inBody(x, y) {
+                let edge = !inBody(x - 1, y) || !inBody(x + 1, y) || !inBody(x, y - 1) || !inBody(x, y + 1)
+                let px = Double(x) + 0.5, py = Double(y) + 0.5
+                // The logo's facet: the right side a shade darker, below the face.
+                let wedge = (py / Double(h)) * half * 0.8
+                let color: RGBA
+                if edge { color = k.outline }
+                else if y <= s.drain { color = k.empty }
+                else if !inBody(x, y + 2) { color = k.shade2 }
+                else if (mid + half) - px < wedge && py > Double(h) * 0.55 { color = k.shade }
+                else if px < mid - half + 2 && py > 2 && py < Double(h) * 0.5 { color = k.highlight }
+                else { color = k.fill }
+                set(m + x, m + y, color)
+            }
+        }
+        // The diamond, right above the V with only the two outlines between them.
+        let apex = -min(Double(h) * 0.6, Double(max(headroom, 4)))
+        let kw = half + 0.5
+        func kBottom(_ d: Double) -> Double { notch(d) - 1.2 }
+        let slope = (kBottom(kw) - apex) / kw
+        func inKite(_ x: Int, _ y: Int) -> Bool {
+            let px = Double(x) + 0.5, py = Double(y) + 0.5, d = abs(px - mid)
+            return d <= kw && py >= apex + d * slope && py <= kBottom(d)
+        }
+        for y in Int(apex.rounded(.down))...0 {
+            for x in 0..<w where inKite(x, y) {
+                let edge = !inKite(x - 1, y) || !inKite(x + 1, y) || !inKite(x, y - 1) || !inKite(x, y + 1)
+                let color = edge ? k.outline : (Double(x) + 0.5 < mid ? Palette.crystalLight : Palette.crystalDark)
+                set(m + x, m + y, color)
+            }
+        }
+        let cx = m + w / 2 + s.lookX
+        let ey = m + Self.lidEyeRow(h) + s.lookY
+        if face { lidManFace(s, cx: cx, ey: ey, bottom: m + h) }
+        if s.blush > 0 {
+            fill(cx - 7, ey + 4, s.blush, 1, k.blush)
+            fill(cx + 7 - s.blush, ey + 4, s.blush, 1, k.blush)
+        }
+        if face, s.brow == .angry {
+            set(cx - 5, ey - 3, k.eye); set(cx - 4, ey - 2, k.eye)
+            set(cx + 4, ey - 3, k.eye); set(cx + 3, ey - 2, k.eye)
         }
     }
 

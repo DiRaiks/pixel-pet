@@ -39,6 +39,11 @@ public struct Skin: Equatable, Hashable, Sendable {
         name: "night", outline: RGBA(0xB9C3FF), fill: RGBA(0x2B3263), highlight: RGBA(0x4F5A9E), rim: RGBA(0x3A437E),
         shade: RGBA(0x1E2450), shade2: RGBA(0x161A3D), empty: RGBA(0x6A72A8), eye: RGBA(0xE8ECFF),
         eyeShine: RGBA(0x9BA6F0), eyeShine2: RGBA(0xB9C3FF), blush: RGBA(0xC77DB5))
+    /// LM's own aqua; with that figure the color setting doesn't apply.
+    public static let lidman = Skin(
+        name: "lidman", outline: RGBA(0x1C5F6B), fill: RGBA(0xA8ECEA), highlight: RGBA(0xE2FBFA), rim: RGBA(0xC6F4F2),
+        shade: RGBA(0x74D3D3), shade2: RGBA(0x4FB8BE), empty: RGBA(0xEAFBFA), eye: RGBA(0x163A40),
+        eyeShine: RGBA(0xFFFFFF), eyeShine2: RGBA(0x2E6F78), blush: RGBA(0xF5A3C7))
     /// The pet turning red while something fails.
     static let error = Skin(
         name: "error", outline: RGBA(0x501313), fill: RGBA(0xE24B4A), highlight: RGBA(0xF09595), rim: RGBA(0xF09595),
@@ -63,28 +68,40 @@ public enum Accessory: String, CaseIterable, Sendable {
     }
 }
 
+/// The character itself: the cube, or LM, Lido's mascot.
+public enum Figure: String, CaseIterable, Sendable {
+    case cube, lidman
+}
+
 /// Everything about how the pet looks, besides the animation itself.
 public struct Look: Equatable, Hashable, Sendable {
     public var skin: Skin
     public var accessory: Accessory
-    public init(skin: Skin = .lavender, accessory: Accessory = .none) {
-        self.skin = skin
-        self.accessory = accessory
+    public var figure: Figure
+    /// LM always wears his own colors and none of the accessories (his diamond takes the top).
+    public init(skin: Skin = .lavender, accessory: Accessory = .none, figure: Figure = .cube) {
+        self.figure = figure
+        self.skin = figure == .lidman ? .lidman : skin
+        self.accessory = figure == .lidman ? .none : accessory
     }
     public static let standard = Look()
 
     /// The setting value meaning "a different one every day".
     public static let daily = "daily"
 
+    /// Marks drawn over the middle of the head ("!", the spent clock) step aside for LM's diamond.
+    var headMarkShift: Int { figure == .lidman ? 7 : 0 }
+
     /// The look for the saved settings on a given day: fixed names as they are, `daily` picked from the
     /// date alone (the same all day, also after a restart; never the same as the day before; never bare).
-    public static func resolve(skin: String, accessory: String, on date: Date, calendar: Calendar = .autoupdatingCurrent) -> Look {
+    public static func resolve(skin: String, accessory: String, figure: String = Figure.cube.rawValue, on date: Date,
+                               calendar: Calendar = .autoupdatingCurrent) -> Look {
         let day = dayNumber(date, calendar)
         let skins = Skin.all, wearable = Accessory.allCases.filter { $0 != .none }
         // Stepping by a number coprime to the count walks through all of them, never repeating back to back.
         let pickedSkin = skin == daily ? skins[(day * 3) % skins.count] : Skin.named(skin)
         let pickedAccessory = accessory == daily ? wearable[(day * 5 + 2) % wearable.count] : Accessory(rawValue: accessory) ?? .none
-        return Look(skin: pickedSkin, accessory: pickedAccessory)
+        return Look(skin: pickedSkin, accessory: pickedAccessory, figure: Figure(rawValue: figure) ?? .cube)
     }
 
     private static func dayNumber(_ date: Date, _ calendar: Calendar) -> Int {
@@ -142,6 +159,9 @@ public enum Palette {
     public static let scarf = RGBA(0xE07A5F)
     public static let scarfStripe = RGBA(0xF2CC8F)
     public static let mustache = RGBA(0x5A3A22)
+    /// LM's diamond: light left half, dark right half.
+    public static let crystalLight = RGBA(0xBFF3F5)
+    public static let crystalDark = RGBA(0x4CB8C6)
     /// The coffee mug on the desk during long work (its steam reuses `steam`).
     public static let mug = RGBA(0xF1EFE8)
     public static let mugShade = RGBA(0xB4B2A9)

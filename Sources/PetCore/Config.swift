@@ -31,6 +31,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Look: color skin and an optional accessory (see PetSprites `Skin` / `Accessory`).
     public var skin = "lavender"
     public var accessory = "none"
+    /// The character: "cube", or "lidman" (Lido's mascot, which keeps its own colors and wears no accessory).
+    public var figure = "cube"
     /// Follow Codex sessions (~/.codex/sessions) next to Claude Code's.
     public var watchCodex = true
     /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
@@ -62,6 +64,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
         skin = try c.decodeIfPresent(String.self, forKey: .skin) ?? "lavender"
         accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
+        figure = try c.decodeIfPresent(String.self, forKey: .figure) ?? "cube"
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true

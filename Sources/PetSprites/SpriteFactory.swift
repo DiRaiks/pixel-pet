@@ -327,8 +327,9 @@ public enum SpriteFactory {
         s.eyes = .wide; s.lookX = 1; s.mouth = .open; s.blush = 0
         let b = c.body(s)
         if i % 6 < 4 {
-            c.fill(b.cx - 1, b.y0 - 7, 2, 3, Palette.amber)
-            c.fill(b.cx - 1, b.y0 - 3, 2, 1, Palette.amber)
+            let x = b.cx - 1 + look.headMarkShift
+            c.fill(x, b.y0 - 7, 2, 3, Palette.amber)
+            c.fill(x, b.y0 - 3, 2, 1, Palette.amber)
         }
         guard cubes else { return }
         let cy = 24 - ((i + 6) % 12 < 3 ? 1 : 0)

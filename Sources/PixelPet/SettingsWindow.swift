@@ -25,8 +25,10 @@ final class SettingsModel {
     var nativeLanguage = "ru" { didSet { update { $0.nativeLanguage = nativeLanguage } } }
     var foreignLanguage = "en" { didSet { update { $0.foreignLanguage = foreignLanguage } } }
     var askModel = "haiku" { didSet { update { $0.askModel = askModel } } }
-    var skin = "lavender" { didSet { if !loading, skin != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
-    var accessory = "none" { didSet { if !loading, accessory != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
+    var figure = "cube" { didSet { if !loading, figure != oldValue { applyLook() } } }
+    var skin = "lavender" { didSet { if !loading, skin != oldValue { applyLook() } } }
+    var accessory = "none" { didSet { if !loading, accessory != oldValue { applyLook() } } }
+    private func applyLook() { pet.setLook(skin: skin, accessory: accessory, figure: figure) }
     var logEvents = false { didSet { if !loading, logEvents != oldValue { pet.setLogEvents(logEvents) } } }
     var watchCodex = true {
         didSet {
@@ -85,6 +87,7 @@ final class SettingsModel {
         nativeLanguage = c.nativeLanguage
         foreignLanguage = c.foreignLanguage
         askModel = c.askModel
+        figure = c.figure
         skin = c.skin
         accessory = c.accessory
         logEvents = c.logEvents
@@ -144,6 +147,7 @@ enum Choices {
         ("zh", "中文"), ("ja", "日本語"), ("ko", "한국어"),
     ]
     static let models = ["haiku", "sonnet", "opus"]
+    static let figures: [(name: String, title: String)] = [(Figure.cube.rawValue, "Кубик"), (Figure.lidman.rawValue, "LM")]
     static let skins: [(name: String, title: String)] = [
         ("lavender", "Лавандовый"), ("mint", "Мятный"), ("peach", "Персиковый"), ("mono", "Графитовый"),
         ("sky", "Небесный"), ("sakura", "Сакура"), ("vanilla", "Ваниль"), ("night", "Ночной"),
@@ -169,17 +173,24 @@ struct SettingsView: View {
                 Picker("Размер", selection: $model.scale) {
                     ForEach(Array(PetConfig.scaleRange), id: \.self) { Text("×\($0)").tag($0) }
                 }
-                Picker("Цвет", selection: $model.skin) {
-                    ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
+                Picker("Персонаж", selection: $model.figure) {
+                    ForEach(Choices.figures, id: \.name) { Text($0.title).tag($0.name) }
                 }
-                Picker("Аксессуар", selection: $model.accessory) {
-                    ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
+                // LM keeps his own colors and wears nothing on his diamond.
+                Group {
+                    Picker("Цвет", selection: $model.skin) {
+                        ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
+                    }
+                    Picker("Аксессуар", selection: $model.accessory) {
+                        ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
+                    }
                 }
+                .disabled(model.figure == Figure.lidman.rawValue)
                 Toggle("Не беспокоить (⌃⌥P)", isOn: $model.doNotDisturb)
                 Toggle("Реагировать на рабочий стол", isOn: $model.desktopReactions)
+                    .help("Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями")
                 Toggle("Кальян на перерывах", isOn: $model.hookah)
                     .help("Иногда в покое и после больших задач кубик курит кальян")
-                    .help("Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями")
                 Picker("Засыпать без активности", selection: $model.sleepAfterMinutes) {
                     ForEach(Choices.sleep, id: \.minutes) { Text($0.title).tag($0.minutes) }
                 }

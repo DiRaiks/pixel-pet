@@ -11,6 +11,12 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var logEvents = false
     /// Last known limits, so the panel isn't blank right after a restart.
     public var lastLimits: UsageLimits?
+    /// Living in the notch or burrow rather than on the desk.
+    public var isHome = false
+    /// Display (CGDirectDisplayID) of the home; nil means the screen with the menu bar.
+    public var homeDisplay: UInt32?
+    /// Stay home and only come out for errors.
+    public var doNotDisturb = false
 
     public init() {}
 
@@ -22,6 +28,9 @@ public struct PetConfig: Codable, Equatable, Sendable {
         isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
         logEvents = try c.decodeIfPresent(Bool.self, forKey: .logEvents) ?? false
         lastLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastLimits)
+        isHome = try c.decodeIfPresent(Bool.self, forKey: .isHome) ?? false
+        homeDisplay = try c.decodeIfPresent(UInt32.self, forKey: .homeDisplay)
+        doNotDisturb = try c.decodeIfPresent(Bool.self, forKey: .doNotDisturb) ?? false
     }
 }
 

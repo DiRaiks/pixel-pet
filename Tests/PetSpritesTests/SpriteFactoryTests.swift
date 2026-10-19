@@ -92,3 +92,33 @@ import PetCore
         #expect(drained.pixel(13, 17) == Palette.eye)
     }
 }
+
+@Suite struct HomeSpriteTests {
+    @Test func burrowedShowsOnlyGlowingEyesInTheHole() {
+        for frame in SpriteFactory.frames(for: .burrowed, agentCubes: false) {
+            #expect(!frame.pixels.contains(Palette.fill))
+            #expect(frame.pixels.contains(Palette.notch))
+        }
+        let blinks = SpriteFactory.frames(for: .burrowed, agentCubes: false).map { $0.pixels.filter { $0 == Palette.glow }.count }
+        #expect(Set(blinks).count > 1)
+    }
+
+    @Test func peekHoldIsOutsideTheHole() {
+        for frame in SpriteFactory.frames(for: .peekHold, agentCubes: false) {
+            #expect(frame.pixels.contains(Palette.fill))
+            #expect(frame.pixel(16, 2) == Palette.notch)
+        }
+    }
+
+    @Test func diveEndsHidden() {
+        let frames = SpriteFactory.frames(for: .dive, agentCubes: false)
+        #expect(frames.first!.pixels.contains(Palette.fill))
+        #expect(!frames.last!.pixels.contains(Palette.fill))
+    }
+
+    @Test func appFramesHaveNoPrototypeMenuBarStrips() {
+        let peek = SpriteFactory.frames(for: .peek, agentCubes: false)[0]
+        #expect(peek.pixel(0, 0) == nil)
+        #expect(SpriteFactory.frames(for: .peek)[0].pixel(0, 0) == Palette.menuBar)
+    }
+}

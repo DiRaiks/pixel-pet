@@ -13,7 +13,8 @@ public enum SpriteFactory {
                        (14, 15, -11), (14, 16, -9), (14, 17, -5), (14, 16, -1), (20, 10, 0), (18, 12, 0), (16, 15, 0),
                        (16, 14, 0), (16, 14, 0)]
 
-    /// `agentCubes: false` drops the prototype's fixed agent blocks; the app draws live ones via AgentStack.
+    /// `agentCubes: false` gives the app's bare frames: no prototype-only props (the fixed agent blocks,
+    /// which the app draws live via AgentStack, and the fake menu-bar strips around the notch).
     public static func frames(for state: PetState, agentCubes: Bool = true) -> [PixelCanvas] {
         (0..<state.frameCount).map { i in
             var c = PixelCanvas()
@@ -48,7 +49,10 @@ public enum SpriteFactory {
         case .sleep: sleep(i, &c)
         case .lowLimit: lowLimit(i, &c)
         case .error: error(i, cubes, &c)
-        case .peek: peek(i, &c)
+        case .peek: peek(i, cubes, &c)
+        case .burrowed: burrowed(i, cubes, &c)
+        case .peekHold: peekHold(i, cubes, &c)
+        case .dive: dive(i, cubes, &c)
         case .dragged: dragged(i, &c)
         case .drop: drop(i, &c)
         case .talk: talk(i, &c)
@@ -157,7 +161,7 @@ public enum SpriteFactory {
         if i % 4 < 2 { c.set(27, 25, Palette.errorDark) }
     }
 
-    static func peek(_ i: Int, _ c: inout PixelCanvas) {
+    static func peek(_ i: Int, _ props: Bool, _ c: inout PixelCanvas) {
         var by = 6
         if (6...11).contains(i) {
             let t = 1 - Double(i - 5) / 6
@@ -167,16 +171,50 @@ public enum SpriteFactory {
         } else if (22...24).contains(i) {
             by = 16 - jsRound(10 * Double(i - 21) / 3)
         }
+        let lookX = (13...16).contains(i) ? -1 : (17...20).contains(i) ? 1 : 0
+        home(&c, by: by, lookX: lookX, eyes: i == 21 ? .blink : .open, props: props,
+             glow: i == 3 || i == 26 ? .glowBlink : .glow)
+    }
+
+    /// Hidden at home: only two glowing eyes in the dark, glancing around and blinking now and then.
+    static func burrowed(_ i: Int, _ props: Bool, _ c: inout PixelCanvas) {
+        let look = (4...6).contains(i) ? -1 : (12...13).contains(i) ? 1 : 0
+        drawHole(&c, props: props)
+        c.eyes(16 + look, 1, i == 10 ? .glowBlink : .glow)
+    }
+
+    /// Half out of the hole, watching: used while an agent waits or something failed.
+    static func peekHold(_ i: Int, _ props: Bool, _ c: inout PixelCanvas) {
+        let looks = [-1, -1, -1, 0, 1, 1, 1, 0, 0, 0]
+        home(&c, by: 16, lookX: looks[i], eyes: i == 8 ? .blink : .wide, props: props, glow: .glow)
+    }
+
+    /// Pulled into the hole after a drop near home: squash, then a fast slide up.
+    static func dive(_ i: Int, _ props: Bool, _ c: inout PixelCanvas) {
+        let keys = [(18, 12, 16), (14, 16, 15), (14, 16, 12), (14, 15, 9), (16, 14, 7), (16, 14, 6)]
+        let (w, h, by) = keys[i]
+        home(&c, by: by, w: w, h: h, lookX: 0, eyes: i == 0 ? .blink : .open, props: props, glow: .glow)
+    }
+
+    private static func home(_ c: inout PixelCanvas, by: Int, w: Int = 16, h: Int = 14, lookX: Int, eyes: Eyes,
+                             props: Bool, glow: Eyes) {
         var s = BodyStyle()
-        s.by = by; s.shadow = false
-        s.lookX = (13...16).contains(i) ? -1 : (17...20).contains(i) ? 1 : 0
-        s.eyes = i == 21 ? .blink : .open
+        s.by = by; s.w = w; s.h = h; s.shadow = false
+        s.lookX = lookX
+        s.eyes = eyes
         c.body(s)
+        drawHole(&c, props: props)
+        if by <= 8 { c.eyes(16, 1, glow) }
+    }
+
+    /// The black hole: the hardware notch, or the burrow drawn on screens without one.
+    private static func drawHole(_ c: inout PixelCanvas, props: Bool) {
         c.fill(5, 0, 22, 5, Palette.notch)
         c.fill(6, 5, 20, 1, Palette.notch)
-        c.fill(0, 0, 5, 2, Palette.menuBar)
-        c.fill(27, 0, 5, 2, Palette.menuBar)
-        if by <= 8 { c.eyes(16, 1, i == 3 || i == 26 ? .glowBlink : .glow) }
+        if props {
+            c.fill(0, 0, 5, 2, Palette.menuBar)
+            c.fill(27, 0, 5, 2, Palette.menuBar)
+        }
     }
 
     static func dragged(_ i: Int, _ c: inout PixelCanvas) {

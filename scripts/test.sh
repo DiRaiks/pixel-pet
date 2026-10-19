@@ -2,7 +2,7 @@
 # Swift Testing macros fail to load when `swift test` reuses the project description (.build/manifest.pif)
 # written by a plain `swift build`, which lacks the test macro plugin (swiftbuild backend, Command Line Tools
 # only). Dropping it is cheap and keeps compiled products cached. If the plugin is still missing, wipe the
-# swiftbuild output and retry once (~1 min).
+# whole .build directory and retry once (~1-2 min).
 set -u
 cd "$(dirname "$0")/.."
 log="$(mktemp -t pixelpet-test)"
@@ -16,9 +16,9 @@ run() {
 rm -f .build/manifest.pif
 run "$@"
 status=$?
-if [ "$status" -ne 0 ] && grep -q "plugin for module 'TestingMacros' not found" "$log"; then
-    echo "test.sh: Swift Testing macro plugin still missing, wiping build output and retrying" >&2
-    rm -rf .build/out .build/manifest.pif
+if [ "$status" -ne 0 ] && grep -q TestingMacros "$log"; then
+    echo "test.sh: Swift Testing macro plugin still missing, wiping .build and retrying" >&2
+    rm -rf .build
     run "$@"
     status=$?
 fi

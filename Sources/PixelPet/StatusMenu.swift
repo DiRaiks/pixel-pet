@@ -17,6 +17,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
     private let limitsItem = NSMenuItem(title: "Лимиты: пока неизвестны", action: nil, keyEquivalent: "")
     private let panelItem = NSMenuItem(title: "Панель статуса", action: #selector(showPanel), keyEquivalent: "")
+    private let homeItem = NSMenuItem(title: "", action: #selector(toggleHome), keyEquivalent: "")
+    private let dndItem = NSMenuItem(title: "Не беспокоить", action: #selector(toggleDND), keyEquivalent: "p")
     var onShowPanel: (() -> Void)?
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
@@ -24,7 +26,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private static let stateTitles: [PetState: String] = [
         .idle: "Покой", .hop: "Прыжок", .working: "Агенты работают", .alert: "Агент ждёт ввода",
         .celebrate: "Задача готова", .sleep: "Сон", .lowLimit: "Лимит на исходе", .error: "Ошибка",
-        .peek: "Из чёлки", .drop: "Приземление", .talk: "Отвечает",
+        .peek: "Из чёлки", .burrowed: "Дома (глаза)", .peekHold: "Выглядывает", .dive: "Ныряет домой", .drop: "Приземление", .talk: "Отвечает",
     ]
 
     init(pet: PetController, hooks: HookInstaller) {
@@ -45,6 +47,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(limitsItem)
         panelItem.target = self
         menu.addItem(panelItem)
+        homeItem.target = self
+        menu.addItem(homeItem)
+        dndItem.target = self
+        dndItem.keyEquivalentModifierMask = [.control, .option]
+        menu.addItem(dndItem)
         menu.addItem(.separator())
         toggleItem.target = self
         menu.addItem(toggleItem)
@@ -86,6 +93,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         toggleItem.title = pet.isHidden ? "Показать кубика" : "Спрятать кубика"
+        homeItem.title = pet.isHome ? "Выпустить на стол" : "Отправить домой"
+        dndItem.state = pet.doNotDisturb ? .on : .off
         hooksItem.title = hooks.isInstalled ? "Отключить от Claude Code" : "Подключить к Claude Code…"
         // Connections made before statuslines existed can pick one up here; a user's own statusline is never replaced.
         statusLineItem.isHidden = !(hooks.isInstalled && hooks.statusLineState == .absent)
@@ -114,6 +123,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func showPanel() { onShowPanel?() }
+
+    @objc private func toggleHome() { pet.toggleHome() }
+
+    @objc func toggleDND() { pet.setDoNotDisturb(!pet.doNotDisturb) }
 
     @objc private func toggleHooks() {
         do {

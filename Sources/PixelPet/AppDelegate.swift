@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import PetCore
 
 @MainActor
@@ -7,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var agents: AgentMonitor?
     private var menu: StatusMenu?
     private var panel: StatusPanel?
+    private var hotKeys: [HotKey] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // One pet at a time: a second copy would fight over the socket and the screen.
@@ -39,6 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.onDragStart = { panel.close() }
         menu.onShowPanel = showPanel
         self.panel = panel
+        // ⌃⌥P: do not disturb (home, quiet). Shown next to the menu item too.
+        hotKeys = [HotKey(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { [weak menu] in menu?.toggleDND() }]
         // Debug aid: `open PixelPet.app --args --show-panel` opens the panel once limits had time to load.
         if CommandLine.arguments.contains("--show-panel") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 12) { showPanel() }

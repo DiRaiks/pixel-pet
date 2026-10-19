@@ -18,6 +18,9 @@ final class PetPanel: NSPanel {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    /// At home the pet hangs over the menu bar; AppKit would otherwise push the window below it.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
 /// Draws the current sprite frame and turns mouse input into click / drag callbacks.
@@ -35,6 +38,7 @@ final class PetView: NSView {
     var onDragBegan: (() -> Void)?
     var onDragEnded: ((PetPoint) -> Void)?
     var onContextMenu: ((NSEvent) -> Void)?
+    var onHover: ((Bool) -> Void)?
 
     private var tracker: DragTracker?
     private var grabOffset = NSPoint.zero
@@ -80,6 +84,16 @@ final class PetView: NSView {
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) { onHover?(true) }
+    override func mouseExited(with event: NSEvent) { onHover?(false) }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)

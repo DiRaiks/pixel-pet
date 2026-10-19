@@ -48,6 +48,20 @@ public enum PetBrain {
         return expiries.filter { $0 > now }.min()
     }
 
+    /// At home the pet hides; alerts and errors bring it out to watch. Do-not-disturb lets only errors through.
+    public static func homeState(for base: PetState, doNotDisturb: Bool) -> PetState {
+        switch base {
+        case .error: .peekHold
+        case .alert: doNotDisturb ? .burrowed : .peekHold
+        default: .burrowed
+        }
+    }
+
+    /// One-shots at home become a quick peek (or nothing under do-not-disturb).
+    public static func homeReaction(to oneShot: PetState, doNotDisturb: Bool) -> PetState? {
+        doNotDisturb ? nil : .peek
+    }
+
     public static func activeCount(_ sessions: [AgentSession]) -> Int {
         sessions.filter { $0.status == .working || $0.status == .waiting }.count
     }

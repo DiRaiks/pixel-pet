@@ -11,8 +11,11 @@ final class PetController {
     private let sprites: SpriteLibrary
     private(set) var config: PetConfig
     private var player = PetPlayer(base: .idle)
-    /// The state the pet returns to after dragging; agent activity (or the debug menu) sets it.
+    /// What agent activity (or the debug menu) asks for, before home and do-not-disturb are applied.
+    private var mood = PetState.idle
+    /// The state the pet returns to after dragging: `mood` on the desk, its home version at home.
     private(set) var restingState = PetState.idle
+    private var hoverPeek: DispatchWorkItem?
     private var agents: [AgentCube] = []
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
@@ -43,6 +46,9 @@ final class PetController {
     }
 
     func start() {
+        if config.isHome { panel.level = .statusBar }
+        restingState = resolvedRest()
+        player.play(restingState)
         placeOnScreen()
         render()
         if !config.isHidden { panel.orderFrontRegardless() }
@@ -54,9 +60,26 @@ final class PetController {
             },
             // Covered, hidden or on a sleeping display: stop waking up for frames nobody sees.
             center.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: panel, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.updateClock() }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.updateClock()
+                    if self.panel.occlusionState.contains(.visible) { self.settleHome() }
+                }
             },
         ]
+        // While the screen is locked or the displays sleep, macOS reports other screen geometry and the window
+        // can be left off its home; no screen-parameter change follows on wake, so re-seat it explicitly.
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
+            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.settleHomeSoon() }
+            })
+        }
+        observers.append(DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.settleHomeSoon() }
+        })
     }
 
     // MARK: Commands (menu)
@@ -98,19 +121,142 @@ final class PetController {
 
     /// Agent activity decides the resting state; while dragged the pet keeps dangling and picks it up on drop.
     func setMood(_ state: PetState) {
-        guard state != restingState else { return }
-        restingState = state
+        mood = state
+        applyRest()
+    }
+
+    /// One-shots (hop, celebrate) become a quick peek at home, or nothing under do-not-disturb.
+    func react(_ oneShot: PetState) {
         guard player.state != .dragged else { return }
-        player.setBase(state)
+        let shown = config.isHome ? PetBrain.homeReaction(to: oneShot, doNotDisturb: config.doNotDisturb) : oneShot
+        guard let shown, !(config.isHome && (player.state == .peekHold || player.state == .dive)) else { return }
+        player.play(shown)
         render()
         updateClock()
     }
 
-    func react(_ oneShot: PetState) {
+    private func resolvedRest() -> PetState {
+        config.isHome ? PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) : mood
+    }
+
+    private func applyRest() {
+        let rest = resolvedRest()
+        guard rest != restingState else { return }
+        restingState = rest
         guard player.state != .dragged else { return }
-        player.play(oneShot)
+        player.setBase(rest)
         render()
         updateClock()
+    }
+
+    // MARK: Home
+
+    var isHome: Bool { config.isHome }
+    var doNotDisturb: Bool { config.doNotDisturb }
+
+    /// Do-not-disturb sends the pet home; it only comes out for errors until switched off or pulled out.
+    func setDoNotDisturb(_ on: Bool) {
+        guard player.state != .dragged else { return }
+        config.doNotDisturb = on
+        persist()
+        if on, !config.isHome, let home = nearestHome() {
+            goHome(home, dive: true)
+        } else {
+            applyRest()
+        }
+    }
+
+    func toggleHome() {
+        guard player.state != .dragged else { return }
+        if config.isHome {
+            leaveHome(clearDoNotDisturb: true)
+            // Back to where it last sat on the desk, or a little below the hole.
+            let size = PetSize(panel.frame.size)
+            let fallback = PetPoint(x: panel.frame.minX, y: panel.frame.minY - 160)
+            let desk = Placement.resolve(saved: config.origin ?? fallback, size: size, screens: screens())
+            player.play(.drop)
+            render()
+            updateClock()
+            animateMove(to: desk)
+        } else if let home = nearestHome() {
+            goHome(home, dive: true)
+        }
+    }
+
+    struct Home {
+        let spot: HomeSpot
+        let display: UInt32?
+    }
+
+    private func homeDisplay() -> UInt32? { config.homeDisplay ?? NSScreen.screens.first.flatMap(Self.displayID) }
+
+    private func homeSpots() -> [Home] {
+        NSScreen.screens.map { screen in
+            Home(spot: HomeGeometry.home(on: PetScreen(frame: PetRect(screen.frame), visible: PetRect(screen.visibleFrame)),
+                                         notch: Self.notchRect(screen)),
+                 display: Self.displayID(screen))
+        }
+    }
+
+    static func displayID(_ screen: NSScreen) -> UInt32? {
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+    }
+
+    static func notchRect(_ screen: NSScreen) -> PetRect? {
+        HomeGeometry.notch(screen: PetRect(screen.frame), left: screen.auxiliaryTopLeftArea.map(PetRect.init),
+                           right: screen.auxiliaryTopRightArea.map(PetRect.init), safeTop: screen.safeAreaInsets.top)
+    }
+
+    /// Home on the screen the pet is on now, falling back to the remembered one and then the menu-bar screen.
+    private func nearestHome() -> Home? {
+        let homes = homeSpots()
+        let center = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+        let current = NSScreen.screens.first { $0.frame.contains(center) }.flatMap(Self.displayID)
+        return homes.first { $0.display == current } ?? homes.first { $0.display == homeDisplay() } ?? homes.first
+    }
+
+    private func goHome(_ home: Home, dive: Bool) {
+        config.isHome = true
+        config.homeDisplay = home.display
+        panel.level = .statusBar
+        persist()
+        restingState = resolvedRest()
+        player.play(restingState)
+        if dive { player.play(.dive) }
+        render()
+        renderAgents()
+        updateClock()
+        animateMove(to: HomeGeometry.windowOrigin(for: home.spot, size: PetSize(panel.frame.size)), persistDesk: false)
+    }
+
+    /// Leaving clears do-not-disturb only when the pet really ends up on the desk; a drag that snaps back
+    /// home keeps it (that decision is made on drop).
+    private func leaveHome(clearDoNotDisturb: Bool) {
+        guard config.isHome else { return }
+        config.isHome = false
+        if clearDoNotDisturb { config.doNotDisturb = false }
+        panel.level = .floating
+        persist()
+        restingState = resolvedRest()
+        player.setBase(restingState)
+        renderAgents()
+    }
+
+    private func hover(_ inside: Bool) {
+        hoverPeek?.cancel()
+        hoverPeek = nil
+        guard inside, config.isHome, player.state == .burrowed else { return }
+        // A short delay so passing the cursor over the menu bar doesn't trigger it.
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.player.state == .burrowed else { return }
+                self.player.play(.peek)
+                self.render()
+                self.updateClock()
+            }
+        }
+        hoverPeek = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     func setDrain(_ rows: Int) {
@@ -127,8 +273,18 @@ final class PetController {
     }
 
     /// Looping states become the resting state; one-shots play once on top of it.
+    /// Debug menu: mood states go through the same home rules as agent activity; home-only states just play.
     func preview(_ state: PetState) {
-        if state.loops { restingState = state }
+        let homeOnly: Set<PetState> = [.burrowed, .peekHold, .dive]
+        if !homeOnly.contains(state) {
+            if state.loops {
+                mood = state
+                applyRest()
+            } else {
+                react(state)
+            }
+            return
+        }
         player.play(state)
         render()
         updateClock()
@@ -138,6 +294,7 @@ final class PetController {
 
     private func wireInput() {
         view.onPress = { [weak self] in self?.cancelFlick() }
+        view.onHover = { [weak self] inside in self?.hover(inside) }
         view.onClick = { [weak self] in
             guard let self else { return }
             react(.hop)
@@ -146,6 +303,7 @@ final class PetController {
         view.onDragBegan = { [weak self] in
             guard let self else { return }
             onDragStart?()
+            leaveHome(clearDoNotDisturb: false)
             player.play(.dragged)
             render()
             updateClock()
@@ -158,13 +316,34 @@ final class PetController {
     }
 
     private func endDrag(velocity: PetPoint) {
+        let size = PetSize(panel.frame.size)
+        let homes = homeSpots()
+        let origin = PetPoint(panel.frame.origin)
+        // A flick toward a home counts too: check where it's thrown, not only where it was let go.
+        let thrown = PetPoint(x: origin.x + velocity.x * Placement.throwTime, y: origin.y + velocity.y * Placement.throwTime)
+        let spot = HomeGeometry.snapTarget(windowOrigin: origin, size: size, homes: homes.map(\.spot))
+            ?? HomeGeometry.snapTarget(windowOrigin: thrown, size: size, homes: homes.map(\.spot))
+        if let spot, let home = homes.first(where: { $0.spot == spot }) {
+            goHome(home, dive: true)
+            return
+        }
+        if config.doNotDisturb {
+            config.doNotDisturb = false
+            persist()
+            restingState = resolvedRest()
+        }
         player.play(restingState)
         player.play(.drop)
         render()
         updateClock()
 
         let destination = Placement.flickDestination(from: PetPoint(panel.frame.origin), velocity: velocity,
-                                                     size: PetSize(panel.frame.size), screens: screens())
+                                                     size: size, screens: screens())
+        animateMove(to: destination)
+    }
+
+    /// Eases the window to a point; on the desk the final position is remembered.
+    private func animateMove(to destination: PetPoint, persistDesk: Bool = true) {
         moveGeneration += 1
         let generation = moveGeneration
         NSAnimationContext.runAnimationGroup({ context in
@@ -173,7 +352,7 @@ final class PetController {
             panel.animator().setFrameOrigin(destination.ns)
         }, completionHandler: { [weak self] in
             MainActor.assumeIsolated {
-                guard let self, generation == self.moveGeneration else { return }
+                guard let self, generation == self.moveGeneration, persistDesk, !self.config.isHome else { return }
                 self.persistOrigin()
             }
         })
@@ -221,19 +400,21 @@ final class PetController {
         lastTick = now
         if changed {
             render()
-            if !agents.isEmpty { renderAgents() }
+            if !agents.isEmpty, !config.isHome { renderAgents() }
         }
         updateClock()
     }
 
     private func render() {
-        let frame = sprites.frame(player.state, player.frame, drain: drain)
+        // At home the top of the body is inside the hole, so a drained band would only show as a stray stripe.
+        let frame = sprites.frame(player.state, player.frame, drain: config.isHome ? 0 : drain)
         view.show(frame.image, canvas: frame.canvas)
     }
 
     /// The stack animates on a shared 10 Hz beat so it doesn't speed up or slow down with the pet's state.
     private func renderAgents() {
-        let canvas = AgentStack.canvas(for: agents, tick: Int(CACurrentMediaTime() * 10))
+        // At home the stack would sit in the menu bar; the menu-bar counter covers it there.
+        let canvas = AgentStack.canvas(for: config.isHome ? [] : agents, tick: Int(CACurrentMediaTime() * 10))
         view.showAgents(canvas.opaquePixelCount > 0 ? canvas.makeImage() : nil, canvas: canvas)
     }
 
@@ -243,7 +424,27 @@ final class PetController {
         NSScreen.screens.map { PetScreen(frame: PetRect($0.frame), visible: PetRect($0.visibleFrame)) }
     }
 
+    /// Puts a pet that lives at home back exactly on its home spot (no-op on the desk or mid-move).
+    private func settleHome() {
+        guard config.isHome, player.state != .dragged else { return }
+        placeOnScreen()
+    }
+
+    /// Screens report their final geometry a moment after wake or unlock.
+    private func settleHomeSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            MainActor.assumeIsolated { self?.settleHome() }
+        }
+    }
+
     private func placeOnScreen() {
+        if config.isHome {
+            let homes = homeSpots()
+            if let home = homes.first(where: { $0.display == homeDisplay() }) ?? homes.first {
+                panel.setFrameOrigin(HomeGeometry.windowOrigin(for: home.spot, size: PetSize(panel.frame.size)).ns)
+            }
+            return
+        }
         let origin = Placement.resolve(saved: config.origin, size: PetSize(panel.frame.size), screens: screens())
         panel.setFrameOrigin(origin.ns)
     }

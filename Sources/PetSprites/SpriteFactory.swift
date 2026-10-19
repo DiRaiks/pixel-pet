@@ -60,6 +60,23 @@ public enum SpriteFactory {
         case .touchKey: touchKey(i, look, &c)
         case .touchDone: touchDone(i, look, &c)
         case .touchKeyHome: touchKeyHome(i, cubes, look, &c)
+        case .question: question(i, look, &c)
+        case .refill: refill(i, look, &c)
+        case .exhausted: exhausted(i, look, &c)
+        case .spawn: spawn(i, look, &c)
+        case .recall: recall(i, look, &c)
+        case .compact: compact(i, look, &c)
+        case .tired: tired(i, look, &c)
+        case .plugIn: plugIn(i, look, &c)
+        case .thrown: thrown(i, look, &c)
+        case .dizzy: dizzy(i, look, &c)
+        case .splatRight: splat(i, look, &c)
+        case .hookah: hookah(i, look, &c)
+        case .hookahCloud: hookah(i, look, &c, cloud: true)
+        case .splatLeft:
+            var right = PixelCanvas()
+            splat(i, look, &right)
+            c.blit(right.mirrored(), x: 0, y: 0)
         case .alert: alert(i, cubes, look, &c)
         case .celebrate: celebrate(i, look, &c)
         case .sleep: sleep(i, look, &c)
@@ -132,7 +149,26 @@ public enum SpriteFactory {
         c.fill(9, 22, 14, 1, Palette.keyboardTop)
         for x in stride(from: 9, through: 22, by: 2) { c.set(x, 23, Palette.keyboardTop) }
         for x in lit { c.set(x, 23, Palette.tealLight) }
-        if props.contains(.mug), mugShown { c.mug(19, 19, steam: steam) }
+        if props.contains(.mug), mugShown { c.mug(19, 19, steam: steam, tea: props.contains(.tea)) }
+        if props.contains(.lamp) { deskLamp(&c) }
+    }
+
+    /// An architect's desk lamp: base and pole in the gap left of the body, the arm reaching over the head,
+    /// a cone shade with a lit bulb, and a warm beam falling over the pet and the keys.
+    static func deskLamp(_ c: inout PixelCanvas) {
+        let metal = Palette.lamp
+        c.fill(5, 25, 4, 1, metal)                       // base
+        c.fill(6, 8, 1, 17, metal)                       // pole
+        for (x, y) in [(7, 7), (8, 7), (9, 6), (10, 6)] { c.set(x, y, metal) }   // arm
+        c.fill(11, 5, 4, 1, metal)                       // shade, top
+        c.fill(10, 6, 6, 1, metal)
+        c.fill(9, 7, 8, 1, metal)                        // shade, rim
+        c.fill(11, 8, 4, 1, Palette.keyGoldLit)          // bulb
+        // The beam widens as it falls; translucent, so the pet shows through it.
+        for y in 9...22 {
+            let half = 1 + (y - 9) / 4
+            for x in (13 - half)...(12 + half) where (8...23).contains(x) { c.tint(x, y, Palette.lampLight) }
+        }
     }
 
     /// A sip of coffee: stops typing, lifts the mug to the mouth, eyes closed, a contented sigh. Brings its own
@@ -148,7 +184,7 @@ public enum SpriteFactory {
         c.body(s)
         desk(&c, props, mugShown: false)
         let (x, y) = mugAt[i]
-        c.mug(x, y, steam: (3...5).contains(i) ? 1 + i % 2 : 0)
+        c.mug(x, y, steam: (3...5).contains(i) ? 1 + i % 2 : 0, tea: props.contains(.tea))
     }
 
     /// A stretch at the desk: grows tall and thin with eyes squeezed shut, a little crackle at the sides.

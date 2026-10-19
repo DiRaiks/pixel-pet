@@ -36,6 +36,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         .workSip: "Пьёт кофе", .workStretch: "Потягивается", .workThink: "Задумался", .workRush: "Строчит",
         .glanceLeft: "Смотрит на Codex", .glanceRight: "Смотрит на Claude",
         .touchKey: "Ждёт касания ключа", .touchDone: "Ключ коснулись", .touchKeyHome: "Ждёт касания (дома)",
+        .question: "Агент спрашивает", .refill: "Лимит обновился", .exhausted: "Лимит исчерпан",
+        .spawn: "Сабагенты", .recall: "Сабагенты вернулись", .compact: "Сжимает контекст",
+        .tired: "Батарея садится", .plugIn: "Зарядка", .thrown: "Кувырок", .dizzy: "Кружится голова",
+        .splatLeft: "Шлёп о левый край", .splatRight: "Шлёп о правый край", .hookah: "Кальян", .hookahCloud: "Кальян: облако",
     ]
 
     init(pet: PetController, hooks: HookInstaller) {

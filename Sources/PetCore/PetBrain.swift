@@ -18,8 +18,16 @@ public enum PetBrain {
 
     public static func baseState(for sessions: [AgentSession], limits: UsageLimits? = nil, now: Date) -> PetState {
         if sessions.contains(where: { isFreshFailure($0, now) }) { return .error }
-        if sessions.contains(where: { $0.status == .waiting }) { return .alert }
-        if limits?.current(at: now).isLow == true { return .lowLimit }
+        let waiting = sessions.filter { $0.status == .waiting }
+        if !waiting.isEmpty {
+            // A permission to grant beats a question to answer: that's the one to act on.
+            return waiting.contains { $0.waitingFor != .question } ? .alert : .question
+        }
+        let current = limits?.current(at: now)
+        let working = sessions.contains { $0.status == .working }
+        // Agents still at work means the limit didn't stop them (extra usage, a stale reading).
+        if current?.isSpent == true, !working { return .exhausted }
+        if current?.isLow == true { return .lowLimit }
         if sessions.contains(where: { $0.status == .working }) { return .working }
         return .idle
     }
@@ -52,7 +60,7 @@ public enum PetBrain {
     public static func homeState(for base: PetState, doNotDisturb: Bool) -> PetState {
         switch base {
         case .error: .peekHold
-        case .alert: doNotDisturb ? .burrowed : .peekHold
+        case .alert, .question: doNotDisturb ? .burrowed : .peekHold
         default: .burrowed
         }
     }
@@ -66,6 +74,10 @@ public enum PetBrain {
     public static func restState(mood: PetState, userIdle: TimeInterval, sleepAfter: TimeInterval) -> PetState {
         guard mood == .idle, sleepAfter > 0, userIdle >= sleepAfter else { return mood }
         return .sleep
+    }
+
+    public static func subagentCount(_ sessions: [AgentSession]) -> Int {
+        sessions.reduce(0) { $0 + $1.subagents.count }
     }
 
     public static func activeCount(_ sessions: [AgentSession]) -> Int {

@@ -53,6 +53,8 @@ public struct CodexRollout: Sendable {
             if let id = payload["id"] as? String, !id.isEmpty { sessionID = id }
             if let dir = payload["cwd"] as? String { cwd = dir }
             return event(.sessionStart(model: nil), at)
+        case "compacted":
+            return event(.compacting, at)
         case "turn_context":
             if let dir = payload["cwd"] as? String { cwd = dir }
             if let turn = payload["turn_id"] as? String, !closedTurns.contains(turn) { openTurn = turn }

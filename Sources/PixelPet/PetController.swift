@@ -32,6 +32,10 @@ final class PetController {
     private var lastAgentGlance = Date.distantPast
     /// What piles up on the desk as work goes on.
     private var workStage = WorkStage.fresh
+    /// The Mac's power (nil until read, or without a battery reading).
+    private var power: PowerReading?
+    /// Redraws the desk when the night lamp goes on or off.
+    private var nightCheck: DispatchWorkItem?
     /// A hardware key waiting for a touch: shown above everything else.
     private var touchWait = TouchWait()
     private var touching = false
@@ -87,6 +91,7 @@ final class PetController {
     }
 
     func start() {
+        scheduleNightCheck()
         if config.isHome { panel.level = .statusBar }
         restingState = resolvedRest()
         player.play(restingState)
@@ -129,6 +134,17 @@ final class PetController {
         // While the screen is locked or the displays sleep, macOS reports other screen geometry and the window
         // can be left off its home; no screen-parameter change follows on wake, so re-seat it explicitly.
         let workspace = NSWorkspace.shared.notificationCenter
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.scheduleNightCheck()
+                if self?.player.state.isAtDesk == true { self?.render() }
+            }
+        })
+        observers.append(NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleNightCheck() }
+        })
         for name in [NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
             observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.settleHomeSoon() }
@@ -235,9 +251,11 @@ final class PetController {
         if touching { return config.isHome ? .touchKeyHome : .touchKey }
         if config.isHome { return PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb) }
         // Talking (translation card open) yields to errors and waiting agents.
-        if talking && mood != .error && mood != .alert { return .talk }
+        if talking && mood != .error && mood != .alert && mood != .question { return .talk }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
-        return PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
+        let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
+        // Idle on a nearly flat battery: droopy instead.
+        return rest == .idle && power?.isLow == true ? .tired : rest
     }
 
     // MARK: Desktop reactions
@@ -415,11 +433,65 @@ final class PetController {
     }
 
     private var workProps: WorkProps {
+        var props: WorkProps
         switch workStage {
-        case .fresh: []
-        case .mug: [.mug]
-        case .headband: [.mug, .headband]
+        case .fresh: props = []
+        case .mug: props = [.mug]
+        case .headband: props = [.mug, .headband]
         }
+        if NightDesk.isLate(at: Date()) { props.formUnion([.lamp, .tea]) }
+        return props
+    }
+
+    /// Redraws at the next 23:00 or 05:00, when the lamp goes on or off.
+    private func scheduleNightCheck() {
+        nightCheck?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.player.state.isAtDesk { self.render() }
+                self.scheduleNightCheck()
+            }
+        }
+        nightCheck = work
+        // Wall-clock deadline: it keeps counting while the Mac sleeps (wake and time zone changes also
+        // reschedule, see `start`).
+        let wait = NightDesk.nextChange(after: Date()).timeIntervalSinceNow + 1
+        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, wait), execute: work)
+    }
+
+    // MARK: Power and events
+
+    /// Battery level or power source changed.
+    func setPower(_ reading: PowerReading) {
+        let before = power
+        power = reading
+        applyRest()
+        if PowerReading.pluggedIn(from: before, to: reading) { moment(.plugIn) }
+    }
+
+    /// After the somersault for a big task, sometimes a hookah break: once the flip has played, if the pet
+    /// is idling on the desk by then and the setting allows it.
+    func maybeHookahBreak() {
+        guard config.hookah, Int.random(in: 0..<Breaks.afterBigTaskShare) == 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + PetState.flip.totalDuration + 0.8) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.config.hookah, !self.config.isHome, self.config.desktopReactions, !self.reduceMotion,
+                      self.player.state == .idle, self.restingState == .idle, !self.isCardOpen() else { return }
+                self.player.play(Breaks.hookah(cloudRoll: Int.random(in: 0..<1000)))
+                self.render()
+                self.updateClock()
+            }
+        }
+    }
+
+    /// A one-off about agents, limits or power: only on the desk, over a calm or working pet, not on top of
+    /// another moment. At home these pass quietly.
+    func moment(_ state: PetState) {
+        guard !config.isHome, player.state != .dragged,
+              [.idle, .working, .tired, .question].contains(restingState),
+              player.state == restingState else { return }
+        react(state)
     }
 
     /// 1.5–4 minutes between fidgets: rare enough to stay a surprise.
@@ -431,7 +503,8 @@ final class PetController {
         // Only a pet idling on the desk fidgets; never over another animation, at home or with Reduce Motion.
         guard !config.isHome, config.desktopReactions, player.state == .idle, restingState == .idle, !reduceMotion,
               held == nil, glance == nil, !isCardOpen() else { return }
-        player.play(Int.random(in: 0..<3) == 0 ? .tumble : .yawn)
+        player.play(Breaks.fidget(hookahAllowed: config.hookah, roll: Int.random(in: 0..<1000),
+                                  cloudRoll: Int.random(in: 0..<1000)))
         render()
     }
 
@@ -639,14 +712,14 @@ final class PetController {
             render()
             updateClock()
         }
-        view.onDragEnded = { [weak self] velocity in self?.endDrag(velocity: velocity) }
+        view.onDragEnded = { [weak self] velocity, shaken in self?.endDrag(velocity: velocity, shaken: shaken) }
         view.onContextMenu = { [weak self] event in
             guard let self, let menu = contextMenu else { return }
             NSMenu.popUpContextMenu(menu, with: event, for: view)
         }
     }
 
-    private func endDrag(velocity: PetPoint) {
+    private func endDrag(velocity: PetPoint, shaken: Bool = false) {
         let size = PetSize(panel.frame.size)
         let homes = homeSpots()
         let origin = PetPoint(panel.frame.origin)
@@ -665,18 +738,23 @@ final class PetController {
             persist()
             restingState = resolvedRest()
         }
+        let outcome = Placement.throwOutcome(from: PetPoint(panel.frame.origin), velocity: velocity,
+                                             size: size, screens: screens())
         player.play(restingState)
-        if !reduceMotion { player.play(.drop) }
+        // A hard throw tumbles through the air, then lands against the side it hit, or on the floor;
+        // a shaken pet lands dizzy.
+        let landing: PetState = shaken ? .dizzy
+            : outcome.wall == .right ? .splatRight : outcome.wall == .left ? .splatLeft : .drop
+        let hard = Placement.isHardThrow(velocity)
+        if !reduceMotion { player.play(hard ? .thrown : landing) }
         render()
         updateClock()
-
-        let destination = Placement.flickDestination(from: PetPoint(panel.frame.origin), velocity: velocity,
-                                                     size: size, screens: screens())
-        animateMove(to: destination)
+        animateMove(to: outcome.destination, landing: hard && !reduceMotion ? landing : nil)
     }
 
     /// Eases the window to a point; on the desk the final position is remembered.
-    private func animateMove(to destination: PetPoint, persistDesk: Bool = true) {
+    /// `landing`: a one-shot to play once the window arrives (the end of a throw).
+    private func animateMove(to destination: PetPoint, persistDesk: Bool = true, landing: PetState? = nil) {
         moveGeneration += 1
         let generation = moveGeneration
         if reduceMotion {
@@ -698,6 +776,11 @@ final class PetController {
                 guard let self, generation == self.moveGeneration else { return }
                 // Land exactly, even if the animation was skipped.
                 if self.panel.frame.origin != target.origin { self.panel.setFrameOrigin(target.origin) }
+                if let landing, self.player.state != .dragged, !self.config.isHome {
+                    self.player.play(landing)
+                    self.render()
+                    self.updateClock()
+                }
                 guard persistDesk, !self.config.isHome else { return }
                 self.persistOrigin()
             }

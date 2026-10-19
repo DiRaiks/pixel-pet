@@ -46,7 +46,7 @@ DesktopSensor (cursor, idle, app switches, fullscreen, wake) ──► PetContro
 
 `HookInstaller` writes two scripts to `~/.pixelpet/bin/`, sets the folder to mode 700, and merges entries into `~/.claude/settings.json`:
 
-- **Hook command.** The single-quoted script path is registered for 12 events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop` and `SessionEnd`. Each entry has a 5 s timeout. The entries are recognized by their exact command string, which is how install, uninstall and the installed check stay idempotent.
+- **Hook command.** The single-quoted script path is registered for 13 events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd` and `PreCompact`. A connection made by an older build, with fewer events, gets the missing ones added at launch (`upgradeIfPartlyInstalled`, with the usual backup). Each entry has a 5 s timeout. The entries are recognized by their exact command string, which is how install, uninstall and the installed check stay idempotent.
 - **Statusline.** It is added only when the user has no `statusLine` of their own. A foreign statusline is reported as such and left alone.
 
 How the settings file is written:
@@ -78,7 +78,7 @@ The hook script itself is `sh` + `nc -U -w 1`. It measured about 10 ms per call 
 ### Session rules (`SessionRegistry`)
 
 - **Creation.** A session is created by any event, not only `SessionStart`: sessions that were already open when the hooks were installed never send one.
-- **Working and waiting.** A prompt or a tool start means working. A permission request means waiting. So do the `permission_prompt` and `elicitation_dialog` notifications, and an open `AskUserQuestion` or `ExitPlanMode` call until its matching `PostToolUse`. A Claude desktop turn that ends with a `wrap_up` call carrying a non-empty `ask` also waits after `Stop`.
+- **Working and waiting.** A prompt or a tool start means working. A permission request means waiting. So do the `permission_prompt` and `elicitation_dialog` notifications, and an open `AskUserQuestion` or `ExitPlanMode` call until its matching `PostToolUse`. A Claude desktop turn that ends with a `wrap_up` call carrying a non-empty `ask` also waits after `Stop`. Each wait records what it waits for (`waitingFor`): a permission (permission requests and prompts) or a question (the question tools, elicitations, turn-end questions).
 - **Turn ends.** `Stop` ends the turn, and so does an `idle_prompt` notification. `StopFailure` marks the session as failed.
 - **Subagents.** These are tracked between `SubagentStart` and `SubagentStop`, so the post-turn summary agent that stops without having started is ignored.
 - **Reactions.** A finished turn earns a celebration only after at least 20 s of active work; time spent waiting for the user does not count. A turn of 10 minutes or more earns the somersault (`finishedBig` → `flip`).
@@ -90,15 +90,16 @@ The hook script itself is `sh` + `nc -U -w 1`. It measured about 10 ms per call 
 `PetBrain.baseState` picks the state in priority order:
 
 1. error, if a session failed within the last 3 s;
-2. alert;
-3. low limit (5-hour usage ≥ 85% or weekly ≥ 90%);
-4. working;
-5. idle.
+2. alert if any waiting session needs a permission, otherwise question;
+3. exhausted, when a limit is used up (≥ 100%);
+4. low limit (5-hour usage ≥ 85% or weekly ≥ 90%);
+5. working;
+6. idle.
 
 On top of that base state:
 
-- `restState` turns idle into sleep after `sleepAfterMinutes` without user input. The idle time is read live each time the decision is made.
-- At home, `homeState` maps error and alert to `peekHold` and everything else to `burrowed`. Under do not disturb, alerts stay `burrowed` too.
+- `restState` turns idle into sleep after `sleepAfterMinutes` without user input. The idle time is read live each time the decision is made. Idle on a low battery (`PowerReading.isLow`, from `PowerMonitor`'s IOKit notifications) becomes `tired`.
+- At home, `homeState` maps error, alert and question to `peekHold` and everything else to `burrowed`. Under do not disturb, alerts stay `burrowed` too.
 - At home, one-shots become a `peek`, or nothing under do not disturb.
 
 `PetBrain.cubes` maps sessions to agent blocks. A finished session flashes green for 1.5 s.
@@ -215,6 +216,10 @@ How the pet moves between the desk and home:
 - **Do not disturb.** This sends the pet home. Leaving clears it only if the pet really ends up on the desk.
 - **Screen changes.** The home display is remembered. After display sleep or unlock the window is re-seated, because macOS reports different geometry while the screen is locked.
 
+### Moments from events
+
+`AgentMonitor` compares each refresh with the last one: more subagents than before plays `spawn`, all of them gone plays `recall`, and the 5-hour window resetting after at least 10% use plays `refill` (`UsageLimits.refilled`). `PreCompact` (and Codex's `compacted` lines) play `compact`. Plugging in plays `plugIn`. `PetController.moment` lets these through only on the desk, over a calm or working pet with nothing else playing; catch-up batches never trigger them.
+
 ## Desktop reactions
 
 `DesktopSensor` needs no extra permissions. It uses mouse monitors, the system idle counter and window bounds, and never reads window titles.
@@ -222,12 +227,15 @@ How the pet moves between the desk and home:
 - **Gaze.** The eyes follow the cursor within 300 pt, by ±1 px. The mouse monitor runs only while reactions are on and the pet is visible and on the desk, throttled to 10 Hz.
 - **Glance.** The pet glances toward the frontmost window of an app the user switches to: normal apps only, at most once every 10 s.
 - **Fullscreen.** The pet dims over a fullscreen window instead of hiding.
+- **Throws.** A release faster than 1,200 pt/s plays `thrown` (quarter turns, lossless) while the window flies, then the landing once it arrives: `splatLeft`/`splatRight` when the aim was clamped at that side of the screen (`Placement.throwOutcome`), `dizzy` if the drag was shaken (`DragTracker.isShaken`: four quick horizontal reversals of at least 20 pt within 1.2 s), otherwise `drop`.
+- **Late night.** From 23:00 to 05:00 desk poses get a lamp and tea instead of coffee (`NightDesk`); the desk is redrawn at the next boundary.
 - **Away and back.** Sleep uses the live idle time, the pet hops when the user returns, and it greets after the Mac wakes.
 
 `PetController` adds the personality layer:
 
 - **Fidgets** (yawn, tumble) play every 90–240 s, only while idle on the desk with reactions on, no card open and Reduce Motion off.
 - **Shy** after the cursor rests on the pet for 2 s, at most once a minute.
+- **Hookah breaks** (`Breaks`): about one idle fidget in four is a hookah when the setting allows it, and a big finished task (the somersault) is followed by one about a third of the time, if the pet is idling on the desk by then. About one in four ends in a big cloud (`hookahCloud`) instead of rings. The hookah stands in columns 20–26, clear of the Claude blocks.
 - **Angry** after 5 clicks within 3 s. The status card still opens, and clicks at home do not count.
 - **Work moments** (sip, stretch, think, rush) play every 45–120 s while the pet types at the desk, never twice in a row (`WorkMoments`). The same gates as fidgets apply, plus: only over the plain typing loop.
 - **Glances** at the agent blocks: when an agent on one side finishes, fails, starts waiting or working, or joins others (`WorkMoments.noticeable`), the pet looks left (Codex) or right (Claude), at most once every 8 s. The first blocks at launch, catch-up batches, the green flash fading and sessions dropping off don't count. A moment playing at the keyboard stops when the typing does (talking, an alert, Reduce Motion).
@@ -279,6 +287,7 @@ How the pet moves between the desk and home:
 | `skin` / `accessory` | `lavender` / `none` | Look |
 | `watchCodex` | true | Follow Codex sessions and limits |
 | `touchHint` | true | Show when a YubiKey waits for a touch |
+| `hookah` | true | Hookah breaks |
 | `lastCodexLimits` | — | Last known Codex limits |
 | `logEvents` | false | Write `~/.pixelpet/events.log` (ids, project and event names only; rotates at 1 MB) |
 | `lastLimits` | — | Last known limits |

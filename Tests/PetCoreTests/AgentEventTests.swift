@@ -32,7 +32,7 @@ import Testing
     }
 
     @Test func rejectsUnknownMalformedOrAnonymousEvents() {
-        #expect(parse(#"{"hook_event_name":"PreCompact","session_id":"s"}"#) == nil)
+        #expect(parse(#"{"hook_event_name":"PostCompact","session_id":"s"}"#) == nil)
         #expect(parse(#"{"hook_event_name":"Stop"}"#) == nil)
         #expect(parse("not json") == nil)
         #expect(parse(#"["array"]"#) == nil)

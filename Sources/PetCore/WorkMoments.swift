@@ -104,3 +104,54 @@ extension PetState {
         }
     }
 }
+
+/// Subagent copies popping out and coming back, without flicker: a spawn at most every `cooldown` seconds,
+/// and a recall only after a spawn was shown and the subagents ran at least `minimumRun` seconds (counts
+/// cleared by bookkeeping, like a new prompt, don't call anything back).
+public struct SubagentMoments: Sendable {
+    public static let cooldown: TimeInterval = 30
+    public static let minimumRun: TimeInterval = 5
+
+    private var last = 0
+    private var spawnedAt: Date?
+    private var lastShown = Date.distantPast
+
+    public init() {}
+
+    /// Takes the count without showing anything (catch-up, launch).
+    public mutating func prime(count: Int) { last = count }
+
+    public mutating func update(count: Int, now: Date) -> PetState? {
+        defer { last = count }
+        if count > last {
+            guard now.timeIntervalSince(lastShown) >= Self.cooldown else { return nil }
+            lastShown = now
+            spawnedAt = now
+            return .spawn
+        }
+        guard last > 0, count == 0, let spawned = spawnedAt else { return nil }
+        spawnedAt = nil
+        guard now.timeIntervalSince(spawned) >= Self.minimumRun else { return nil }
+        lastShown = now
+        return .recall
+    }
+}
+
+/// Which break the pet takes when it fidgets idle, and whether a big finished task earns a hookah.
+public enum Breaks {
+    /// Share of idle fidgets that are a hookah (when allowed), and of hookahs that end in a big cloud.
+    public static let hookahShare = 4
+    public static let cloudShare = 4
+    /// Share of big finished tasks followed by a hookah break.
+    public static let afterBigTaskShare = 3
+
+    /// `roll` and `cloudRoll` are any random numbers.
+    public static func fidget(hookahAllowed: Bool, roll: Int, cloudRoll: Int) -> PetState {
+        if hookahAllowed, abs(roll) % hookahShare == 0 { return hookah(cloudRoll: cloudRoll) }
+        return abs(roll) % 3 == 1 ? .tumble : .yawn
+    }
+
+    public static func hookah(cloudRoll: Int) -> PetState {
+        abs(cloudRoll) % cloudShare == 0 ? .hookahCloud : .hookah
+    }
+}

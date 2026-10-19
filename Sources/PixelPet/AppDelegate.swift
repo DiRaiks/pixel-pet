@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: AppWindow<SettingsView>?
     private var welcome: AppWindow<OnboardingView>?
     private var touch: TouchWatcher?
+    private var power: PowerMonitor?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let exportArgs = CommandLine.arguments
@@ -48,6 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Leftover quick-ask sessions from a previous run.
         AskSessions.removeAll()
         let hooks = HookInstaller()
+        do {
+            try hooks.upgradeIfOlderInstall()
+        } catch {
+            NSLog("PixelPet: failed to add new hook events: \(error.localizedDescription)")
+        }
         do {
             try hooks.refreshScriptIfInstalled()
         } catch {
@@ -170,6 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !pet.config.onboarded {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak welcome] in welcome?.show() }
         }
+        let power = PowerMonitor { [weak pet] reading in pet?.setPower(reading) }
+        power.start()
+        self.power = power
         setTouchHint(pet.config.touchHint)
         settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }
         let desktop = DesktopSensor(pet: pet)

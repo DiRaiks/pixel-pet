@@ -57,6 +57,24 @@ import PetCore
         #expect(left.min()! < right.min()!)
     }
 
+    /// The hookah stands between the pet and the Claude column: columns 27...31 stay free for the blocks.
+    @Test func hookahLeavesTheRightColumnFree() {
+        for state in [PetState.hookah, .hookahCloud] {
+            for frame in SpriteFactory.frames(for: state, agentCubes: false) {
+                #expect(!(27...31).contains { x in (0..<32).contains { frame.pixel(x, $0) != nil } })
+            }
+        }
+    }
+
+    /// The night lamp's beam tints the pet and the keys but adds no clickable pixels of its own.
+    @Test func lampBeamAddsNoPixelsToEmptyAir() {
+        let without = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: [.mug])
+        let with = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: [.mug, .lamp])
+        for y in 9...21 {
+            for x in 10...16 where without.pixel(x, y) == nil { #expect(with.pixel(x, y) == nil, "(\(x), \(y))") }
+        }
+    }
+
     @Test func backgroundIsTransparent() {
         let idle = SpriteFactory.frames(for: .idle)[0]
         #expect(idle.pixel(0, 0) == nil)

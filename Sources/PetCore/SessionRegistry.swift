@@ -8,6 +8,9 @@ public struct AgentSession: Equatable, Sendable {
     public var cwd: String?
     public var model: String?
     public var status = Status.idle
+    public enum WaitReason: Sendable { case permission, question }
+    /// What a waiting session waits for: a permission to grant, or an answer to give.
+    public var waitingFor: WaitReason?
     public var currentTool: String?
     /// Context window fill from the statusline (terminal sessions only).
     public var contextPercent: Double?
@@ -47,7 +50,7 @@ public struct AgentSession: Equatable, Sendable {
     }
 }
 
-public enum AgentReaction: Equatable, Sendable { case finished, finishedBig, failed }
+public enum AgentReaction: Equatable, Sendable { case finished, finishedBig, failed, compacted }
 
 /// Live Claude Code sessions, rebuilt purely from hook events.
 public struct SessionRegistry: Sendable {
@@ -103,7 +106,7 @@ public struct SessionRegistry: Sendable {
         case .toolStarted(let name, let useID):
             s.currentTool = name
             if Self.interactiveTools.contains(name) {
-                enterWaiting(&s, now)
+                enterWaiting(&s, now, for: .question)
                 s.pendingQuestion = useID
             } else if s.pendingQuestion == nil {
                 startWorking(&s, now)
@@ -121,13 +124,15 @@ public struct SessionRegistry: Sendable {
         case .questionAsked:
             s.askedUser = true
         case .permissionRequested:
-            enterWaiting(&s, now)
+            enterWaiting(&s, now, for: .permission)
         case .notification(let type):
             if type == "idle_prompt" {
                 becomeIdle(&s)
             } else if let type, Self.waitingNotifications.contains(type) {
-                enterWaiting(&s, now)
+                enterWaiting(&s, now, for: type == "permission_prompt" ? .permission : .question)
             }
+        case .compacting:
+            reaction = .compacted
         case .stopped:
             // A turn that ends with a question isn't "done" yet: no celebration, wait for the reply instead.
             if !s.askedUser {
@@ -140,7 +145,10 @@ public struct SessionRegistry: Sendable {
             }
             becomeIdle(&s)
             s.finishedAt = now
-            if s.askedUser { s.status = .waiting }
+            if s.askedUser {
+                s.status = .waiting
+                s.waitingFor = .question
+            }
         case .interrupted:
             becomeIdle(&s)
         case .stillWorking:
@@ -207,12 +215,14 @@ public struct SessionRegistry: Sendable {
     }
 
     private func startWorking(_ s: inout AgentSession, _ now: Date) {
+        s.waitingFor = nil
         guard s.status != .working else { return }
         s.status = .working
         s.workingSince = now
     }
 
-    private func enterWaiting(_ s: inout AgentSession, _ now: Date) {
+    private func enterWaiting(_ s: inout AgentSession, _ now: Date, for reason: AgentSession.WaitReason) {
+        s.waitingFor = reason
         if s.status == .working, let since = s.workingSince { s.workedBefore += now.timeIntervalSince(since) }
         s.workingSince = nil
         s.status = .waiting
@@ -220,6 +230,7 @@ public struct SessionRegistry: Sendable {
 
     private func becomeIdle(_ s: inout AgentSession) {
         s.status = .idle
+        s.waitingFor = nil
         s.currentTool = nil
         s.pendingQuestion = nil
         s.workingSince = nil

@@ -65,7 +65,7 @@ import Testing
     @Test func pinsTheEventNamesCheckedAgainstClaudeCode() {
         #expect(HookSettings.events == ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
                                         "PermissionRequest", "Notification", "Stop", "StopFailure", "SubagentStart",
-                                        "SubagentStop", "SessionEnd"])
+                                        "SubagentStop", "SessionEnd", "PreCompact"])
     }
 
     @Test func commandIsShellQuoted() {

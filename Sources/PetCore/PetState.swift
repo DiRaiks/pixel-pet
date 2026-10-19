@@ -15,6 +15,23 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case touchKey, touchDone
     /// The same from home: out of the hole, key held under it.
     case touchKeyHome
+    /// An agent waits for an answer rather than a permission: a "?" and a tilted head.
+    case question
+    /// Limits: the 5-hour window reset (refills from the bottom); a limit reached (lies spent, a clock above).
+    case refill, exhausted
+    /// Subagents: little copies pop out of the pet, and come back when they're done.
+    case spawn, recall
+    /// Claude compacts its context: squeezed like an accordion.
+    case compact
+    /// Battery: low and not charging (droopy, a red battery), and plugged in (a lightning bolt).
+    case tired, plugIn
+    /// Thrown hard: tumbles through the air; shaken while dragged: dizzy after.
+    case thrown, dizzy
+    /// Thrown into the side of the screen: flattened against it, slides down, peels off.
+    case splatLeft, splatRight
+    /// A break with a hookah when no agents work: a long draw, then smoke rings drifting up, or now and
+    /// then one big cloud the pet vanishes into.
+    case hookah, hookahCloud
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -54,6 +71,18 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .glanceLeft, .glanceRight: [80, 600, 100, 300, 90, 300, 80, 120]
         case .touchKey, .touchKeyHome: Self.repeating(8, 150)
         case .touchDone: [90, 90, 90, 120, 150, 250, 300, 300]
+        case .question: Self.repeating(8, 160) + [300, 300]
+        case .refill: Self.repeating(8, 90) + [150, 200, 250, 300]
+        case .exhausted: Self.repeating(8, 400)
+        case .spawn: Self.repeating(8, 90) + [200, 250]
+        case .recall: Self.repeating(6, 90) + [200, 250]
+        case .compact: [60, 60, 80, 300, 80, 60, 100, 150]
+        case .tired: Self.repeating(16, 220)
+        case .plugIn: [80, 80, 100, 150, 200, 250, 250, 300]
+        case .thrown: [50, 45, 45, 45, 45, 45, 45, 60]
+        case .splatLeft, .splatRight: [60, 80, 150, 120, 120, 100, 100, 90, 90, 150]
+        case .hookah, .hookahCloud: [300, 250, 250, 300, 500, 250] + Self.repeating(8, 220) + [400, 500]
+        case .dizzy: Self.repeating(6, 90) + Self.repeating(8, 120)
         }
     }
 
@@ -63,7 +92,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     public var loops: Bool {
         switch self {
         case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble,
-             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone: false
+             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
+             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true
         }
     }

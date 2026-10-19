@@ -35,6 +35,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var watchCodex = true
     /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
     public var touchHint = true
+    /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
+    public var hookah = true
     /// Last known Codex limits, like `lastLimits` for Claude.
     public var lastCodexLimits: UsageLimits?
 
@@ -60,6 +62,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
+        hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         lastCodexLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastCodexLimits)
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }

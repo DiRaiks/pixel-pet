@@ -34,6 +34,26 @@ public enum Placement {
         )
     }
 
+    public enum Wall: Sendable { case left, right }
+
+    /// Fast enough to tumble through the air.
+    public static func isHardThrow(_ velocity: PetPoint) -> Bool {
+        (velocity.x * velocity.x + velocity.y * velocity.y).squareRoot() >= 1200
+    }
+
+    /// Where a flick lands, and the side of the screen it runs into, if any (its aim was clamped there).
+    public static func throwOutcome(from origin: PetPoint, velocity: PetPoint, size: PetSize,
+                                    screens: [PetScreen]) -> (destination: PetPoint, wall: Wall?) {
+        let destination = flickDestination(from: origin, velocity: velocity, size: size, screens: screens)
+        // Only a hard throw whose aim went well past the side counts: a gentle drop over the edge (or a side
+        // Dock) just lands.
+        guard isHardThrow(velocity) else { return (destination, nil) }
+        let aimed = origin.x + velocity.x * throwTime
+        let wall: Wall? = aimed > destination.x + 20 && velocity.x > 0 ? .right
+            : aimed < destination.x - 20 && velocity.x < 0 ? .left : nil
+        return (destination, wall)
+    }
+
     public static func flickDestination(from origin: PetPoint, velocity: PetPoint, size: PetSize,
                                         screens: [PetScreen]) -> PetPoint {
         let target = PetPoint(x: origin.x + velocity.x * throwTime, y: origin.y + velocity.y * throwTime)

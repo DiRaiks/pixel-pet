@@ -35,6 +35,7 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
+    var hookah = true { didSet { update { $0.hookah = hookah } } }
     var touchHint = true {
         didSet {
             guard !loading, touchHint != oldValue else { return }
@@ -73,6 +74,7 @@ final class SettingsModel {
         logEvents = c.logEvents
         watchCodex = c.watchCodex
         touchHint = c.touchHint
+        hookah = c.hookah
         launchAtLogin = LaunchAtLogin.isEnabled
         hooksConnected = hooks.isInstalled
         statusLine = hooks.statusLineState
@@ -150,6 +152,8 @@ struct SettingsView: View {
                 }
                 Toggle("Не беспокоить (⌃⌥P)", isOn: $model.doNotDisturb)
                 Toggle("Реагировать на рабочий стол", isOn: $model.desktopReactions)
+                Toggle("Кальян на перерывах", isOn: $model.hookah)
+                    .help("Иногда в покое и после больших задач кубик курит кальян")
                     .help("Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями")
                 Picker("Засыпать без активности", selection: $model.sleepAfterMinutes) {
                     ForEach(Choices.sleep, id: \.minutes) { Text($0.title).tag($0.minutes) }

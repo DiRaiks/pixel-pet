@@ -133,10 +133,13 @@ States are listed in priority order; a higher one wins.
 | | State | Meaning |
 |---|---|---|
 | <img src="docs/images/error.png" width="80" alt=""> | **Error**: shakes, then gets dizzy | An agent's turn failed within the last 3 seconds |
-| <img src="docs/images/alert.png" width="80" alt=""> | **Alert**: bounces with "!" | An agent is waiting for you: a permission prompt, a question, or a plan to approve |
+| <img src="docs/images/alert.png" width="80" alt=""> | **Alert**: bounces with "!" | An agent waits for a permission: a command or file change to approve |
+| <img src="docs/images/question.png" width="80" alt=""> | **Question**: leans in under a "?" | An agent waits for an answer: a question, a plan to approve, or a turn that ended with a question |
+| <img src="docs/images/exhausted.png" width="80" alt=""> | **Spent**: lies flat, a clock ticking | A limit is used up (100%); agents can't work until it resets |
 | <img src="docs/images/low-limit.png" width="80" alt=""> | **Low limit**: pale, sweating | 5-hour usage is at 85% or more, or weekly usage at 90% or more |
 | <img src="docs/images/working.png" width="80" alt=""> | **Working**: typing | At least one agent is working |
 | <img src="docs/images/idle.png" width="80" alt=""> | **Idle**: breathes, blinks, looks around | Nothing is going on |
+| <img src="docs/images/tired.png" width="80" alt=""> | **Tired**: droopy, a red battery | Idle on a MacBook with 20% battery or less, not plugged in |
 | <img src="docs/images/sleep.png" width="80" alt=""> | **Sleep**: nightcap and a bubble | Idle, and you have been away longer than the sleep setting |
 
 On top of these, it plays one-off animations:
@@ -146,6 +149,14 @@ On top of these, it plays one-off animations:
 | A turn with 20 s+ of work finished | A task of 10 min+ finished | You clicked it, or came back | Dragged, then dropped |
 | <img src="docs/images/yawn.png" width="80" alt=""> | <img src="docs/images/tumble.png" width="80" alt=""> | <img src="docs/images/shy.png" width="80" alt=""> | <img src="docs/images/angry.png" width="80" alt=""> |
 | Idle fidget: a yawn | Idle fidget: a roll | Cursor resting on it for 2 s | 5 clicks in 3 s |
+| <img src="docs/images/refill.png" width="80" alt=""> | <img src="docs/images/spawn.png" width="80" alt=""> | <img src="docs/images/compact.png" width="80" alt=""> | <img src="docs/images/thrown.png" width="80" alt=""> |
+| The 5-hour limit reset | Subagents start, and come back | Claude compacts its context | Thrown hard, into a wall |
+| <img src="docs/images/dizzy.png" width="80" alt=""> | <img src="docs/images/late-night.png" width="80" alt=""> | | |
+| Shaken while dragged | After 11 pm: a lamp and tea | | |
+| <img src="docs/images/hookah.png" width="80" alt=""> | | | |
+| A hookah break | | | |
+
+When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Кальян на перерывах" in Settings turns it off.
 
 ### At the keyboard
 
@@ -228,6 +239,7 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Color | Lavender, mint, peach or graphite |
 | Accessory | None, glasses, headphones or a cap |
 | Do not disturb | Same as ⌃⌥P |
+| Hookah breaks | On by default |
 | Desktop reactions | Eyes follow the cursor, glances at the app you switch to, the cube fades over fullscreen apps, fidgets |
 | Fall asleep after | Never, or 5, 10, 15, 30 or 60 minutes without input |
 | Launch at login | Uses a macOS login item |
@@ -269,7 +281,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.pixelpet/bin/pixelpet-hook` | Hook script: `sh` and `nc` forward the hook JSON to the socket. It always exits 0 and never blocks Claude |
 | `~/.pixelpet/bin/pixelpet-statusline` | Optional statusline for terminal sessions. It prints `Model · ctx N% · 5h N% · 7d N%` |
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
-| `~/.claude/settings.json` | One hook entry for each of 12 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
+| `~/.claude/settings.json` | One hook entry for each of 13 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/*-pixelpet-claude` | Quick-question sessions. Deleted when you start a new conversation, on quit and on launch |
 | System log | Read only, one message: the smart-card service's "Time extension received", through a filtered `log stream` that ends with the app |
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |

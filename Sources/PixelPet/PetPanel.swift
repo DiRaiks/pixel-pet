@@ -36,7 +36,8 @@ final class PetView: NSView {
     var onPress: (() -> Void)?
     var onClick: (() -> Void)?
     var onDragBegan: (() -> Void)?
-    var onDragEnded: ((PetPoint) -> Void)?
+    /// Release velocity, and whether the pet was shaken on the way.
+    var onDragEnded: ((PetPoint, Bool) -> Void)?
     var onContextMenu: ((NSEvent) -> Void)?
     var onHover: ((Bool) -> Void)?
 
@@ -135,7 +136,7 @@ final class PetView: NSView {
         self.tracker = nil
         switch tracker.end(time: event.timestamp) {
         case .click: onClick?()
-        case .drag(let velocity): onDragEnded?(velocity)
+        case .drag(let velocity): onDragEnded?(velocity, tracker.isShaken)
         }
     }
 

@@ -9,6 +9,8 @@ public enum MotionPolicy {
         case .dragged: 0      // hanging under the cursor, no swing
         case .lowLimit: 8     // drained, worried, sweat drop, no shiver
         case .touchKey, .touchKeyHome: 0     // holding the key up, pad lit
+        case .question: 0     // "?" over a tilted head
+        case .exhausted: 0    // lying spent, clock above
         default: nil
         }
     }
@@ -17,7 +19,8 @@ public enum MotionPolicy {
     public static func allowsOneShot(_ state: PetState) -> Bool {
         switch state {
         case .hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .yawn, .shy, .angry,
-             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone: false
+             .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
+             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true
         }
     }
@@ -35,6 +38,9 @@ public enum MotionPolicy {
         case .shy: Cue(state: .shy, frame: 6)                // blushing, eyes away
         case .angry: Cue(state: .angry, frame: 8)            // puffed up, frowning
         case .touchDone: Cue(state: .touchDone, frame: 6)    // happy, check mark
+        case .refill: Cue(state: .refill, frame: 10)         // full again, stretching
+        case .plugIn: Cue(state: .plugIn, frame: 5)          // lightning bolt, happy
+        case .dizzy: Cue(state: .dizzy, frame: 8)            // spiral eyes, stars
         default: nil
         }
     }

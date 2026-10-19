@@ -36,6 +36,53 @@ public struct PixelCanvas: Equatable, Sendable {
         pixels[y * width + x] = color
     }
 
+    /// Turned clockwise by `turns` quarter turns: lossless, unlike arbitrary angles (square canvases).
+    func rotatedQuarter(_ turns: Int) -> PixelCanvas {
+        let t = ((turns % 4) + 4) % 4
+        guard t > 0, width == height else { return self }
+        var out = PixelCanvas(width: width, height: height)
+        let n = width - 1
+        for y in 0..<height {
+            for x in 0..<width {
+                guard let color = pixel(x, y) else { continue }
+                let (tx, ty) = t == 1 ? (n - y, x) : t == 2 ? (n - x, n - y) : (y, n - x)
+                out.set(tx, ty, color)
+            }
+        }
+        return out
+    }
+
+    /// Flipped left to right.
+    func mirrored() -> PixelCanvas {
+        var out = PixelCanvas(width: width, height: height)
+        for y in 0..<height {
+            for x in 0..<width { if let color = pixel(x, y) { out.set(width - 1 - x, y, color) } }
+        }
+        return out
+    }
+
+    /// `blend`, but only over pixels already drawn: a glow that adds no clickable area.
+    mutating func tint(_ x: Int, _ y: Int, _ color: RGBA) {
+        guard pixel(x, y) != nil else { return }
+        blend(x, y, color)
+    }
+
+    /// `blend` over a rectangle.
+    mutating func fillBlend(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ color: RGBA) {
+        for yy in y..<(y + h) { for xx in x..<(x + w) { blend(xx, yy, color) } }
+    }
+
+    /// Paints a translucent color over what is there (source-over); on an empty pixel it is set as is.
+    mutating func blend(_ x: Int, _ y: Int, _ color: RGBA) {
+        guard x >= 0, y >= 0, x < width, y < height else { return }
+        guard let under = pixels[y * width + x] else { pixels[y * width + x] = color; return }
+        let a = Int(color.a), keep = 255 - a
+        func mix(_ top: UInt8, _ bottom: UInt8) -> UInt8 { UInt8((Int(top) * a + Int(bottom) * keep) / 255) }
+        var out = under
+        out.r = mix(color.r, under.r); out.g = mix(color.g, under.g); out.b = mix(color.b, under.b)
+        pixels[y * width + x] = out
+    }
+
     public mutating func fill(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ color: RGBA) {
         for yy in y..<(y + h) {
             for xx in x..<(x + w) { set(xx, yy, color) }

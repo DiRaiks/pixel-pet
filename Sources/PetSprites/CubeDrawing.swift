@@ -176,12 +176,29 @@ extension PixelCanvas {
     }
 
     /// A small mug with its handle on the right; `steam` 0 for none, 1-2 for a wisp that drifts up.
-    mutating func mug(_ x: Int, _ y: Int, steam: Int = 0) {
+    mutating func mug(_ x: Int, _ y: Int, steam: Int = 0, tea: Bool = false) {
         fill(x, y, 3, 3, Palette.mug)
         fill(x, y + 2, 3, 1, Palette.mugShade)
-        fill(x, y, 3, 1, Palette.coffee)
+        fill(x, y, 3, 1, tea ? Palette.tea : Palette.coffee)
+        // A tea bag's string and tag over the rim.
+        if tea { set(x + 2, y - 1, Palette.mugShade); set(x + 3, y - 1, Palette.white) }
         set(x + 3, y + 1, Palette.mug)
         if steam > 0 { set(x + 1, y - 1 - steam, Palette.steam); set(x + 2 - steam % 2, y - 2 - steam, Palette.steam) }
+    }
+
+    /// A little copy of the pet for subagents: 5x4 in the skin's colors with two dot eyes.
+    mutating func miniCube(_ x: Int, _ y: Int, _ skin: Skin) {
+        fill(x, y, 5, 4, skin.outline)
+        fill(x + 1, y + 1, 3, 2, skin.fill)
+        set(x + 1, y + 1, skin.eye); set(x + 3, y + 1, skin.eye)
+    }
+
+    /// A battery seen from the side: 6x3 with a nub; `level` 0...4 cells filled.
+    mutating func battery(_ x: Int, _ y: Int, level: Int, color: RGBA) {
+        fill(x, y, 6, 3, Palette.accessoryDark)
+        fill(x + 1, y + 1, 4, 1, Palette.mug)
+        if level > 0 { fill(x + 1, y + 1, min(4, level), 1, color) }
+        set(x + 6, y + 1, Palette.accessoryDark)
     }
 
     /// 3x3 agent block; `spin` walks a lighter pixel around its edge.

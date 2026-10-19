@@ -85,6 +85,31 @@ enum ReadmeExport {
                             Clip(state: .touchDone, cubes: claude, codex: codex),
                             Clip(state: .working, seconds: 0.8, cubes: claude, codex: codex)]
         write(render(touchWorking, scale: 6), to: directory.appendingPathComponent("touch-while-working.png"))
+        // Moments tied to agents, limits, the battery and the user's hand.
+        let waiting: [AgentCube] = [.init(status: .waiting, subagents: 0), .init(status: .working, subagents: 0)]
+        let rest = Clip(state: .idle, seconds: 0.6)
+        let moments: [(String, [Clip])] = [
+            ("question", [Clip(state: .question, seconds: 3.2, cubes: waiting)]),
+            ("refill", [Clip(state: .idle, seconds: 0.8, drain: 10), Clip(state: .refill), rest]),
+            ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),
+            ("spawn-recall", [Clip(state: .working, seconds: 0.6), Clip(state: .spawn), Clip(state: .working, seconds: 1.2),
+                              Clip(state: .recall), rest]),
+            ("compact", [Clip(state: .working, seconds: 0.6), Clip(state: .compact), Clip(state: .working, seconds: 0.6)]),
+            ("tired", [Clip(state: .tired, seconds: 3.5)]),
+            ("plug-in", [Clip(state: .tired, seconds: 1.0), Clip(state: .plugIn), rest]),
+            ("thrown", [Clip(state: .dragged, seconds: 0.5), Clip(state: .thrown), Clip(state: .drop), rest]),
+            ("thrown-wall", [Clip(state: .dragged, seconds: 0.5), Clip(state: .thrown), Clip(state: .splatRight), rest]),
+            ("dizzy", [Clip(state: .dragged, seconds: 0.8), Clip(state: .dizzy), rest]),
+            ("late-night", [Clip(state: .working, seconds: 2.4, cubes: claude, codex: codex, props: [.mug, .tea, .lamp]),
+                            Clip(state: .workSip, cubes: claude, codex: codex, props: [.mug, .tea, .lamp])]),
+        ]
+        let hookahBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookah), Clip(state: .idle, seconds: 0.8)]
+        write(render(hookahBreak, scale: 6), to: directory.appendingPathComponent("hookah.png"))
+        let cloudBreak = [Clip(state: .idle, seconds: 0.8), Clip(state: .hookahCloud), Clip(state: .idle, seconds: 0.8)]
+        write(render(cloudBreak, scale: 6), to: directory.appendingPathComponent("hookah-cloud.png"))
+        for (name, clips) in moments {
+            write(render(clips, scale: 6), to: directory.appendingPathComponent("\(name).png"))
+        }
     }
 
     static let background = CGColor(red: 0.945, green: 0.937, blue: 0.91, alpha: 1)
@@ -117,6 +142,17 @@ enum ReadmeExport {
             ("home", [Clip(state: .burrowed, seconds: 2, menuBar: true), Clip(state: .peekHold, seconds: 2.5, menuBar: true)]),
             ("touch", [Clip(state: .idle, seconds: 0.6), Clip(state: .touchKey, seconds: 2.4), Clip(state: .touchDone),
                        Clip(state: .idle, seconds: 0.6)]),
+            ("question", [Clip(state: .question, seconds: 2.6)]),
+            ("hookah", [Clip(state: .idle, seconds: 0.6), Clip(state: .hookah), Clip(state: .idle, seconds: 0.6)]),
+            ("refill", [Clip(state: .idle, seconds: 0.6, drain: 10), Clip(state: .refill), Clip(state: .idle, seconds: 0.6)]),
+            ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),
+            ("spawn", [Clip(state: .working, seconds: 0.6), Clip(state: .spawn), Clip(state: .working, seconds: 0.8),
+                       Clip(state: .recall), Clip(state: .working, seconds: 0.6)]),
+            ("compact", [Clip(state: .working, seconds: 0.6), Clip(state: .compact), Clip(state: .working, seconds: 0.6)]),
+            ("tired", [Clip(state: .tired, seconds: 2.0), Clip(state: .plugIn), Clip(state: .idle, seconds: 0.6)]),
+            ("thrown", [Clip(state: .dragged, seconds: 0.4), Clip(state: .thrown), Clip(state: .splatRight), Clip(state: .idle, seconds: 0.6)]),
+            ("dizzy", [Clip(state: .dragged, seconds: 0.6), Clip(state: .dizzy), Clip(state: .idle, seconds: 0.4)]),
+            ("late-night", [Clip(state: .working, seconds: 2.0, props: [.mug, .tea, .lamp]), Clip(state: .workSip, props: [.mug, .tea, .lamp])]),
             ("work-sip", [Clip(state: .working, seconds: 0.9), Clip(state: .workSip), Clip(state: .working, seconds: 0.6)]),
             ("work-stretch", [Clip(state: .working, seconds: 0.9), Clip(state: .workStretch), Clip(state: .working, seconds: 0.6)]),
             ("work-think", [Clip(state: .working, seconds: 0.9), Clip(state: .workThink), Clip(state: .working, seconds: 0.6)]),

@@ -10,7 +10,7 @@ public enum HookSettings {
     /// Checked against the event names in Claude Code 2.1.299's binary.
     public static let events = [
         "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest",
-        "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd",
+        "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd", "PreCompact",
     ]
 
     public static func isInstalled(in settings: [String: Any], command: String) -> Bool {
@@ -18,7 +18,19 @@ public enum HookSettings {
         return events.allSatisfy { ((hooks[$0] as? [[String: Any]]) ?? []).contains { ours($0, command) } }
     }
 
-    public static func install(into settings: [String: Any], command: String) throws -> [String: Any] {
+    /// The events an install from the previous build has (before PreCompact).
+    public static let previousEvents = events.filter { $0 != "PreCompact" }
+
+    /// Our command is on exactly the previous build's events: an install to upgrade. Anything else (an event
+    /// the user removed by hand, say) is left as it is.
+    public static func isOlderInstall(in settings: [String: Any], command: String) -> Bool {
+        guard let hooks = settings["hooks"] as? [String: Any] else { return false }
+        let ours = Set(events.filter { ((hooks[$0] as? [[String: Any]]) ?? []).contains { ours($0, command) } })
+        return ours == Set(previousEvents)
+    }
+
+    public static func install(into settings: [String: Any], command: String, events: [String] = HookSettings.events)
+        throws -> [String: Any] {
         var out = settings
         var hooks = try hooksDict(settings)
         for event in events {
@@ -200,6 +212,13 @@ public struct HookInstaller: Sendable {
         let (updated, _) = HookSettings.installStatusLine(into: settings, command: statusLineCommand)
         try writeScripts()
         try writeSettings(updated, original: settings)
+    }
+
+    /// A connection made by the previous build, before newer events existed: add the missing ones (with the
+    /// usual backup), so it keeps working without a reconnect.
+    public func upgradeIfOlderInstall() throws {
+        guard let settings = try? readSettings(), HookSettings.isOlderInstall(in: settings, command: command) else { return }
+        try writeSettings(try HookSettings.install(into: settings, command: command), original: settings)
     }
 
     /// Keeps an already-connected hook script in sync with this build of the app.

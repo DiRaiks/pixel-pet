@@ -89,6 +89,18 @@ public enum Palette {
     public static let keyGold = RGBA(0xC9962B)
     public static let keyGoldLit = RGBA(0xFAD978)
     public static let keyPlug = RGBA(0xC9C7C0)
+    public static let tea = RGBA(0xB5732F)
+    /// The hookah: glass vase, clay bowl, a coal, smoke.
+    public static let hookahGlass = RGBA(0x5DA9C4)
+    public static let hookahWater = RGBA(0x3A7F9A)
+    public static let hookahClay = RGBA(0x9C5A3C)
+    public static let coal = RGBA(0xE24B4A)
+    public static let smoke = RGBA(0xD3D1C7, alpha: 200)
+    public static let smokeDense = RGBA(0xE8E6DF, alpha: 245)
+    public static let lamp = RGBA(0x5F5E5A)
+    public static let lampLight = RGBA(0xFAD978, alpha: 55)
+    public static let batteryRed = RGBA(0xE24B4A)
+    public static let batteryGreen = RGBA(0x5DCAA5)
     /// Frames of glasses and headphones; deliberately not any skin's outline color.
     public static let accessoryDark = RGBA(0x34302E)
     public static let gear = RGBA(0x2C2C2A)
@@ -105,4 +117,7 @@ public struct WorkProps: OptionSet, Hashable, Sendable {
     public init(rawValue: Int) { self.rawValue = rawValue }
     public static let mug = WorkProps(rawValue: 1)
     public static let headband = WorkProps(rawValue: 2)
+    /// Late at night: a desk lamp, and tea instead of coffee in the mug.
+    public static let lamp = WorkProps(rawValue: 4)
+    public static let tea = WorkProps(rawValue: 8)
 }

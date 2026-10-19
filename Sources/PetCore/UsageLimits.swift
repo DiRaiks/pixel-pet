@@ -80,6 +80,20 @@ public struct UsageLimits: Codable, Equatable, Sendable {
         [fiveHour?.resetsAt, sevenDay?.resetsAt].compactMap { $0 }.filter { $0 > now }.min()
     }
 
+    /// A limit reached: agents can't work until it resets.
+    public var isSpent: Bool {
+        (fiveHour?.usedPercent ?? 0) >= 100 || (sevenDay?.usedPercent ?? 0) >= 100
+    }
+
+    /// The 5-hour window that had real use in it reset: gone (its time passed) or replaced by a newer window
+    /// with less use.
+    public static func refilled(before: LimitWindow?, after: LimitWindow?) -> Bool {
+        guard let before, before.usedPercent >= 10 else { return false }
+        guard let after else { return true }
+        // A genuinely newer window, not the same one reported with a slightly different reset time.
+        return after.resetsAt > before.resetsAt.addingTimeInterval(3600) && after.usedPercent < before.usedPercent
+    }
+
     public var isLow: Bool {
         (fiveHour?.usedPercent ?? 0) >= Self.fiveHourLow || (sevenDay?.usedPercent ?? 0) >= Self.sevenDayLow
     }

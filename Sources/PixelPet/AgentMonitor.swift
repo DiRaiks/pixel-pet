@@ -32,6 +32,9 @@ final class AgentMonitor {
     private var codexWatcher: CodexWatcher?
     /// How long the agents have been at it across turns, for the desk props.
     private var workSession = WorkSession()
+    /// For noticing changes between refreshes: subagents coming and going, the 5-hour window resetting.
+    private var subagentMoments = SubagentMoments()
+    private var lastFiveHour: LimitWindow?
     var onChange: ((_ active: Int, _ limits: UsageLimits?, _ codexLimits: UsageLimits?) -> Void)?
 
     init(pet: PetController, hooks: HookInstaller) {
@@ -114,7 +117,9 @@ final class AgentMonitor {
             if pet.config.logEvents { EventLog.append(event.logLine) }
             switch registry.apply(event, at: now) {
             case .finished: pet.react(.celebrate)
-            case .finishedBig: pet.react(.flip)
+            case .finishedBig:
+                if pet.react(.flip) { pet.maybeHookahBreak() }
+            case .compacted: pet.moment(.compact)
             case .failed, nil: break
             }
         case .statusline(let snapshot):
@@ -141,7 +146,9 @@ final class AgentMonitor {
                 guard !batch.isReplay, CodexRollout.isLive(at, now: now) else { continue }
                 switch reaction {
                 case .finished: pet.react(.celebrate)
-                case .finishedBig: pet.react(.flip)
+                case .finishedBig:
+                    if pet.react(.flip) { pet.maybeHookahBreak() }
+                case .compacted: pet.moment(.compact)
                 case .failed, nil: break
                 }
             case .limits(let observed):
@@ -174,6 +181,13 @@ final class AgentMonitor {
             if let observed, codexWatcher != nil { mergeCodex(observed) }
             refresh()
         }
+    }
+
+    /// Subagents starting (copies pop out) or all finished (they come back), and the 5-hour window
+    /// resetting after real use (the pet fills back up).
+    private func noticeMoments(sessions: [AgentSession], fiveHour: LimitWindow?, now: Date) {
+        if let moment = subagentMoments.update(count: PetBrain.subagentCount(sessions), now: now) { pet.moment(moment) }
+        if UsageLimits.refilled(before: lastFiveHour, after: fiveHour) { pet.moment(.refill) }
     }
 
     /// Limits seen elsewhere (e.g. a Claude translation run).
@@ -228,6 +242,12 @@ final class AgentMonitor {
         onChange?(active, current, codexWatcher == nil ? nil : codexLimits?.current(at: now))
         status.sessions = sessions
         status.limits = limits
+        if noticing {
+            noticeMoments(sessions: sessions + codex, fiveHour: current?.fiveHour, now: now)
+        } else {
+            subagentMoments.prime(count: PetBrain.subagentCount(sessions + codex))
+        }
+        lastFiveHour = current?.fiveHour
         status.codexSessions = codex
         status.codexLimits = codexLimits
         status.codexEnabled = codexWatcher != nil

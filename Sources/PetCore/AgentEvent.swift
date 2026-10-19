@@ -20,6 +20,8 @@ public struct AgentEvent: Equatable, Sendable {
         case subagentStarted(id: String)
         case subagentStopped(id: String)
         case sessionEnded
+        /// The context is about to be compacted (Claude Code `PreCompact`, Codex `compacted`).
+        case compacting
     }
 
     public let sessionID: String
@@ -58,6 +60,7 @@ public struct AgentEvent: Equatable, Sendable {
             guard let id = json["agent_id"] as? String else { return nil }
             kind = .subagentStopped(id: id)
         case "SessionEnd": kind = .sessionEnded
+        case "PreCompact": kind = .compacting
         default: return nil
         }
         return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind)
@@ -88,6 +91,7 @@ public struct AgentEvent: Equatable, Sendable {
         case .subagentStarted: detail = "subagentStarted"
         case .subagentStopped: detail = "subagentStopped"
         case .sessionEnded: detail = "sessionEnded"
+        case .compacting: detail = "compacting"
         }
         return "\(sessionID.prefix(8)) \(project) \(detail)"
     }

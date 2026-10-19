@@ -171,12 +171,12 @@ private struct LimitsSection: View {
     let model: StatusModel
 
     var body: some View {
-        let limits = model.limits?.current(at: model.now)
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Лимиты").font(.headline)
                 Spacer()
-                if let observed = model.limits?.observedAt {
+                // With Codex on, each group says how fresh it is instead.
+                if !model.codexEnabled, let observed = model.limits?.observedAt {
                     Text(Format.ago(observed, now: model.now)).font(.caption).foregroundStyle(.secondary)
                 }
                 Button {
@@ -188,11 +188,39 @@ private struct LimitsSection: View {
                 .disabled(model.isProbing)
                 .help("Обновить лимиты")
             }
-            if let limits, !limits.isEmpty {
-                LimitRow(title: "5 ч", window: limits.fiveHour, low: UsageLimits.fiveHourLow, now: model.now)
-                LimitRow(title: "7 дн", window: limits.sevenDay, low: UsageLimits.sevenDayLow, now: model.now)
+            if model.codexEnabled {
+                LimitGroup(title: "Claude", limits: model.limits, probing: model.isProbing, now: model.now)
+                LimitGroup(title: "Codex", limits: model.codexLimits, probing: false, now: model.now)
             } else {
-                Text(model.isProbing ? "Узнаю лимиты…" : "Лимиты пока неизвестны")
+                LimitGroup(title: nil, limits: model.limits, probing: model.isProbing, now: model.now)
+            }
+        }
+    }
+}
+
+private struct LimitGroup: View {
+    let title: String?
+    let limits: UsageLimits?
+    let probing: Bool
+    let now: Date
+
+    var body: some View {
+        let current = limits?.current(at: now)
+        VStack(alignment: .leading, spacing: 6) {
+            if let title {
+                HStack {
+                    Text(title).font(.subheadline.weight(.medium))
+                    Spacer()
+                    if let observed = limits?.observedAt {
+                        Text(Format.ago(observed, now: now)).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if let current, !current.isEmpty {
+                LimitRow(title: "5 ч", window: current.fiveHour, low: UsageLimits.fiveHourLow, now: now)
+                LimitRow(title: "7 дн", window: current.sevenDay, low: UsageLimits.sevenDayLow, now: now)
+            } else {
+                Text(probing ? "Узнаю лимиты…" : "Лимиты пока неизвестны")
                     .font(.callout).foregroundStyle(.secondary)
             }
         }
@@ -232,19 +260,32 @@ private struct SessionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Сессии").font(.headline)
-            if model.sessions.isEmpty {
-                Text(model.hooksConnected ? "Сейчас нет сессий Claude Code"
-                                          : "Подключите кубика к Claude Code в меню-баре")
-                    .font(.callout).foregroundStyle(.secondary)
+            if model.sessions.isEmpty && model.codexSessions.isEmpty {
+                Text(emptyText).font(.callout).foregroundStyle(.secondary)
             } else {
-                ForEach(model.sessions, id: \.id) { SessionRow(session: $0, now: model.now) }
+                ForEach(model.sessions, id: \.id) { SessionRow(session: $0, source: nil, now: model.now) }
+                ForEach(model.codexSessions, id: \.id) { SessionRow(session: $0, source: "Codex", now: model.now) }
             }
+        }
+    }
+}
+
+private extension SessionsSection {
+    var emptyText: String {
+        let claude = model.hooksConnected ? "Claude Code" : nil
+        let codex = model.codexEnabled ? "Codex" : nil
+        switch (claude, codex) {
+        case (nil, nil): return "Подключите кубика к Claude Code в меню-баре"
+        case (nil, _): return "Сейчас нет сессий Codex. Claude Code можно подключить в меню-баре"
+        default: return "Сейчас нет сессий " + [claude, codex].compactMap { $0 }.joined(separator: " и ")
         }
     }
 }
 
 private struct SessionRow: View {
     let session: AgentSession
+    /// Shown before the status for agents other than Claude Code.
+    let source: String?
     let now: Date
 
     var body: some View {
@@ -252,7 +293,7 @@ private struct SessionRow: View {
             Circle().fill(color).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.project ?? String(session.id.prefix(8))).font(.callout).lineLimit(1)
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(source.map { "\($0) · \(detail)" } ?? detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
             if let meta { Text(meta).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }

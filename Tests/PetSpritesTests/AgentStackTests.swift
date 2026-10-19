@@ -48,4 +48,39 @@ import PetCore
                     "\(state)")
         }
     }
+
+    /// Codex agents stack on the left, mirroring Claude's column on the right.
+    @Test func codexColumnMirrorsOnTheLeft() {
+        let c = AgentStack.canvas(for: [], left: [AgentCube(status: .idle, subagents: 0)], tick: 0)
+        #expect(c.pixel(AgentStack.leftX, AgentStack.bottomY) == Palette.agentIdle)
+        #expect(c.pixel(AgentStack.x, AgentStack.bottomY) == nil)
+        let both = AgentStack.canvas(for: [AgentCube(status: .failed, subagents: 0)],
+                                     left: [AgentCube(status: .idle, subagents: 0), AgentCube(status: .idle, subagents: 0)], tick: 0)
+        #expect(both.pixel(AgentStack.x, AgentStack.bottomY) == Palette.errorFill)
+        #expect(both.pixel(AgentStack.leftX, AgentStack.bottomY - AgentStack.step) == Palette.agentIdle)
+        #expect(both.pixel(AgentStack.x, AgentStack.bottomY - AgentStack.step) == nil)
+    }
+
+    @Test func leftSubagentDotSitsOnTheOuterCorner() {
+        let c = AgentStack.canvas(for: [], left: [AgentCube(status: .idle, subagents: 2)], tick: 0)
+        #expect(c.pixel(AgentStack.leftX - 1, AgentStack.bottomY) == Palette.tealLight)
+        #expect(c.pixel(AgentStack.leftX, AgentStack.bottomY) == Palette.agentIdle)
+    }
+
+    @Test func leftOverflowShowsEllipsis() {
+        let many = Array(repeating: AgentCube(status: .idle, subagents: 0), count: 7)
+        let c = AgentStack.canvas(for: [], left: many, tick: 0)
+        let topY = AgentStack.bottomY - (AgentStack.maxVisible - 1) * AgentStack.step + 1
+        #expect(c.pixel(AgentStack.leftX, topY) == Palette.shade)
+    }
+
+    /// The left column stays clear of the body in the poses the pet holds while agents run.
+    @Test func restingPosesLeaveTheLeftColumnFree() {
+        for state in [PetState.idle, .working, .alert, .lowLimit, .talk, .sleep, .dragged] {
+            for (i, frame) in SpriteFactory.frames(for: state, agentCubes: false).enumerated() {
+                let used = (0..<32).contains { y in (0...(AgentStack.leftX + 2)).contains { frame.pixel($0, y) != nil && y < 30 } }
+                #expect(!used, "\(state) frame \(i) reaches into the left column")
+            }
+        }
+    }
 }

@@ -27,6 +27,14 @@ final class SettingsModel {
     var skin = "lavender" { didSet { if !loading, skin != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
     var accessory = "none" { didSet { if !loading, accessory != oldValue { pet.setLook(skin: skin, accessory: accessory) } } }
     var logEvents = false { didSet { if !loading, logEvents != oldValue { pet.setLogEvents(logEvents) } } }
+    var watchCodex = true {
+        didSet {
+            guard !loading, watchCodex != oldValue else { return }
+            update { $0.watchCodex = watchCodex }
+            onWatchCodex?(watchCodex)
+        }
+    }
+    @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
     var launchAtLogin = false
     var hooksConnected = false
     var statusLine = HookSettings.StatusLineState.absent
@@ -55,6 +63,7 @@ final class SettingsModel {
         skin = c.skin
         accessory = c.accessory
         logEvents = c.logEvents
+        watchCodex = c.watchCodex
         launchAtLogin = LaunchAtLogin.isEnabled
         hooksConnected = hooks.isInstalled
         statusLine = hooks.statusLineState
@@ -168,6 +177,10 @@ struct SettingsView: View {
                 }
                 Toggle("Журнал событий (~/.pixelpet/events.log)", isOn: $model.logEvents)
                     .help("Только id сессий, проекты и имена событий, без текстов")
+            }
+            Section("Codex") {
+                Toggle("Следить за агентами Codex", isOn: $model.watchCodex)
+                    .help("Читает ~/.codex/sessions: кубики Codex слева, лимиты Codex в панели. Ничего не устанавливает")
             }
             Section("Перевод (⌃⌥T)") {
                 Picker("Мой язык", selection: $model.nativeLanguage) {

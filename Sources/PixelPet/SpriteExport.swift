@@ -41,6 +41,8 @@ enum ReadmeExport {
         /// Seconds to play; nil plays the state once (one-shots) or one full loop.
         var seconds: Double?
         var cubes: [AgentCube] = []
+        /// Codex agents, in the left column.
+        var codex: [AgentCube] = []
         var look = Look.standard
         var drain = 0
         /// Home states hang from the top edge of the screen: draw the menu bar above them.
@@ -56,9 +58,11 @@ enum ReadmeExport {
         let work: [AgentCube] = [.init(status: .working, subagents: 1), .init(status: .working, subagents: 0),
                                  .init(status: .idle, subagents: 0)]
         let rest = Clip(state: .idle, seconds: 0.8)
+        let codex: [AgentCube] = [.init(status: .working, subagents: 0), .init(status: .idle, subagents: 0)]
         let clips: [(String, [Clip])] = [
             ("idle", [Clip(state: .idle)]),
             ("working", [Clip(state: .working, seconds: 3, cubes: work)]),
+            ("claude-and-codex", [Clip(state: .working, seconds: 3, cubes: work, codex: codex)]),
             ("alert", [Clip(state: .alert, seconds: 3, cubes: [.init(status: .waiting, subagents: 0)] + work.prefix(1))]),
             ("error", [Clip(state: .error, seconds: nil, cubes: [.init(status: .failed, subagents: 0)]), rest]),
             ("low-limit", [Clip(state: .lowLimit, seconds: 3.2, drain: 7)]),
@@ -105,7 +109,7 @@ enum ReadmeExport {
             i += 1
             if t < length { cuts.insert((t * 1000).rounded() / 1000) }
         }
-        if !clip.cubes.isEmpty {
+        if !clip.cubes.isEmpty || !clip.codex.isEmpty {
             var b = stackBeat
             while b < length { cuts.insert((b * 1000).rounded() / 1000); b += stackBeat }
         }
@@ -138,7 +142,8 @@ enum ReadmeExport {
             timeline(clip).compactMap { step -> (CGImage, Double)? in
                 var body = SpriteFactory.frame(for: clip.state, index: step.index, agentCubes: false, look: clip.look)
                 if clip.drain > 0 { body = body.drained(rows: clip.drain, skin: clip.look.skin) }
-                let stack = clip.cubes.isEmpty ? nil : AgentStack.canvas(for: clip.cubes, tick: step.tick)
+                let stack = clip.cubes.isEmpty && clip.codex.isEmpty
+                    ? nil : AgentStack.canvas(for: clip.cubes, left: clip.codex, tick: step.tick)
                 guard let image = tile([(body, stack)], scale: scale, menuBar: clip.menuBar) else { return nil }
                 return (image, step.delay)
             }

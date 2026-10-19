@@ -52,8 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let agents = AgentMonitor(pet: pet, hooks: hooks)
         let panel = StatusPanel(model: agents.status)
         let menu = StatusMenu(pet: pet, hooks: hooks)
-        agents.onChange = { [weak menu] active, limits in
-            menu?.update(active: active, limits: limits)
+        agents.onChange = { [weak menu] active, limits, codexLimits in
+            menu?.update(active: active, limits: limits, codexLimits: codexLimits)
             DispatchQueue.main.async { panel.refit() }
         }
         let showPanel = { [weak agents, weak pet] in
@@ -136,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.start()
         agents.start()
         let settingsModel = SettingsModel(pet: pet, hooks: hooks)
+        settingsModel.onWatchCodex = { [weak agents] on in agents?.setWatchingCodex(on) }
         let settings = AppWindow(title: "Pixel Pet — настройки", content: SettingsView(model: settingsModel))
         settings.onKey = { settingsModel.refresh() }
         settings.onPoll = { settingsModel.refreshAccessibility() }

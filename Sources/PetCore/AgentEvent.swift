@@ -12,6 +12,10 @@ public struct AgentEvent: Equatable, Sendable {
         case permissionRequested
         case notification(type: String?)
         case stopped
+        /// The user cut the turn short (Codex `turn_aborted`): back to idle, nothing to celebrate.
+        case interrupted
+        /// Something happened inside a turn that is still running (Codex): keeps or puts it back to working.
+        case stillWorking
         case failed
         case subagentStarted(id: String)
         case subagentStopped(id: String)
@@ -78,6 +82,8 @@ public struct AgentEvent: Equatable, Sendable {
         case .permissionRequested: detail = "permissionRequested"
         case .notification(let type): detail = "notification \(type ?? "-")"
         case .stopped: detail = "stopped"
+        case .interrupted: detail = "interrupted"
+        case .stillWorking: detail = "stillWorking"
         case .failed: detail = "failed"
         case .subagentStarted: detail = "subagentStarted"
         case .subagentStopped: detail = "subagentStopped"

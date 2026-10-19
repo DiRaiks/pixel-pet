@@ -8,6 +8,10 @@ import PetCore
 final class StatusModel {
     var sessions: [AgentSession] = []
     var limits: UsageLimits?
+    var codexSessions: [AgentSession] = []
+    var codexLimits: UsageLimits?
+    /// Codex is followed (setting on): its limits and sessions get their own groups.
+    var codexEnabled = false
     var isProbing = false
     var hooksConnected = false
     var now = Date()

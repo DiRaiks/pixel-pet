@@ -31,6 +31,10 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Look: color skin and an optional accessory (see PetSprites `Skin` / `Accessory`).
     public var skin = "lavender"
     public var accessory = "none"
+    /// Follow Codex sessions (~/.codex/sessions) next to Claude Code's.
+    public var watchCodex = true
+    /// Last known Codex limits, like `lastLimits` for Claude.
+    public var lastCodexLimits: UsageLimits?
 
     public init() {}
 
@@ -52,6 +56,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
         onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
         skin = try c.decodeIfPresent(String.self, forKey: .skin) ?? "lavender"
         accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
+        watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
+        lastCodexLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastCodexLimits)
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)
     }
 }

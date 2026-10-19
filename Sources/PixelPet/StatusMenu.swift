@@ -134,11 +134,19 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func openLog() { NSWorkspace.shared.open(EventLog.url) }
 
     /// Count of working or waiting agents next to the icon (nothing when all is quiet) and the limits line.
-    func update(active: Int, limits: UsageLimits?) {
+    func update(active: Int, limits: UsageLimits?, codexLimits: UsageLimits? = nil) {
         item.button?.title = active > 0 ? " \(active)" : ""
-        let parts = [limits?.fiveHour.map { "5 ч \(Int($0.usedPercent.rounded()))%" },
-                     limits?.sevenDay.map { "7 дн \(Int($0.usedPercent.rounded()))%" }].compactMap { $0 }
-        limitsItem.title = parts.isEmpty ? "Лимиты: пока неизвестны" : "Лимиты: " + parts.joined(separator: " · ")
+        func parts(_ l: UsageLimits?) -> String? {
+            let p = [l?.fiveHour.map { "5 ч \(Int($0.usedPercent.rounded()))%" },
+                     l?.sevenDay.map { "7 дн \(Int($0.usedPercent.rounded()))%" }].compactMap { $0 }
+            return p.isEmpty ? nil : p.joined(separator: " · ")
+        }
+        let claude = parts(limits), codex = parts(codexLimits)
+        switch (claude, codex) {
+        case (nil, nil): limitsItem.title = "Лимиты: пока неизвестны"
+        case (let c?, nil): limitsItem.title = "Лимиты: " + c
+        case (let c, let x?): limitsItem.title = "Лимиты: Claude " + (c ?? "—") + " · Codex " + x
+        }
     }
 
     @objc private func showPanel() { onShowPanel?() }

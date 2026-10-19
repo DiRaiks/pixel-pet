@@ -7,15 +7,15 @@ Pixel Pet is a single accessory app (no Dock icon, `LSUIElement`) built with Swi
 ```
 PetCore          pure logic, no AppKit: events, sessions, states, limits, config, geometry, policies
   ├── PetSprites       procedural pixel art: canvas, cube drawing, every state's frames, agent stack
-  └── PetIntegrations  unix-socket server, finding and running the Claude Code CLI
+  └── PetIntegrations  unix-socket server, finding and running the Claude Code and Codex CLIs, Codex session files
         └── PixelPet   the app: windows, rendering, input, hotkeys, cards, menus, settings, desktop sensing
 ```
 
 | Target | Depends on | Holds |
 |---|---|---|
-| `PetCore` | — | `AgentEvent`, `SessionRegistry`, `PetBrain`, `PetState`, `PetPlayer`, `MotionPolicy`, `UsageLimits` and `Inbound`, `ProbePolicy`, `PetConfig` and `ConfigStore`, `HookSettings` and `HookInstaller`, `HomeSpot` and `HomeGeometry`, `Placement`, `DragTracker`, `Gaze`, `ReactionThrottle` and `Fullscreen`, `TranslationPlan` and `SelectionDecision`, `AskConversation`, `ClaudeStream` and `ClaudeTranslation` |
+| `PetCore` | — | `AgentEvent`, `SessionRegistry`, `PetBrain`, `PetState`, `PetPlayer`, `MotionPolicy`, `UsageLimits` and `Inbound`, `ProbePolicy`, `PetConfig` and `ConfigStore`, `HookSettings` and `HookInstaller`, `HomeSpot` and `HomeGeometry`, `Placement`, `DragTracker`, `Gaze`, `ReactionThrottle` and `Fullscreen`, `TranslationPlan` and `SelectionDecision`, `AskConversation`, `ClaudeStream` and `ClaudeTranslation`, `CodexRollout`, `AnswerText` |
 | `PetSprites` | `PetCore` | `PixelCanvas`, `Palette` (`Skin`, `Accessory`, `Look`), `CubeDrawing` (`BodyStyle`), `SpriteFactory`, `AgentStack` |
-| `PetIntegrations` | `PetCore` | `EventServer`, `ClaudeLocator`, `ClaudeProcess`, `LimitsProbe`, `ClaudeChat` and `ClaudeAsk`, the `ClaudeTranslation` runner (an extension) |
+| `PetIntegrations` | `PetCore` | `EventServer`, `ClaudeLocator`, `ClaudeProcess`, `LimitsProbe`, `ClaudeChat` and `ClaudeAsk`, the `ClaudeTranslation` runner (an extension), `CodexWatcher`, `CodexLocator`, `CodexLimitsProbe` |
 | `PixelPet` | all three | `AppDelegate`, `PetController`, `PetPanel`, `SpriteLibrary`, `AgentMonitor`, `StatusMenu`, `StatusPanel` (cards), `TranslationCard`, `AskCard`, `SelectionReader`, `DesktopSensor`, `HotKey`, `SettingsWindow`, `OnboardingWindow`, `HookActions`, `SpriteExport` |
 
 Rule of thumb: when a decision can be stated without AppKit (a priority, a timeout, a privacy rule, a piece of geometry), it lives in `PetCore` with tests. The app target only measures the world and acts on those decisions.
@@ -156,6 +156,30 @@ The three callers:
 
 `AskConversation` binds every run's events to an epoch (bumped by "New") and a turn index. Late events from an old conversation or a finished turn are dropped. The next question waits until the previous CLI process has exited. Quick-question sessions live in `~/.claude/projects/*-pixelpet-claude` and are deleted on "New", on quit and on launch.
 
+## Codex integration
+
+Codex has hooks too, but they must be trusted one by one in its CLI, they replace nothing that Codex shows elsewhere, and it isn't documented whether the desktop app runs them. Its session files, on the other hand, are written by every Codex surface (CLI, IDE extension, desktop app) and need no setup, so the pet reads those.
+
+- **Following.** `CodexWatcher` listens to FSEvents under `~/.codex/sessions` on its own serial queue. A big file is never read whole: at start, and for files that show up later, it reads the first line (the session's metadata, up to 1 MB) and the last 512 KB, dropping the cut-off line the tail starts in. After that only appended bytes are read, again capped to the last 512 KB after a long gap; an unfinished last line waits for the rest. At start only files modified in the last 30 minutes are opened. Subagent files are remembered and skipped. Lines over 4 MB are dropped. A file that got shorter is read again from the start. `~/.codex` is never created: without it the watcher checks once a minute until it appears. `stop()` cancels a catch-up between files, and the FSEvents stream retains the watcher, so no callback outlives it.
+- **Only Codex agents.** Ordinary ChatGPT conversations, including those in the desktop app, run in the cloud and write nothing here; only Codex threads do (CLI, IDE extension, the Codex side of the app).
+- **Parsing.** `CodexRollout` maps lines to the same `AgentEvent`s the Claude Code hooks produce, each with the line's own timestamp:
+
+  | Codex line | Event |
+  |---|---|
+  | `session_meta` | session start (id, folder); subagent threads (`thread_source` other than `user`) are skipped |
+  | `turn_context` | session start with the model and folder |
+  | `event_msg` `task_started` | prompt submitted (working) |
+  | `event_msg` `task_complete` | stopped (celebration rules apply) |
+  | `event_msg` `turn_aborted` | interrupted: idle, no celebration |
+  | `event_msg` `error` | failed |
+  | any line inside an open turn | still working; read from the middle of a file, a `turn_id` opens the turn. Lines of a turn that already ended are ignored |
+  | `event_msg` `token_count` | Codex limits (`rate_limits.primary` / `secondary`, told apart by window length) |
+
+  Approval prompts aren't written to the files, so Codex sessions never show as waiting.
+- **State.** `AgentMonitor` keeps Codex sessions in a second `SessionRegistry` without the silent-work timeout: Codex writes `turn_aborted` when a turn is stopped, so a quiet turn (a long build) stays working. The pet's mood takes both registries into account (a failing or working Codex agent shows like a Claude one); the drained body and the low-limit look stay tied to Claude's limits. Only events at most 10 s old trigger reactions, and catch-up batches never do, so turns found in a file read late are not celebrated. Batches from a watcher that was switched off are dropped.
+- **Limits.** Besides the `token_count` lines, `CodexLimitsProbe` asks a short-lived `codex app-server` over JSON-RPC (`initialize`, `initialized`, `account/rateLimits/read`) at launch and when the panel opens, under the same `ProbePolicy` rules as Claude's probe. No model request is made. The server quits when its input closes, so `ClaudeProcess` keeps the input open (`until`) and stops the process once the answer arrives.
+- **Finding Codex.** `CodexLocator` accepts only native Mach-O binaries: `PATH`, then the copy inside ChatGPT.app or Codex.app, then the newest standalone release under `~/.codex/packages/standalone/releases`. The npm `codex` is a Node script, and apps launched from Finder have no Node on their PATH.
+
 ## Rendering
 
 - **Window.** `PetPanel` is a borderless, non-activating `NSPanel` that joins all Spaces and works over fullscreen apps. It never takes focus. Fully transparent pixels are click-through via an alpha hit-test. `constrainFrameRect` is overridden so that at home the window can hang over the menu bar.
@@ -166,7 +190,7 @@ The three callers:
   - **Accessories:** glasses, headphones, cap.
   - **Rotation** (flip, tumble) uses 3×3 supersampling with a deterministic majority vote. Accessories turn with the body, while the face is redrawn upright.
 - **Timing.** Each `PetState` has a duration per frame, so key poses are held and in-betweens are quick. `PetPlayer` plays a looping base state with an optional one-shot on top. `PetController` schedules exactly one timer per frame, timed to the end of the current frame, with a tolerance of 25% capped at 50 ms. While agent blocks are visible, the clock also keeps their shared 10 Hz beat. The timer stops entirely while the pet is hidden or occluded, or frozen under Reduce Motion.
-- **Agent stack.** `AgentStack` draws the 3×3 blocks on a separate 32×32 overlay to the right of the body. At home the stack is hidden, and the menu-bar counter stands in for it.
+- **Agent stack.** `AgentStack` draws the 3×3 blocks on a separate 32×32 overlay: Claude Code at x 27–29 to the right of the body, Codex mirrored at x 2–4 on the left, each with its subagent dot on the outer side. Poses the pet holds while agents run keep clear of both columns (a test checks the left one). At home the stack is hidden, and the menu-bar counter stands in for it.
 - **Reduce Motion.** `MotionPolicy` lists the states that hold one frame (alert, error, dragged, low limit) and the one-shots that are skipped (hop, celebrate, drop, dive, peek, flip, tumble, yawn, shy, angry). Some skipped events get a held "cue" frame for 1.5 s instead, so they still register.
 
 ### States
@@ -243,6 +267,8 @@ How the pet moves between the desk and home:
 | `nativeLanguage` / `foreignLanguage` | `ru` / `en` | Translation direction |
 | `askModel` | `haiku` | Model for quick questions |
 | `skin` / `accessory` | `lavender` / `none` | Look |
+| `watchCodex` | true | Follow Codex sessions and limits |
+| `lastCodexLimits` | — | Last known Codex limits |
 | `logEvents` | false | Write `~/.pixelpet/events.log` (ids, project and event names only; rotates at 1 MB) |
 | `lastLimits` | — | Last known limits |
 | `onboarded` | false | Welcome window was seen |

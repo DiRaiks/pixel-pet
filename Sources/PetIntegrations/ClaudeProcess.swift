@@ -12,9 +12,11 @@ enum ClaudeProcess {
     ]
     static let maxOutput = 4 << 20
 
-    /// Returns false if the process couldn't be started.
+    /// Returns false if the process couldn't be started. With `until`, the input stays open after `stdin` is
+    /// written (for servers that quit on end of input) and the process is stopped once `until` accepts a line.
     static func run(claude: URL, arguments: [String], stdin: Data?, timeout: TimeInterval, killAfter: TimeInterval,
-                    environment: [String: String], onLine: @escaping @Sendable (String) -> Void) async -> Bool {
+                    environment: [String: String], until: (@Sendable (String) -> Bool)? = nil,
+                    onLine: @escaping @Sendable (String) -> Void) async -> Bool {
         let process = Process()
         process.executableURL = claude
         process.arguments = arguments
@@ -31,12 +33,15 @@ enum ClaudeProcess {
         let input = Pipe()
         process.standardInput = stdin == nil ? FileHandle.nullDevice : input
 
-        let lines = LineSplitter(limit: maxOutput, onLine: onLine)
+        let box = ProcessBox(process)
+        let lines = LineSplitter(limit: maxOutput) { line in
+            onLine(line)
+            if let until, until(line) { box.stop(killAfter: killAfter) }
+        }
         output.fileHandleForReading.readabilityHandler = { handle in
             let chunk = handle.availableData
             if chunk.isEmpty { handle.readabilityHandler = nil } else { lines.append(chunk) }
         }
-        let box = ProcessBox(process)
         let started: Bool = await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 process.terminationHandler = { _ in continuation.resume(returning: true) }
@@ -50,7 +55,8 @@ enum ClaudeProcess {
                     let writer = input.fileHandleForWriting
                     DispatchQueue.global().async {
                         try? writer.write(contentsOf: stdin)
-                        try? writer.close()
+                        // Closed when the process ends (the pipe goes with it) rather than right away.
+                        if until == nil { try? writer.close() }
                     }
                 }
                 DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { box.stop(killAfter: killAfter) }

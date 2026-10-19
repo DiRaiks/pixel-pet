@@ -5,7 +5,7 @@
 <h1 align="center">Pixel Pet</h1>
 
 <p align="center">
-  A pixel-art cube for your macOS desktop that keeps an eye on your Claude Code agents.<br>
+  A pixel-art cube for your macOS desktop that keeps an eye on your Claude Code and Codex agents.<br>
   It shows your limits, answers quick questions, translates the selection, and can hide in the MacBook notch.
 </p>
 
@@ -18,7 +18,7 @@
 <table>
 <tr>
 <td width="25%" align="center"><img src="docs/images/working.png" width="120" alt="Typing while agents work"></td>
-<td><b>Agents at a glance.</b> Each running Claude Code session is a small block next to the cube: teal while it works, amber while it waits for you, red if it fails. A dot on a block means subagents are running. The cube types on its keyboard while anything works.</td>
+<td><b>Agents at a glance.</b> Each running session is a small block next to the cube: Claude Code on the right, Codex on the left. Teal while it works, amber while it waits for you, red if it fails. A dot on a block means subagents are running. The cube types on its keyboard while anything works.</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/alert.png" width="120" alt="Bouncing with an exclamation mark"></td>
@@ -147,7 +147,9 @@ While a translation card is open, it talks along: <img src="docs/images/talk.png
 
 At home only the eyes show. The cube peeks out for alerts and errors, and briefly for one-off events.
 
-Agent blocks stack beside the cube, one per session:
+Agent blocks stack beside the cube, one per session: Claude Code on the right, Codex on the left.
+
+<p><img src="docs/images/claude-and-codex.png" width="120" alt="Two Codex blocks on the left, three Claude Code blocks on the right"></p>
 
 | Block | Meaning |
 |---|---|
@@ -157,7 +159,9 @@ Agent blocks stack beside the cube, one per session:
 | Grey | Idle |
 | Green flash | Just finished |
 | Dot on a block | Subagents are running |
-| Ellipsis on top | More than 4 sessions |
+| Ellipsis on top | More than 4 sessions on that side |
+
+Codex blocks never turn amber: Codex doesn't write "waiting for approval" to its session files, which is where the pet reads it from.
 
 ### Examples
 
@@ -211,6 +215,7 @@ Open settings from the menu (menu: "Настройки…", ⌘,):
 | Launch at login | Uses a macOS login item |
 | Claude Code hooks and statusline | Connect or disconnect them |
 | Model for questions | haiku, sonnet or opus |
+| Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
 | Event log | Writes to `~/.pixelpet/events.log` |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
 | Accessibility | Shows the permission status, with a button to request it |
@@ -247,11 +252,12 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
 | `~/.claude/settings.json` | One hook entry for each of 12 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/*-pixelpet-claude` | Quick-question sessions. Deleted when you start a new conversation, on quit and on launch |
+| `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |
 | `$TMPDIR/pixelpet-claude` | Empty working folder for the pet's own `claude -p` runs |
 
 Disconnecting (menu: "Отключить от Claude Code") removes the pet's hook entries, its statusline and both scripts.
 
-**Privacy.** Hook payloads are reduced to event names, session ids, the project folder name, the tool name and the model as soon as they arrive. Prompt text and tool input are never stored. Selected text is read only when you press ⌃⌥T. Password fields are never read. The clipboard fallback restores your clipboard exactly, or is skipped if it cannot.
+**Privacy.** Hook payloads are reduced to event names, session ids, the project folder name, the tool name and the model as soon as they arrive. Prompt text and tool input are never stored. From Codex session files the pet keeps only session ids, folders, models, turn starts and ends, and limits. Selected text is read only when you press ⌃⌥T. Password fields are never read. The clipboard fallback restores your clipboard exactly, or is skipped if it cannot.
 
 ## Uninstall
 
@@ -273,6 +279,7 @@ Two things stay behind until you remove them yourself:
 
 - **⌃⌥T stopped reading the selection after an update.** The app is signed ad-hoc, so macOS treats every build as a new app. In System Settings → Privacy & Security → Accessibility, remove Pixel Pet with the "−" button and allow it again. A stable signing certificate fixes this for good; see [DEVELOPMENT.md](docs/DEVELOPMENT.md#code-signing).
 - **No agent blocks appear.** Check that the menu says "Отключить от Claude Code", which means hooks are connected. Then turn on the event log and watch `~/.pixelpet/events.log` while an agent runs.
+- **No Codex blocks or limits.** Check that "Следить за агентами Codex" is on in Settings. Blocks show up once a Codex session writes to `~/.codex/sessions`. Limits need a native Codex binary: the one inside ChatGPT.app, a standalone release in `~/.codex/packages`, or `codex` on the PATH (the npm one needs Node, which apps started from Finder don't have).
 - **Limits show "unknown".** The app finds limits by running a tiny `claude -p` request. Check that Claude Code is installed and signed in.
 - **A hotkey does nothing.** Hotkeys are global. If another app already owns the combination, Pixel Pet cannot register it; it only writes `hotkey N not registered` to the unified log.
 - **Translation says the language is not installed.** Use the download button in the card. Alternatively, open System Settings → General → Language & Region → Translation Languages.

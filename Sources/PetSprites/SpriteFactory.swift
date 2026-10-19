@@ -280,7 +280,8 @@ public enum SpriteFactory {
     static func talk(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let mouths: [Mouth] = [.open, .flat, .smile, .flat, .open, .flat, .flat, .smile]
         var s = BodyStyle(look: look)
-        s.cx = 11; s.w = 14; s.lookX = 1
+        // Shifted toward the bubble, but clear of the Codex column on the left.
+        s.cx = 12; s.w = 14; s.lookX = 1
         s.eyes = i == 6 ? .blink : .open
         s.mouth = mouths[i]
         c.body(s)

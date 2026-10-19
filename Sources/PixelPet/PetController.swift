@@ -46,6 +46,8 @@ final class PetController {
     private var held: MotionPolicy.Cue?
     private var heldGeneration = 0
     private var agents: [AgentCube] = []
+    /// Codex agents, drawn in the left column.
+    private var codexAgents: [AgentCube] = []
     private var drain = 0
     /// Extra hooks for the app: a plain click (after the hop) and the start of a drag.
     var onTap: (() -> Void)?
@@ -141,6 +143,12 @@ final class PetController {
     func rememberLimits(_ limits: UsageLimits?) {
         if let limits, let saved = config.lastLimits, limits.sameWindows(as: saved) { return }
         config.lastLimits = limits
+        persist()
+    }
+
+    func rememberCodexLimits(_ limits: UsageLimits?) {
+        if let limits, let saved = config.lastCodexLimits, limits.sameWindows(as: saved) { return }
+        config.lastCodexLimits = limits
         persist()
     }
 
@@ -461,9 +469,10 @@ final class PetController {
         render()
     }
 
-    func setAgents(_ cubes: [AgentCube]) {
-        guard cubes != agents else { return }
+    func setAgents(_ cubes: [AgentCube], codex: [AgentCube] = []) {
+        guard cubes != agents || codex != codexAgents else { return }
         agents = cubes
+        codexAgents = codex
         renderAgents()
         updateClock()
     }
@@ -614,7 +623,7 @@ final class PetController {
             }
             lastTick = now
         }
-        let animatedCubes = !agents.isEmpty && !config.isHome && !reduceMotion
+        let animatedCubes = !(agents.isEmpty && codexAgents.isEmpty) && !config.isHome && !reduceMotion
         let delay = max(0.008, animatedCubes ? min(player.timeToNextFrame, 0.1) : player.timeToNextFrame)
         let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -629,7 +638,7 @@ final class PetController {
         let changed = player.advance(by: now - lastTick)
         lastTick = now
         if changed { render() }
-        if !agents.isEmpty, !config.isHome, !reduceMotion { renderAgents() }
+        if !(agents.isEmpty && codexAgents.isEmpty), !config.isHome, !reduceMotion { renderAgents() }
         maybeFidget()
         updateClock(fromTick: true)
     }
@@ -648,7 +657,7 @@ final class PetController {
         // At home the stack would sit in the menu bar; the menu-bar counter covers it there.
         // Reduce Motion: the cubes keep their colors but stop spinning and bouncing.
         let tick = reduceMotion ? 0 : Int(CACurrentMediaTime() * 10)
-        let canvas = AgentStack.canvas(for: config.isHome ? [] : agents, tick: tick)
+        let canvas = AgentStack.canvas(for: config.isHome ? [] : agents, left: config.isHome ? [] : codexAgents, tick: tick)
         view.showAgents(canvas.opaquePixelCount > 0 ? canvas.makeImage() : nil, canvas: canvas)
     }
 

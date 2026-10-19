@@ -63,10 +63,14 @@ public struct SessionRegistry: Sendable {
     static let endedMemory = 500
 
     public private(set) var sessions: [String: AgentSession] = [:]
+    /// nil for agents that always report an interrupt (Codex): a quiet turn then stays "working".
+    private let silentTimeout: TimeInterval?
     /// Ended sessions still emit a few late events (e.g. the post-turn summary); they must not come back.
     private var ended: Set<String> = []
 
-    public init() {}
+    public init(silentWorkTimeout: TimeInterval? = SessionRegistry.silentWorkTimeout) {
+        silentTimeout = silentWorkTimeout
+    }
 
     public var ordered: [AgentSession] {
         sessions.values.sorted { ($0.firstSeenAt, $0.id) < ($1.firstSeenAt, $1.id) }
@@ -137,6 +141,10 @@ public struct SessionRegistry: Sendable {
             becomeIdle(&s)
             s.finishedAt = now
             if s.askedUser { s.status = .waiting }
+        case .interrupted:
+            becomeIdle(&s)
+        case .stillWorking:
+            if s.status != .waiting, s.status != .failed { startWorking(&s, now) }
         case .failed:
             becomeIdle(&s)
             s.status = .failed
@@ -179,7 +187,7 @@ public struct SessionRegistry: Sendable {
             }
             if quiet > Self.staleAfter {
                 sessions.removeValue(forKey: id)
-            } else if s.status == .working, s.currentTool == nil, quiet > Self.silentWorkTimeout {
+            } else if let silentTimeout, s.status == .working, s.currentTool == nil, quiet > silentTimeout {
                 becomeIdle(&s)
                 sessions[id] = s
             }
@@ -191,7 +199,8 @@ public struct SessionRegistry: Sendable {
         sessions.values.compactMap { s -> Date? in
             switch s.status {
             case .waiting: s.askedUser ? s.lastEventAt.addingTimeInterval(Self.staleAfter) : nil
-            case .working where s.currentTool == nil: s.lastEventAt.addingTimeInterval(Self.silentWorkTimeout)
+            case .working where s.currentTool == nil && silentTimeout != nil:
+                s.lastEventAt.addingTimeInterval(silentTimeout ?? 0)
             default: s.lastEventAt.addingTimeInterval(Self.staleAfter)
             }
         }.min()

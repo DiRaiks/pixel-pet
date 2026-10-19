@@ -5,9 +5,11 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **Codex support.** Codex agents show as blocks on the left of the cube, Claude Code stays on the right. They are read from Codex's session files in `~/.codex/sessions`, so every Codex surface works (CLI, IDE extension, desktop app) and nothing needs installing. Finished, failed and interrupted turns count like Claude's for the cube's mood and celebrations. Codex limits (5 hours and weekly) show in the status panel and the menu, from the session files and a free `codex app-server` request. A setting turns it off. Codex sessions can't show as waiting for approval: that isn't written to the files.
 - README pictures: animated states, looks, card screenshots and usage examples, generated with the new `--export-readme` flag.
 
 ### Changed
+- **Talking pose** moved one pixel right, clear of the new left column.
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed

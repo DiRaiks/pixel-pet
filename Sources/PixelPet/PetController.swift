@@ -16,6 +16,8 @@ final class PetController {
     /// The state the pet returns to after dragging: `mood` on the desk, its home version at home.
     private(set) var restingState = PetState.idle
     private var hoverPeek: DispatchWorkItem?
+    /// The home a drag in progress started from (nil when it started on the desk).
+    private var dragHome: HomeSpot?
     /// A status, translation or ask card is open (the pet stays calm under it).
     var isCardOpen: () -> Bool = { false }
     /// Desk-side reactions to the user: recent clicks (too many → cross), lingering cursor (→ shy).
@@ -504,6 +506,7 @@ final class PetController {
         view.onDragBegan = { [weak self] in
             guard let self else { return }
             onDragStart?()
+            dragHome = config.isHome ? nearestHome()?.spot : nil
             leaveHome(clearDoNotDisturb: false)
             player.play(.dragged)
             render()
@@ -522,8 +525,10 @@ final class PetController {
         let origin = PetPoint(panel.frame.origin)
         // A flick toward a home counts too: check where it's thrown, not only where it was let go.
         let thrown = PetPoint(x: origin.x + velocity.x * Placement.throwTime, y: origin.y + velocity.y * Placement.throwTime)
-        let spot = HomeGeometry.snapTarget(windowOrigin: origin, size: size, homes: homes.map(\.spot))
-            ?? HomeGeometry.snapTarget(windowOrigin: thrown, size: size, homes: homes.map(\.spot))
+        let leaving = dragHome
+        dragHome = nil
+        let spot = HomeGeometry.snapTarget(windowOrigin: origin, size: size, homes: homes.map(\.spot), leaving: leaving)
+            ?? HomeGeometry.snapTarget(windowOrigin: thrown, size: size, homes: homes.map(\.spot), leaving: leaving)
         if let spot, let home = homes.first(where: { $0.spot == spot }) {
             goHome(home, dive: true)
             return
@@ -554,13 +559,19 @@ final class PetController {
             if persistDesk, !config.isHome { persistOrigin() }
             return
         }
+        // Animate the whole frame: on macOS 26+ the window animator ignores setFrameOrigin, which left the
+        // pet wherever it was let go (even above the top edge, out of sight, when dropped into its home).
+        let target = NSRect(origin: destination.ns, size: panel.frame.size)
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.35
             context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
-            panel.animator().setFrameOrigin(destination.ns)
+            panel.animator().setFrame(target, display: true)
         }, completionHandler: { [weak self] in
             MainActor.assumeIsolated {
-                guard let self, generation == self.moveGeneration, persistDesk, !self.config.isHome else { return }
+                guard let self, generation == self.moveGeneration else { return }
+                // Land exactly, even if the animation was skipped.
+                if self.panel.frame.origin != target.origin { self.panel.setFrameOrigin(target.origin) }
+                guard persistDesk, !self.config.isHome else { return }
                 self.persistOrigin()
             }
         })
@@ -569,10 +580,10 @@ final class PetController {
     /// Grabbing the pet mid-flight stops the flick where it is, so the cursor and the animation don't fight.
     private func cancelFlick() {
         moveGeneration += 1
-        let origin = panel.frame.origin
+        let frame = panel.frame
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
-            panel.animator().setFrameOrigin(origin)
+            panel.animator().setFrame(frame, display: false)
         }
     }
 

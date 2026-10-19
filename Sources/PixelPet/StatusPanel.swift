@@ -68,7 +68,8 @@ final class CardPanel<Content: View> {
                 context.duration = 0.18
                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
                 panel.animator().alphaValue = 1
-                panel.animator().setFrameOrigin(origin)
+                // The window animator ignores setFrameOrigin (macOS 26+); the whole frame does animate.
+                panel.animator().setFrame(NSRect(origin: origin, size: panel.frame.size), display: true)
             }
         } else {
             panel.setFrameOrigin(origin)

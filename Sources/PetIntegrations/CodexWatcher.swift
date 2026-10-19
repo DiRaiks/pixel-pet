@@ -8,6 +8,10 @@ import PetCore
 /// Files grow to megabytes, so a file is never read whole once it is big: at start (and for files that
 /// show up later) only its first line (the session's metadata) and its last `tailBytes` are read, and after
 /// that only the new bytes, again capped to the tail. Runs on its own serial queue; `handler` is called there.
+///
+/// FSEvents finds new and newly touched files, but it goes quiet about a file that stays open for writing,
+/// and Codex keeps its session file open for the whole session. So every followed file also gets a kqueue
+/// source (`extend` / `write`), which fires on each append.
 /// `~/.codex` is never created or changed: without Codex the watcher waits for the folder to appear.
 public final class CodexWatcher: @unchecked Sendable {
     public struct Batch: Sendable {
@@ -28,12 +32,19 @@ public final class CodexWatcher: @unchecked Sendable {
     static let maxLine = 4 << 20
     /// How often to look for `~/.codex/sessions` when Codex isn't installed (yet).
     static let rootRetry: TimeInterval = 60
+    /// Followed files beyond this many (the least recently written first) are let go.
+    static let maxFollowed = 32
+    /// A file left alone this long is let go; a still-open Codex file would no longer be noticed by FSEvents,
+    /// so this is long.
+    static let forgetAfter: TimeInterval = 24 * 60 * 60
 
     private struct Tracked {
         var rollout: CodexRollout
         var offset: UInt64
         var pending = Data()
         var touched: Date
+        /// kqueue watch on the file; nil for skipped (subagent) files.
+        var source: DispatchSourceFileSystemObject?
     }
 
     private let root: URL
@@ -82,6 +93,7 @@ public final class CodexWatcher: @unchecked Sendable {
                 FSEventStreamRelease(stream)
                 self.stream = nil
             }
+            files.values.forEach { $0.source?.cancel() }
             files.removeAll()
         }
     }
@@ -163,13 +175,15 @@ public final class CodexWatcher: @unchecked Sendable {
             }
         }
         // Subagent files are remembered too, so their appends are skipped instead of reopening them each time.
+        files[url.path]?.source?.cancel()
+        if !tracked.rollout.isSubagent { tracked.source = follow(url.path) }
         files[url.path] = tracked
         return tracked.rollout.isSubagent ? [] : outputs
     }
 
     private func readNew(_ path: String) -> [CodexRollout.Output] {
         guard var tracked = files[path], let handle = FileHandle(forReadingAtPath: path) else {
-            files[path] = nil
+            letGo(path)
             return []
         }
         defer { try? handle.close() }
@@ -224,10 +238,41 @@ public final class CodexWatcher: @unchecked Sendable {
         return outputs
     }
 
-    /// Files nobody wrote to for a while are forgotten; if they come back to life they are opened again.
+    /// Files nobody wrote to for a long while, and the oldest beyond `maxFollowed`, are let go; if they come
+    /// back to life FSEvents reports them and they are opened again.
     private func forgetQuietFiles() {
-        let cutoff = Date().addingTimeInterval(-recentWindow * 2)
-        files = files.filter { $0.value.touched >= cutoff }
+        let cutoff = Date().addingTimeInterval(-Self.forgetAfter)
+        let byAge = files.sorted { $0.value.touched > $1.value.touched }
+        for (index, (path, tracked)) in byAge.enumerated() where index >= Self.maxFollowed || tracked.touched < cutoff {
+            letGo(path)
+        }
+    }
+
+    private func letGo(_ path: String) {
+        files[path]?.source?.cancel()
+        files[path] = nil
+    }
+
+    /// kqueue watch: fires on every append even while the writer keeps the file open.
+    private func follow(_ path: String) -> DispatchSourceFileSystemObject? {
+        let fd = open(path, O_EVTONLY)
+        guard fd >= 0 else { return nil }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd,
+                                                               eventMask: [.extend, .write, .delete, .rename],
+                                                               queue: queue)
+        source.setEventHandler { [weak self, weak source] in
+            guard let self, let source, !isCancelled else { return }
+            if !source.data.isDisjoint(with: [.delete, .rename]) {
+                // Archived or removed: FSEvents reports it again if it shows up somewhere.
+                letGo(path)
+                return
+            }
+            let outputs = readNew(path)
+            if !outputs.isEmpty { handler(Batch(outputs: outputs, isReplay: false)) }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        return source
     }
 
     private func rolloutFiles() -> [URL] {

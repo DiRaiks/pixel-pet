@@ -68,6 +68,30 @@ import PetCore
         #expect(inbox.kinds(replay: false) == [.stopped])
     }
 
+    /// Codex keeps its session file open for the whole session, and FSEvents goes quiet about a file that
+    /// stays open after its first event: appends must still be seen while the writer holds the file.
+    @Test func followsAppendsWhileTheWriterKeepsTheFileOpen() async throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        try await Task.sleep(for: .milliseconds(300))
+        let url = try file()
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        let writer = try FileHandle(forWritingTo: url)
+        defer { try? writer.close() }
+        try writer.write(contentsOf: Data((meta + task("task_started")).utf8))
+        await inbox.wait { inbox.kinds(replay: false).contains(.promptSubmitted) }
+        for _ in 0..<5 {
+            try writer.write(contentsOf: Data(line("event_msg", ["type": "item_completed", "turn_id": "t1"]).utf8))
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        try writer.write(contentsOf: Data(task("task_complete").utf8))
+        await inbox.wait { inbox.kinds(replay: false).contains(.stopped) }
+        #expect(inbox.kinds(replay: false).contains(.stopped))
+    }
+
     @Test func picksUpASessionThatStartsLater() async throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let inbox = Inbox()

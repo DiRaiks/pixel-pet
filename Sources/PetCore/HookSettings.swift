@@ -25,8 +25,9 @@ public enum HookSettings {
     /// the user removed by hand, say) is left as it is.
     public static func isOlderInstall(in settings: [String: Any], command: String) -> Bool {
         guard let hooks = settings["hooks"] as? [String: Any] else { return false }
-        let ours = Set(events.filter { ((hooks[$0] as? [[String: Any]]) ?? []).contains { ours($0, command) } })
-        return ours == Set(previousEvents)
+        // Not named `ours`: Swift 6.3 resolves the call below to the local being declared and fails.
+        let installed = Set(events.filter { ((hooks[$0] as? [[String: Any]]) ?? []).contains { ours($0, command) } })
+        return installed == Set(previousEvents)
     }
 
     public static func install(into settings: [String: Any], command: String, events: [String] = HookSettings.events)

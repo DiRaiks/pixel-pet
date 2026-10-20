@@ -353,3 +353,7 @@ Two things stay behind until you remove them yourself:
 - [Development](docs/DEVELOPMENT.md): building, testing, debug flags and conventions.
 - [Changelog](CHANGELOG.md).
 - The original [animation prototype](docs/prototype/sprites.html), which opens in a browser.
+
+## License
+
+The code is released under the [MIT License](LICENSE). LM's look is based on a mascot whose rights belong to its owners; the license covers the code that draws it, not the character itself.

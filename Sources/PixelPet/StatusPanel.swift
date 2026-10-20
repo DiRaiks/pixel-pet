@@ -21,7 +21,11 @@ final class CardPanel<Content: View> {
     var onClose: (() -> Void)?
 
     /// `keyboard: true` lets the card take typing (like Spotlight) without activating the app.
-    init(content: Content, keyboard: Bool = false) {
+    /// Cards that hold a decision (a permission request) stay open through clicks elsewhere.
+    private let staysOpen: Bool
+
+    init(content: Content, keyboard: Bool = false, staysOpen: Bool = false) {
+        self.staysOpen = staysOpen
         let panel = CardWindow(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         panel.acceptsKey = keyboard
         self.panel = panel
@@ -56,6 +60,9 @@ final class CardPanel<Content: View> {
         isClosing = false
         anchor = view
         onShow?()
+        // Content set just before showing isn't laid out yet: measure it laid out, or the card is placed
+        // for a stub and then grows over the pet.
+        panel.contentView?.layoutSubtreeIfNeeded()
         panel.setContentSize(panel.contentView?.fittingSize ?? NSSize(width: 340, height: 200))
         let origin = position(for: panel.frame.size, near: petWindow.frame, on: petWindow.screen ?? NSScreen.main)
         // Enter: fade in while settling 6 pt toward the pet, ease-out, under 200 ms.
@@ -148,7 +155,7 @@ final class CardPanel<Content: View> {
     private func watchOutsideClicks() {
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
-        guard Self.closesOnOutsideClick else { return }
+        guard Self.closesOnOutsideClick, !staysOpen else { return }
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
         }

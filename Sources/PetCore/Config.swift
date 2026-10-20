@@ -37,6 +37,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var figure = "cube"
     /// Follow Codex sessions (~/.codex/sessions) next to Claude Code's.
     public var watchCodex = true
+    /// Answer Claude Code's permission requests from a card by the pet (the hook waits for it).
+    public var approveFromPet = true
     /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
     public var touchHint = true
     /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
@@ -72,6 +74,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         accessory = try c.decodeIfPresent(String.self, forKey: .accessory) ?? "none"
         figure = try c.decodeIfPresent(String.self, forKey: .figure) ?? "cube"
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
+        approveFromPet = try c.decodeIfPresent(Bool.self, forKey: .approveFromPet) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         macReactions = try c.decodeIfPresent(Bool.self, forKey: .macReactions) ?? true

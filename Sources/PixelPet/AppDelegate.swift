@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var power: PowerMonitor?
     private var meetings: MeetingMonitor?
     private var mac: MacMonitor?
+    private var permissions: PermissionDesk?
     private var settingsModel: SettingsModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -68,6 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Sprites are drawn once, straight in the saved look.
         let pet = PetController(store: store, sprites: SpriteLibrary(look: PetController.look(from: store.load())))
         let agents = AgentMonitor(pet: pet, hooks: hooks)
+        // Permission requests answered from a card by the pet.
+        let permissions = PermissionDesk(pet: pet)
+        agents.onPermission = { data, reply in permissions.receive(data, reply: reply) }
+        agents.onSessionEnd = { permissions.sessionEnded($0) }
+        permissions.onSettledElsewhere = { agents.permissionSettled($0) }
+        agents.onPermissionAnswered = { permissions.answeredElsewhere($0) }
+        self.permissions = permissions
         let panel = StatusPanel(model: agents.status)
         let menu = StatusMenu(pet: pet, hooks: hooks)
         agents.onChange = { [weak menu] active, limits, codexLimits in
@@ -106,8 +114,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.onAsk = { [weak asker] in asker?.toggle() }
         menu.onTranslate = { [weak translator] in translator?.translateSelection() }
-        pet.isCardOpen = { [weak panel, weak translator, weak asker] in
+        pet.isCardOpen = { [weak panel, weak translator, weak asker, weak permissions] in
             (panel?.isShown ?? false) || (translator?.panel.isShown ?? false) || (asker?.panel.isShown ?? false)
+                || (permissions?.isShown ?? false)
+        }
+        // A permission request is what needs you now: the other cards make way for it.
+        permissions.onShow = { [weak panel, weak translator, weak asker] in
+            panel?.close()
+            translator?.panel.close()
+            asker?.panel.close()
         }
         pet.onDragStart = { [weak translator, weak asker] in
             panel.close()
@@ -161,6 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsModel = SettingsModel(pet: pet, hooks: hooks)
         self.settingsModel = settingsModel
         settingsModel.onWatchCodex = { [weak agents] on in agents?.setWatchingCodex(on) }
+        settingsModel.onApproveFromPet = { [weak self] in self?.permissions?.settingsChanged() }
         let settings = AppWindow(title: L("Pixel Pet Settings", "Pixel Pet — настройки"), content: SettingsView(model: settingsModel))
         settings.onKey = { settingsModel.refresh() }
         settings.onPoll = { settingsModel.refreshAccessibility() }

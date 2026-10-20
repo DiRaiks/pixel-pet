@@ -129,6 +129,13 @@ public struct SessionRegistry: Sendable {
             s.askedUser = true
         case .permissionRequested:
             enterWaiting(&s, now, for: .permission)
+        case .permissionSettled:
+            // Allowed (the tool runs and reports back) or denied (maybe with the turn stopped, which reports
+            // nothing): back to working, and with no tool on record a stopped turn settles after the quiet timeout.
+            if s.waitingFor == .permission {
+                s.currentTool = nil
+                startWorking(&s, now)
+            }
         case .notification(let type):
             if type == "idle_prompt" {
                 becomeIdle(&s)

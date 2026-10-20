@@ -33,7 +33,7 @@
 </tr>
 <tr>
 <td align="center"><img src="docs/images/alert.png" width="120" alt="Bouncing with an exclamation mark"></td>
-<td><b>Knows when you are needed.</b> A permission prompt, a question or a plan to approve makes it bounce with a "!" until you answer.</td>
+<td><b>Knows when you are needed, and lets you answer.</b> A permission prompt, a question or a plan to approve makes it bounce with a "!" until you answer. For Claude Code's permission requests a card opens by the cube with the command or file, Allow and Deny, and "don't ask again" when Claude Code offers a rule.</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/flip.png" width="120" alt="Somersault with confetti"></td>
@@ -176,6 +176,17 @@ On top of these, it plays one-off animations:
 
 When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Hookah breaks" in Settings turns it off.
 
+### Answering permission requests
+
+When Claude Code asks for permission (a command, a file change, a web page, an MCP tool), a card opens by the cube with what it wants to do and the model's one-line reason: the command, file or URL in large type, any other parameters of the tool in small `key: value` lines under it. Long commands scroll inside the card.
+
+- **Allow** / **Deny** answer at once; the agent goes on (or gets the refusal).
+- **Don't ask again** appears when Claude Code offers a rule for it, like "Yes, don't ask again" in the terminal.
+- **Answer in Terminal / VS Code / Claude** (or ✕) hands it back: Claude Code asks the usual way where the session runs, and that app comes to the front.
+- Several requests show one at a time ("1 of 2").
+
+In a terminal or editor, Claude Code doesn't show its own prompt while the card waits; after a minute without an answer it does. The Claude app shows its own dialog at the same time: answer in either place, the first answer counts and the other one closes. The card only waits while the cube is on screen (not hidden, covered or in do-not-disturb). Its buttons wake up half a second after a request appears, so a stray click can't answer one you haven't read. The command is shown in the card only and never stored or logged. Codex requests aren't covered: its approvals don't reach the pet.
+
 ### Reacting to the Mac
 
 The cube also notices what your Mac is up to. It reads only on/off signals (where sound goes, whether a mic or camera is in use, the thermal and power state, the network, the theme) and asks for no permission. Screenshots are noticed through Spotlight, so they show up after it indexes the file, and not at all where indexing is off. Any Bluetooth audio output counts as headphones. "React to the Mac" in Settings turns all of it off.
@@ -235,7 +246,7 @@ Codex blocks never turn amber: Codex doesn't write "waiting for approval" to its
 **A typical session.** You start three Claude Code sessions and switch to your browser.
 
 1. Three teal blocks spin next to the cube, and it types on its keyboard. The menu bar shows `3`.
-2. One agent asks to run a command it has no permission for. Its block turns amber, and the cube bounces with a "!" until you answer.
+2. One agent asks to run a command it has no permission for. Its block turns amber, the cube bounces with a "!", and a card by it shows the command: you click Allow without leaving what you were doing.
 3. Twelve minutes later, the longest task finishes. Its block flashes green, and the cube does a somersault.
 4. You go for lunch. With nothing running, the cube falls asleep in its nightcap, and wakes with a hop when you are back.
 
@@ -292,6 +303,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Event log | Writes to `~/.pixelpet/events.log` |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
 | Accessibility | Shows the permission status, with a button to request it |
+| Answer permission requests in the pet | A card by the cube for Claude Code's permission requests (on by default) |
 
 With **Reduce Motion** turned on in macOS (Accessibility → Display), the cube stops jumping, throwing and shaking. Cards open without animation. Looping alarm states hold a single expressive frame instead of animating.
 
@@ -321,7 +333,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 |---|---|
 | `~/.pixelpet/config.json` | Settings, position and the last known limits |
 | `~/.pixelpet/pet.sock` | Unix socket the hooks talk to. It is readable only by you |
-| `~/.pixelpet/bin/pixelpet-hook` | Hook script: `sh` and `nc` forward the hook JSON to the socket. It always exits 0 and never blocks Claude |
+| `~/.pixelpet/bin/pixelpet-hook` | Hook script: `sh` and `nc` forward the hook JSON to the socket and always exit 0. Only a permission request waits for the pet's answer (up to a minute; at once if the pet isn't running, is hidden or in do-not-disturb, or the setting is off) |
 | `~/.pixelpet/bin/pixelpet-statusline` | Optional statusline for terminal sessions. It prints `Model · ctx N% · 5h N% · 7d N%` |
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
 | `~/.claude/settings.json` | One hook entry for each of 13 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |

@@ -10,6 +10,8 @@ public struct AgentEvent: Equatable, Sendable {
         case questionAsked
         case toolFinished(name: String, useID: String?)
         case permissionRequested
+        /// The pet's card lost its request: answered in Claude Code itself, which reports neither allow nor deny.
+        case permissionSettled
         case notification(type: String?)
         case stopped
         /// The user cut the turn short (Codex `turn_aborted`): back to idle, nothing to celebrate.
@@ -98,6 +100,7 @@ public struct AgentEvent: Equatable, Sendable {
         case .questionAsked: detail = "questionAsked"
         case .toolFinished(let name, _): detail = "toolFinished \(name)"
         case .permissionRequested: detail = "permissionRequested"
+        case .permissionSettled: detail = "permissionSettled"
         case .notification(let type): detail = "notification \(type ?? "-")"
         case .stopped: detail = "stopped"
         case .interrupted: detail = "interrupted"

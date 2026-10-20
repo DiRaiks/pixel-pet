@@ -3,6 +3,34 @@ import Testing
 @testable import PetCore
 
 @Suite struct HookSettingsTests {
+    /// The permission hook waits for the pet, so it gets a longer timeout; older installs are brought up to it.
+    @Test func permissionHookGetsTheLongerTimeout() throws {
+        let cmd = "/h/.pixelpet/bin/pixelpet-hook"
+        let installed = try HookSettings.install(into: [:], command: cmd)
+        let hooks = installed["hooks"] as! [String: Any]
+        func timeout(_ event: String, _ h: [String: Any]) -> Int? {
+            (((h[event] as? [[String: Any]])?.first?["hooks"] as? [[String: Any]])?.first?["timeout"]) as? Int
+        }
+        #expect(timeout("PermissionRequest", hooks) == PermissionWait.hookTimeout)
+        #expect(timeout("PreToolUse", hooks) == 5)
+        #expect(!HookSettings.hasStaleTimeouts(in: installed, command: cmd))
+        var old = hooks
+        old["PermissionRequest"] = [["hooks": [["type": "command", "command": cmd, "timeout": 5]]], ["hooks": [["type": "command", "command": "other", "timeout": 5]]]]
+        let stale: [String: Any] = ["hooks": old, "theme": "dark"]
+        #expect(HookSettings.hasStaleTimeouts(in: stale, command: cmd))
+        let fixed = try HookSettings.updateTimeouts(in: stale, command: cmd)
+        let fixedHooks = fixed["hooks"] as! [String: Any]
+        #expect(timeout("PermissionRequest", fixedHooks) == PermissionWait.hookTimeout)
+        // Someone else's hook on the same event keeps its own timeout, and other settings stay.
+        let other = ((fixedHooks["PermissionRequest"] as? [[String: Any]])?[1]["hooks"] as? [[String: Any]])?.first
+        #expect(other?["timeout"] as? Int == 5)
+        #expect(fixed["theme"] as? String == "dark")
+        // A timeout set by hand on our entry stays.
+        var custom = hooks
+        custom["PermissionRequest"] = [["hooks": [["type": "command", "command": cmd, "timeout": 300]]]]
+        #expect(!HookSettings.hasStaleTimeouts(in: ["hooks": custom], command: cmd))
+    }
+
     let cmd = "/Users/a/.pixelpet/bin/pixelpet-hook"
 
     func groups(_ s: [String: Any], _ event: String) -> [[String: Any]] {

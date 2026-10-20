@@ -45,6 +45,24 @@ import Testing
         #expect(r.ordered[0].status == .working)
     }
 
+    /// Answered in Claude Code while the pet held the request: no hook says how, so back to working, and a
+    /// denial that stopped the turn settles after the quiet timeout like any interrupt.
+    @Test func permissionSettledElsewhereStopsWaiting() {
+        var r = SessionRegistry()
+        r.apply(ev(.toolStarted(name: "mcp__terminal__run", useID: "t1")), at: t0)
+        r.apply(ev(.permissionRequested), at: at(1))
+        r.apply(ev(.notification(type: "permission_prompt")), at: at(1))
+        r.apply(ev(.permissionSettled), at: at(5))
+        #expect(r.ordered[0].status == .working)
+        #expect(r.ordered[0].currentTool == nil)
+        r.prune(now: at(5 + SessionRegistry.silentWorkTimeout + 1))
+        #expect(r.ordered[0].status == .idle)
+        // Only a permission wait is settled; a question stays.
+        r.apply(ev(.toolStarted(name: "AskUserQuestion", useID: "q1")), at: at(400))
+        r.apply(ev(.permissionSettled), at: at(401))
+        #expect(r.ordered[0].status == .waiting)
+    }
+
     @Test func permissionNotificationWaitsUnknownNotificationsDont() {
         var r = SessionRegistry()
         r.apply(ev(.promptSubmitted), at: t0)

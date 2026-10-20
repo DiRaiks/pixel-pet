@@ -37,9 +37,49 @@ public enum HookSettings {
         for event in events {
             var list = try groups(hooks[event], event)
             if !list.contains(where: { ours($0, command) }) {
-                list.append(["hooks": [["type": "command", "command": command, "timeout": 5]]])
+                list.append(["hooks": [["type": "command", "command": command, "timeout": timeout(for: event)]]])
             }
             hooks[event] = list
+        }
+        out["hooks"] = hooks
+        return out
+    }
+
+    /// A permission request waits for the pet's answer (up to `PermissionWait.window`); everything else is
+    /// fire-and-forget.
+    public static func timeout(for event: String) -> Int {
+        event == "PermissionRequest" ? PermissionWait.hookTimeout : 5
+    }
+
+    /// Our entries still on an older build's 5 s where this build wants more (the permission hook). A timeout
+    /// set by hand is left alone.
+    public static func hasStaleTimeouts(in settings: [String: Any], command: String) -> Bool {
+        guard let hooks = settings["hooks"] as? [String: Any] else { return false }
+        return events.contains { event in
+            ((hooks[event] as? [[String: Any]]) ?? []).contains { group in
+                (group["hooks"] as? [[String: Any]] ?? []).contains {
+                    $0["command"] as? String == command && ($0["timeout"] as? Int) == 5 && timeout(for: event) != 5
+                }
+            }
+        }
+    }
+
+    /// Sets our entries' timeouts to this build's; nothing else changes.
+    public static func updateTimeouts(in settings: [String: Any], command: String) throws -> [String: Any] {
+        var out = settings
+        var hooks = try hooksDict(settings)
+        for event in events {
+            guard hooks[event] != nil else { continue }
+            hooks[event] = try groups(hooks[event], event).map { group in
+                guard var entries = group["hooks"] as? [[String: Any]] else { return group }
+                for i in entries.indices where entries[i]["command"] as? String == command
+                    && entries[i]["timeout"] as? Int == 5 {
+                    entries[i]["timeout"] = timeout(for: event)
+                }
+                var g = group
+                g["hooks"] = entries
+                return g
+            }
         }
         out["hooks"] = hooks
         return out
@@ -118,18 +158,25 @@ public struct HookInstaller: Sendable {
 
     public static let script = """
     #!/bin/sh
-    # Pixel Pet hook: forwards the hook JSON to the pet over a unix socket.
-    # Never blocks or fails Claude Code: no output, always exit 0, stdin always drained.
+    # Pixel Pet hook: forwards the hook JSON to the pet over a unix socket and prints whatever the pet sends
+    # back. The pet answers only a permission request (when it's on screen and the setting is on) and closes
+    # every other connection at once, so only that one ever waits, and at most \(PermissionWait.ncTimeout) s.
+    # Never fails Claude Code: always exit 0, stdin always drained.
     if [ -n "${PIXELPET_INTERNAL:-}" ]; then
         cat >/dev/null
         exit 0
     fi
     SOCK="$HOME/.pixelpet/pet.sock"
-    if [ -S "$SOCK" ]; then
-        nc -U -w 1 "$SOCK" >/dev/null 2>&1 || cat >/dev/null
-    else
+    if [ ! -S "$SOCK" ]; then
         cat >/dev/null
+        exit 0
     fi
+    # Where the session runs, for "Answer in Terminal / VS Code / Claude": [A-Za-z0-9._-] only, so it can't
+    # break out of the JSON string.
+    app=$(printf '%s' "${__CFBundleIdentifier:-}" | tr -cd 'A-Za-z0-9._-')
+    term=$(printf '%s' "${TERM_PROGRAM:-}" | tr -cd 'A-Za-z0-9._-')
+    sed "1s/^{/{\\"pixelpet_app\\":\\"$app\\",\\"pixelpet_term\\":\\"$term\\",/" \\
+        | nc -U -w \(PermissionWait.ncTimeout) "$SOCK" 2>/dev/null
     exit 0
 
     """
@@ -218,8 +265,17 @@ public struct HookInstaller: Sendable {
     /// A connection made by the previous build, before newer events existed: add the missing ones (with the
     /// usual backup), so it keeps working without a reconnect.
     public func upgradeIfOlderInstall() throws {
-        guard let settings = try? readSettings(), HookSettings.isOlderInstall(in: settings, command: command) else { return }
-        try writeSettings(try HookSettings.install(into: settings, command: command), original: settings)
+        guard let settings = try? readSettings() else { return }
+        var updated = settings
+        if HookSettings.isOlderInstall(in: updated, command: command) {
+            updated = try HookSettings.install(into: updated, command: command)
+        }
+        // The permission hook now waits for the pet's answer, so it needs a longer timeout.
+        if HookSettings.hasStaleTimeouts(in: updated, command: command) {
+            updated = try HookSettings.updateTimeouts(in: updated, command: command)
+        }
+        guard !NSDictionary(dictionary: updated).isEqual(to: settings) else { return }
+        try writeSettings(updated, original: settings)
     }
 
     /// Keeps an already-connected hook script in sync with this build of the app.

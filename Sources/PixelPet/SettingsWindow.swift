@@ -48,6 +48,14 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
+    var approveFromPet = true {
+        didSet {
+            guard !loading, approveFromPet != oldValue else { return }
+            update { $0.approveFromPet = approveFromPet }
+            onApproveFromPet?()
+        }
+    }
+    @ObservationIgnored var onApproveFromPet: (() -> Void)?
     var hookah = true { didSet { update { $0.hookah = hookah } } }
     var macReactions = true {
         didSet {
@@ -111,6 +119,7 @@ final class SettingsModel {
         accessory = c.accessory
         logEvents = c.logEvents
         watchCodex = c.watchCodex
+        approveFromPet = c.approveFromPet
         touchHint = c.touchHint
         hookah = c.hookah
         macReactions = c.macReactions
@@ -265,6 +274,9 @@ struct SettingsView: View {
                 Picker(L("Model for questions (⌃⌥K)", "Модель для вопросов (⌃⌥K)"), selection: $model.askModel) {
                     ForEach(Choices.models, id: \.self) { Text($0).tag($0) }
                 }
+                Toggle(L("Answer permission requests in the pet", "Отвечать на запросы разрешений в кубике"), isOn: $model.approveFromPet)
+                    .help(L("A card by the pet shows what the agent wants to run or change, with Allow and Deny. Waits up to a minute, then Claude Code asks the usual way",
+                             "Карточка у кубика показывает, что агент хочет выполнить или изменить, с кнопками «Разрешить» и «Запретить». Ждёт до минуты, потом Claude Code спросит как обычно"))
                 Toggle(L("Event log (~/.pixelpet/events.log)", "Журнал событий (~/.pixelpet/events.log)"), isOn: $model.logEvents)
                     .help(L("Only session ids, projects and event names, no text", "Только id сессий, проекты и имена событий, без текстов"))
             }

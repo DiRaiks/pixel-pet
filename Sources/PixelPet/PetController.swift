@@ -1018,7 +1018,7 @@ final class PetController {
 
     // MARK: Frames
 
-    private var isOnScreen: Bool {
+    var isOnScreen: Bool {
         !config.isHidden && panel.occlusionState.contains(.visible)
     }
 

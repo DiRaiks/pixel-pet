@@ -3,6 +3,8 @@ import Foundation
 
 /// Unix-socket server for hook payloads: one connection carries one event, read until EOF.
 /// Runs on its own serial queue; the handler is called there, so hop to the main actor yourself.
+/// A permission request keeps its connection open: the handler gets a `HookReply` to answer through.
+/// Everything else is closed right after reading.
 public final class EventServer: @unchecked Sendable {
     public enum Error: Swift.Error, Equatable {
         case pathOccupied(String)
@@ -16,15 +18,26 @@ public final class EventServer: @unchecked Sendable {
     public static let connectionDeadline: TimeInterval = 1
 
     private let path: String
-    private let handler: @Sendable (Data) -> Void
+    private let handler: @Sendable (Data, HookReply?) -> Void
+    /// How long a waiting hook's connection may stay open if nobody answers (a safety net: the app lets go
+    /// sooner, at `PermissionWait.window`).
+    public static let replyDeadline: TimeInterval = 66
     private let queue = DispatchQueue(label: "dev.pixelpet.events")
     // Touched only on `queue` (or before start / after stop).
     private var source: DispatchSourceRead?
     private var inode: ino_t = 0
 
-    public init(path: String, handler: @escaping @Sendable (Data) -> Void) {
+    public init(path: String, handler: @escaping @Sendable (Data, HookReply?) -> Void) {
         self.path = path
         self.handler = handler
+    }
+
+    /// For callers that never answer: a waiting hook is let go at once.
+    public convenience init(path: String, handler: @escaping @Sendable (Data) -> Void) {
+        self.init(path: path) { data, reply in
+            reply?.send(nil)
+            handler(data)
+        }
     }
 
     public func start() throws {
@@ -98,9 +111,23 @@ public final class EventServer: @unchecked Sendable {
         while true {
             let client = accept(listener, nil, nil)
             guard client >= 0 else { return }
-            if let data = read(client), !data.isEmpty { handler(data) }
-            close(client)
+            guard let data = read(client), !data.isEmpty else {
+                close(client)
+                continue
+            }
+            if Self.waitsForReply(data) {
+                handler(data, HookReply(fd: client, deadline: Self.replyDeadline))
+            } else {
+                handler(data, nil)
+                close(client)
+            }
         }
+    }
+
+    /// Only the permission request waits for an answer; a cheap check before the app parses it properly.
+    static func waitsForReply(_ data: Data) -> Bool {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        return json["hook_event_name"] as? String == "PermissionRequest"
     }
 
     /// Reads until EOF with one overall deadline, so a trickling client can't hold the queue for long.
@@ -180,5 +207,88 @@ public enum SocketClient {
             }
         }
         shutdown(fd, SHUT_WR)
+    }
+}
+
+/// The open connection of a hook waiting for the pet's answer. The first `send` wins: it writes the hook's
+/// output (or nothing, to let Claude Code ask the usual way) and closes; later calls do nothing. If nobody
+/// answers by the deadline it closes empty by itself.
+public final class HookReply: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fd: Int32?
+    private var watch: DispatchSourceTimer?
+    private var gone: (@Sendable () -> Void)?
+
+    init(fd: Int32, deadline: TimeInterval) {
+        self.fd = fd
+        // A hook that went away mustn't take the app down with SIGPIPE when the answer comes late, and a peer
+        // that stops reading mustn't hold up the caller.
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        var limit = timeval(tv_sec: 1, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
+        DispatchQueue.global().asyncAfter(deadline: .now() + deadline) { [weak self] in self?.send(nil) }
+    }
+
+    deinit {
+        watch?.cancel()
+        send(nil)
+    }
+
+    /// Calls `action` (on a background queue) once the hook is gone without an answer: killed with its
+    /// session, Esc in the terminal, Claude Code's own timeout. Checked twice a second while waiting.
+    public func onGone(_ action: @escaping @Sendable () -> Void) {
+        let timer = DispatchSource.makeTimerSource(queue: .global())
+        timer.schedule(deadline: .now() + 0.5, repeating: 0.5, leeway: .milliseconds(200))
+        timer.setEventHandler { [weak self] in
+            guard let self, let fd = lock.withLock({ self.fd }) else { return }
+            if Self.peerClosed(fd), lock.withLock({ self.fd != nil }) {
+                send(nil)
+                action()
+            }
+        }
+        lock.withLock {
+            gone = action
+            watch = timer
+        }
+        timer.resume()
+    }
+
+    /// The hook half-closes its side after writing; only when it's gone altogether does writing hit EOF.
+    static func peerClosed(_ fd: Int32) -> Bool {
+        let kq = kqueue()
+        guard kq >= 0 else { return false }
+        defer { close(kq) }
+        var change = kevent(ident: UInt(fd), filter: Int16(EVFILT_WRITE), flags: UInt16(EV_ADD | EV_ONESHOT),
+                            fflags: 0, data: 0, udata: nil)
+        var event = kevent()
+        var zero = timespec(tv_sec: 0, tv_nsec: 0)
+        let n = kevent(kq, &change, 1, &event, 1, &zero)
+        return n > 0 && event.flags & UInt16(EV_EOF) != 0
+    }
+
+    public var isOpen: Bool { lock.withLock { fd != nil } }
+
+    public func send(_ output: Data?) {
+        guard let fd = lock.withLock({ () -> Int32? in
+            defer {
+                self.fd = nil
+                watch?.cancel()
+                watch = nil
+            }
+            return self.fd
+        }) else { return }
+        if let output, !output.isEmpty {
+            output.withUnsafeBytes { raw in
+                var offset = 0
+                while offset < raw.count {
+                    let n = write(fd, raw.baseAddress! + offset, raw.count - offset)
+                    if n <= 0 { break }
+                    offset += n
+                }
+            }
+        }
+        close(fd)
     }
 }

@@ -45,7 +45,9 @@ import PetCore
         let payload = #"{"hook_event_name":"Stop","session_id":"s1"}"#
         #expect(try runHook(payload).status == 0)
         for _ in 0..<100 where inbox.all.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
-        #expect(inbox.all.map { String(decoding: $0, as: UTF8.self) } == [payload])
+        // The hook adds where the session runs (empty here); the rest arrives as sent.
+        #expect(inbox.all.map { String(decoding: $0, as: UTF8.self) }
+                == [#"{"pixelpet_app":"","pixelpet_term":"","hook_event_name":"Stop","session_id":"s1"}"#])
     }
 
     @Test func internalSessionsAreNotForwarded() async throws {

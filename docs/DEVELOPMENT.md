@@ -177,7 +177,6 @@ Without the certificate secrets the workflow still runs, as a dry run published 
 
 - **Stable code signing.** Builds are signed ad-hoc until a "Pixel Pet Dev" certificate exists (see [Code signing](#code-signing)), so the Accessibility permission has to be granted again after each rebuild.
 - **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
-- **Approve or deny from the panel.** A waiting agent's permission request could be answered from the status card.
 - **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.
 - **Subagent animation.** Revisit how the pet shows subagents being created (`spawn` / `recall`).
 - **Codex waiting for approval.** Codex doesn't write approval prompts to its session files, so its blocks never turn amber; its hooks (`PermissionRequest`) could fill that in, if the desktop app runs them.

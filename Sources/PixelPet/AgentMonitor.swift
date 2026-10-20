@@ -38,6 +38,23 @@ final class AgentMonitor {
     private var subagentMoments = SubagentMoments()
     private var lastFiveHour: LimitWindow?
     var onChange: ((_ active: Int, _ limits: UsageLimits?, _ codexLimits: UsageLimits?) -> Void)?
+    /// A permission request whose hook waits for an answer on the open connection.
+    var onPermission: ((Data, HookReply) -> Void)?
+    /// A session ended: its waiting requests can't be answered any more.
+    var onSessionEnd: ((String) -> Void)?
+    /// Each session's last `PreToolUse`: a permission request that follows is about that call.
+    private var lastToolUse: [String: (tool: String, id: String)] = [:]
+    /// Sessions waiting for a permission, watched in their transcripts: an answer in Claude Code reaches no
+    /// hook (a denial that stops the turn least of all), but the call's result is written there at once.
+    private var permissionTails: [String: TranscriptTail] = [:]
+    /// A request was answered where the session runs; takes the session id.
+    var onPermissionAnswered: ((String) -> Void)?
+
+    /// One hook connection: the payload, and the way back for a hook that waits.
+    private struct Incoming: @unchecked Sendable {
+        let data: Data
+        let reply: HookReply?
+    }
 
     init(pet: PetController, hooks: HookInstaller) {
         self.pet = pet
@@ -53,16 +70,25 @@ final class AgentMonitor {
     func start() {
         let path = Self.socketPath
         // One stream, one consumer: hook events reach the state machine in the order they arrived.
-        let (events, continuation) = AsyncStream.makeStream(of: Data.self, bufferingPolicy: .bufferingNewest(1000))
+        let (events, continuation) = AsyncStream.makeStream(of: Incoming.self, bufferingPolicy: .bufferingNewest(1000))
         consumer = Task { @MainActor [weak self] in
-            for await data in events { self?.receive(data) }
+            for await incoming in events {
+                guard let self else {
+                    incoming.reply?.send(nil)
+                    continue
+                }
+                if let reply = incoming.reply {
+                    if let onPermission { onPermission(incoming.data, reply) } else { reply.send(nil) }
+                }
+                receive(incoming.data)
+            }
         }
         do {
             let dir = (path as NSString).deletingLastPathComponent
             try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             // Also tighten a folder left by an older build; only this user should reach the socket.
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir)
-            let server = EventServer(path: path) { continuation.yield($0) }
+            let server = EventServer(path: path) { data, reply in continuation.yield(Incoming(data: data, reply: reply)) }
             try server.start()
             self.server = server
         } catch {
@@ -98,6 +124,8 @@ final class AgentMonitor {
     }
 
     func stop() {
+        permissionTails.values.forEach { $0.stop() }
+        permissionTails.removeAll()
         codexWatcher?.stop()
         codexWatcher = nil
         server?.stop()
@@ -112,10 +140,54 @@ final class AgentMonitor {
 
     var sessions: [AgentSession] { registry.ordered }
 
+    private func watchTranscript(for data: Data, session: String) {
+        permissionTails.removeValue(forKey: session)?.stop()
+        guard let prompt = PermissionPrompt.parse(data), let path = prompt.transcriptPath,
+              let useID = prompt.toolUseID ?? lastToolUse[session].flatMap({ $0.tool == prompt.tool ? $0.id : nil })
+        else { return }
+        var answered = false
+        permissionTails[session] = TranscriptTail(path: path) { [weak self] line in
+            guard let self, let signal = PermissionPrompt.transcriptSignal(line, toolUseID: useID) else { return }
+            if !answered {
+                answered = true
+                onPermissionAnswered?(session)
+            }
+            switch signal {
+            // Keep watching: a denial's "interrupted" line follows its result.
+            case .answered: apply(AgentEvent(sessionID: session, cwd: nil, kind: .permissionSettled))
+            case .stopped: permissionSettled(session, stopped: true)
+            }
+        }
+    }
+
+    /// A request was answered where the session runs; `stopped` when that also ended the turn.
+    func permissionSettled(_ sessionID: String, stopped: Bool = false) {
+        permissionTails.removeValue(forKey: sessionID)?.stop()
+        apply(AgentEvent(sessionID: sessionID, cwd: nil, kind: stopped ? .interrupted : .permissionSettled))
+    }
+
+    private func apply(_ event: AgentEvent) {
+        if pet.config.logEvents { EventLog.append(event.logLine) }
+        registry.apply(event, at: Date())
+        refresh()
+    }
+
     private func receive(_ data: Data) {
         let now = Date()
         switch Inbound.parse(data, at: now) {
         case .hook(let event):
+            switch event.kind {
+            case .permissionRequested: watchTranscript(for: data, session: event.sessionID)
+            case .notification: break
+            default: permissionTails.removeValue(forKey: event.sessionID)?.stop()
+            }
+            switch event.kind {
+            case .sessionEnded:
+                lastToolUse[event.sessionID] = nil
+                onSessionEnd?(event.sessionID)
+            case .toolStarted(let name, let useID?): lastToolUse[event.sessionID] = (name, useID)
+            default: break
+            }
             if pet.config.logEvents { EventLog.append(event.logLine) }
             // A successful `git push`: a rocket, at most once a minute.
             if event.pushed, now.timeIntervalSince(lastLaunch) >= Self.launchCooldown, pet.moment(.launch) {

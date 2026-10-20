@@ -4,6 +4,8 @@
 
 <h1 align="center">Pixel Pet</h1>
 
+<p align="center"><a href="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml"><img src="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
+
 <p align="center">
   A pixel-art cube for your macOS desktop that keeps an eye on your Claude Code and Codex agents.<br>
   It shows your limits, answers quick questions, translates the selection, and can hide in the MacBook notch.

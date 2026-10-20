@@ -65,6 +65,18 @@ What gets covered:
 - **Sprites are tested by their pixels.** Tests check that frame counts match `PetState`, that frames are not empty and are deterministic, and that key pixels and geometry are right. Examples are "nothing drawn above the body while dragged" and "the face stays upright while rotating".
 - **Integrations are tested with real processes.** The hook and statusline scripts run under `sh` against a real socket. `EventServer` is exercised over a real unix socket. The CLI argument builders and stream parsing are tested without running `claude`.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and on pull requests:
+
+| Job | Runner | What it checks |
+|---|---|---|
+| Build and test | `macos-26` (Apple Silicon, Xcode 26) | `swift build`, then `scripts/test.sh` |
+| Release bundle | `macos-26` | `scripts/bundle.sh` (signed ad-hoc there), then the Info.plist and the signature |
+| ShellCheck | `ubuntu-latest` | `scripts/*.sh` |
+
+Dependabot (`.github/dependabot.yml`) keeps the workflow's actions up to date once a month. Runners are free for this public repository.
+
 ## Debugging
 
 ### Launch flags

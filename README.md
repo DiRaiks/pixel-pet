@@ -109,7 +109,7 @@ Agent sessions that are already open get picked up as soon as they send their ne
 
 | Action | What happens |
 |---|---|
-| Click the cube | It hops and opens the status panel (sessions, limits, model, context) |
+| Click the cube | It hops and opens the status panel: limits, and per session what the agent is doing right now ("Runs `npm test`", "Edits `App.swift`", "Waiting for permission") with a seconds clock, the turn's length and steps, model and context |
 | Right-click | The context menu, which matches the menu-bar menu |
 | Drag | Moves the cube. A quick flick throws it across the screen |
 | Drop anywhere along the top edge of a screen | It slides over and dives home into the notch, or the burrow at the top center |

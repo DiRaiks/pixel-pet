@@ -31,12 +31,15 @@ public struct AgentEvent: Equatable, Sendable {
     public let kind: Kind
     /// A Bash call that ran `git push` and succeeded (the command itself is not kept).
     public let pushed: Bool
+    /// For a tool call starting: what it does, in a few words (`AgentStep`); the rest of the input is dropped.
+    public let step: AgentStep?
 
-    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false) {
+    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil) {
         self.sessionID = sessionID
         self.cwd = cwd
         self.kind = kind
         self.pushed = pushed
+        self.step = step
     }
 
     /// Parses a raw hook payload; nil for events the pet ignores or malformed input.
@@ -68,9 +71,11 @@ public struct AgentEvent: Equatable, Sendable {
         case "PreCompact": kind = .compacting
         default: return nil
         }
-        let pushed = name == "PostToolUse" && tool == "Bash"
-            && isGitPush((json["tool_input"] as? [String: Any])?["command"] as? String)
-        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed)
+        let input = json["tool_input"] as? [String: Any] ?? [:]
+        let pushed = name == "PostToolUse" && tool == "Bash" && isGitPush(input["command"] as? String)
+        var step: AgentStep?
+        if case .toolStarted = kind { step = AgentStep.describe(tool: tool, input: input) }
+        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step)
     }
 
     /// `git push` as a command in a shell line (also `git -C dir push`), not a dry run. Quoted text is

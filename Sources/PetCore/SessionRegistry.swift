@@ -19,6 +19,14 @@ public struct AgentSession: Equatable, Sendable {
     public var subagents: Set<String> = []
     public var lastEventAt: Date
     public var workingSince: Date?
+    /// The tool call running now (nil between calls: the model is thinking), and since when either holds.
+    public var step: AgentStep?
+    public var stepSince: Date?
+    /// When the current turn began, and how many tool calls it made so far.
+    public var turnStartedAt: Date?
+    public var steps = 0
+    /// How long the last finished turn took, from the prompt to the end.
+    public var lastTurn: TimeInterval?
     /// Active work in this turn before the latest wait, so time spent waiting for the user isn't counted.
     var workedBefore: TimeInterval = 0
     /// The turn ended with a question for the user, so after Stop the session waits for a reply.
@@ -101,6 +109,10 @@ public struct SessionRegistry: Sendable {
         case .sessionStart(let model):
             if let model { s.model = model }
         case .promptSubmitted:
+            s.turnStartedAt = now
+            s.steps = 0
+            s.step = nil
+            s.stepSince = now
             s.askedUser = false
             s.turnEnded = false
             s.workedBefore = 0
@@ -115,8 +127,17 @@ public struct SessionRegistry: Sendable {
             } else if s.pendingQuestion == nil {
                 startWorking(&s, now)
             }
+            if let step = event.step, !Self.interactiveTools.contains(name) {
+                s.step = step
+                s.stepSince = now
+                s.steps += 1
+            }
         case .toolFinished(let name, let useID):
-            if s.currentTool == name { s.currentTool = nil }
+            if s.currentTool == name {
+                s.currentTool = nil
+                s.step = nil
+                s.stepSince = now
+            }
             if let pending = s.pendingQuestion {
                 if pending == useID {
                     s.pendingQuestion = nil
@@ -227,6 +248,8 @@ public struct SessionRegistry: Sendable {
     private func startWorking(_ s: inout AgentSession, _ now: Date) {
         s.waitingFor = nil
         s.waitingSince = nil
+        if s.turnStartedAt == nil { s.turnStartedAt = now }
+        if s.stepSince == nil { s.stepSince = now }
         guard s.status != .working else { return }
         s.status = .working
         s.workingSince = now
@@ -252,6 +275,7 @@ public struct SessionRegistry: Sendable {
                 reaction = .finished
             }
         }
+        s.lastTurn = s.turnStartedAt.map { now.timeIntervalSince($0) }
         becomeIdle(&s)
         s.finishedAt = now
         if s.askedUser {
@@ -271,6 +295,10 @@ public struct SessionRegistry: Sendable {
         s.pendingQuestion = nil
         s.workingSince = nil
         s.workedBefore = 0
+        s.step = nil
+        s.stepSince = nil
+        s.turnStartedAt = nil
+        s.steps = 0
     }
 
     private func activeWork(_ s: AgentSession, _ now: Date) -> TimeInterval {

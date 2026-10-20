@@ -63,6 +63,37 @@ import Testing
         #expect(r.ordered[0].status == .waiting)
     }
 
+    /// The step running now, its own clock, and the turn's length and step count.
+    @Test func stepsAndTurnTime() {
+        var r = SessionRegistry()
+        func started(_ tool: String, _ object: String, _ id: String) -> AgentEvent {
+            AgentEvent(sessionID: "s1", cwd: "/w/proj", kind: .toolStarted(name: tool, useID: id),
+                       step: AgentStep(action: .run, object: object))
+        }
+        r.apply(ev(.promptSubmitted), at: t0)
+        #expect(r.ordered[0].turnStartedAt == t0)
+        #expect(r.ordered[0].step == nil)
+        r.apply(started("Bash", "npm test", "t1"), at: at(5))
+        #expect(r.ordered[0].step?.object == "npm test")
+        #expect(r.ordered[0].stepSince == at(5))
+        #expect(r.ordered[0].steps == 1)
+        r.apply(ev(.toolFinished(name: "Bash", useID: "t1")), at: at(9))
+        // Between calls: thinking, on a new clock.
+        #expect(r.ordered[0].step == nil)
+        #expect(r.ordered[0].stepSince == at(9))
+        r.apply(started("Bash", "ls", "t2"), at: at(12))
+        #expect(r.ordered[0].steps == 2)
+        r.apply(ev(.stopped), at: at(100))
+        #expect(r.ordered[0].lastTurn == 100)
+        #expect(r.ordered[0].step == nil)
+        #expect(r.ordered[0].steps == 0)
+        // A question isn't a step.
+        r.apply(ev(.promptSubmitted), at: at(200))
+        r.apply(AgentEvent(sessionID: "s1", cwd: nil, kind: .toolStarted(name: "AskUserQuestion", useID: "q"),
+                           step: AgentStep(action: .tool("AskUserQuestion"), object: nil)), at: at(201))
+        #expect(r.ordered[0].steps == 0)
+    }
+
     @Test func permissionNotificationWaitsUnknownNotificationsDont() {
         var r = SessionRegistry()
         r.apply(ev(.promptSubmitted), at: t0)

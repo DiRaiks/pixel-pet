@@ -16,8 +16,9 @@ final class CardPanel<Content: View> {
     private var isClosing = false
     private var clock: Timer?
     private var resignObserver: NSObjectProtocol?
-    /// Every 30 s while open, for text that depends on the time.
+    /// Every `tickInterval` while open, for text that depends on the time.
     var onTick: (() -> Void)?
+    var tickInterval: TimeInterval = 30
     var onClose: (() -> Void)?
 
     /// `keyboard: true` lets the card take typing (like Spotlight) without activating the app.
@@ -88,10 +89,10 @@ final class CardPanel<Content: View> {
         // "Resets in" and "seen N min ago" keep moving while the card is open (only cards that need it).
         clock?.invalidate()
         guard onTick != nil else { return }
-        let clock = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+        let clock = Timer(timeInterval: tickInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.onTick?() }
         }
-        clock.tolerance = 5
+        clock.tolerance = tickInterval / 6
         RunLoop.main.add(clock, forMode: .common)
         self.clock = clock
     }
@@ -325,13 +326,26 @@ private struct SessionRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Circle().fill(color).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.project ?? String(session.id.prefix(8))).font(.callout).lineLimit(1)
-                Text(source.map { "\($0) · \(detail)" } ?? detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(session.project ?? String(session.id.prefix(8))).font(.callout).lineLimit(1)
+                    Spacer(minLength: 8)
+                    if let meta { Text(meta).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1) }
+                }
+                HStack(alignment: .firstTextBaseline) {
+                    activity.font(.caption).lineLimit(1).truncationMode(.tail)
+                        .foregroundStyle(active ? .primary : .secondary)
+                    Spacer(minLength: 8)
+                    if let since = timerStart {
+                        Text(Format.clock(now.timeIntervalSince(since)))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                }
+                if let turn { Text(turn).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1) }
             }
-            Spacer()
-            if let meta { Text(meta).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
         }
     }
+
+    private var active: Bool { session.status == .working || session.status == .waiting }
 
     private var color: Color {
         switch session.status {
@@ -342,16 +356,43 @@ private struct SessionRow: View {
         }
     }
 
-    private var detail: String {
+    /// What it's doing now: the step, or what it waits for.
+    private var activity: Text {
+        let prefix = source.map { Text("\($0) · ") } ?? Text("")
         switch session.status {
         case .working:
-            let since = session.workingSince.map { " · " + Format.duration(now.timeIntervalSince($0)) } ?? ""
-            let working = L("working", "работает")
-            return (session.currentTool.map { "\(working) · \(Format.tool($0))" } ?? working) + since
-        case .waiting: return L("waiting for input", "ждёт ввода")
-        case .failed: return L("error", "ошибка")
-        case .idle: return L("idle", "простаивает")
+            guard source == nil else { return prefix + Text(L("working", "работает")) }
+            return session.step.map(Format.step) ?? Text(L("Thinking", "Думает"))
+        case .waiting where session.waitingFor == .permission:
+            let what = session.step.flatMap(\.object) ?? session.currentTool.map(Format.tool)
+            let waiting = Text(L("Waiting for permission", "Ждёт разрешения"))
+            return prefix + (what.map { waiting + Text(": ") + Format.code($0) } ?? waiting)
+        case .waiting: return prefix + Text(L("Waiting for an answer", "Ждёт ответа"))
+        case .failed: return prefix + Text(L("Error", "Ошибка"))
+        case .idle:
+            guard let finished = session.finishedAt else { return prefix + Text(L("Idle", "Простаивает")) }
+            let ago = Format.ago(finished, now: now)
+            let done = L("Done \(ago)", "Закончил \(ago)")
+            guard let took = session.lastTurn, took >= 60 else { return prefix + Text(done) }
+            return prefix + Text(done + L(", took \(Format.duration(took))", ", работал \(Format.duration(took))"))
         }
+    }
+
+    /// The step's (or the wait's) own clock.
+    private var timerStart: Date? {
+        switch session.status {
+        case .working: source == nil ? session.stepSince : session.workingSince
+        case .waiting: session.waitingSince
+        default: nil
+        }
+    }
+
+    /// The whole turn: how long and how many steps.
+    private var turn: String? {
+        guard active, source == nil, let start = session.turnStartedAt else { return nil }
+        let long = Format.duration(now.timeIntervalSince(start))
+        let time = session.status == .working ? L("working \(long)", "работает \(long)") : L("worked \(long)", "работал \(long)")
+        return session.steps > 0 ? time + " · " + Format.steps(session.steps) : time
     }
 
     private var meta: String? {
@@ -382,6 +423,40 @@ enum Format {
     }
 
     /// "mcp__terminal__run_in_terminal" -> "run_in_terminal".
+    /// m:ss, or h:mm:ss past an hour.
+    static func clock(_ seconds: TimeInterval) -> String {
+        let s = max(0, Int(seconds))
+        return s < 3600 ? String(format: "%d:%02d", s / 60, s % 60) : String(format: "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+    }
+
+    static func steps(_ n: Int) -> String {
+        let ru = n % 10 == 1 && n % 100 != 11 ? "шаг"
+            : (2...4).contains(n % 10) && !(12...14).contains(n % 100) ? "шага" : "шагов"
+        return L(n == 1 ? "1 step" : "\(n) steps", "\(n) \(ru)")
+    }
+
+    static func code(_ text: String) -> Text {
+        Text(text).font(.caption.monospaced())
+    }
+
+    /// "Runs `npm test`", "Edits `App.swift`", "terminal: run_in_terminal".
+    static func step(_ step: AgentStep) -> Text {
+        let verb: String = switch step.action {
+        case .run: L("Runs", "Выполняет")
+        case .read: L("Reads", "Читает")
+        case .edit: L("Edits", "Правит")
+        case .write: L("Writes", "Пишет")
+        case .search: L("Searches", "Ищет")
+        case .findFiles: L("Finds files", "Ищет файлы")
+        case .fetch: L("Opens", "Открывает")
+        case .webSearch: L("Searches the web", "Ищет в сети")
+        case .subagent: L("Subagent", "Сабагент")
+        case .tool(let name): PermissionView.toolName(name)
+        }
+        guard let object = step.object else { return Text(verb) }
+        return Text(verb + (step.action == .subagent ? ": " : " ")) + code(object)
+    }
+
     static func tool(_ name: String) -> String {
         name.hasPrefix("mcp__") ? String(name.split(separator: "__").last ?? Substring(name)) : name
     }
@@ -408,5 +483,7 @@ extension CardPanel where Content == StatusPanelView {
         self.init(content: StatusPanelView(model: model))
         onShow = { model.now = Date() }
         onTick = { model.now = Date() }
+        // The step timers count seconds.
+        tickInterval = 1
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 /// Moments tied to what agents, limits, the battery and the user's hand are doing.
 extension SpriteFactory {
     /// "?" bitmap, 4 wide and 7 tall.
-    private static let questionMark = [" ## ", "#  #", "   #", "  # ", " #  ", "    ", " #  "]
+    static let questionMark = [" ## ", "#  #", "   #", "  # ", " #  ", "    ", " #  "]
 
     /// An agent asks something: leans to one side and back, eyes up toward a bobbing "?".
     static func question(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {

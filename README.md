@@ -281,6 +281,8 @@ Codex blocks never turn amber: Codex doesn't write "waiting for approval" to its
 
 **Quick question without a terminal.** Press ⌃⌥K, type the question, press Return. Ask a follow-up in the same card. "New" starts a fresh conversation, and Esc closes the card.
 
+**Ask about a file.** Drag a file from Finder, the desktop or Mail onto the cube: it opens its mouth while the file is over it, swallows it when you let go, and the question card opens with the file attached and a couple of questions to start with ("What's it about?", "Find bugs", "What's in the picture?"), or your own. Up to 3 files at once. Text and code go as text (up to 200 000 characters; past that only the beginning, and the card says so), PDFs as their text (a scan as a picture of the first page), images scaled down to 1568 px. Folders, archives, apps and other binaries get a shake of the head. The file goes to Claude inside the question only when you send it; the CLI runs with no tools, so it never reads anything else on the disk. Follow-ups keep the file in the conversation.
+
 **Limits from the terminal too.** If you have no statusline of your own, connecting adds one for terminal sessions. It feeds the pet and prints a compact line:
 
 ```text

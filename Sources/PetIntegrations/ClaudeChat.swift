@@ -15,9 +15,17 @@ public enum ClaudeChat {
     public static func run(claude: URL, arguments: [String], input: String, timeout: TimeInterval = 180,
                            environment: [String: String] = ProcessInfo.processInfo.environment,
                            onEvent: @escaping @Sendable (Event) -> Void) async -> Result<String, ClaudeTranslation.Failure> {
+        await run(claude: claude, arguments: arguments, stdin: Data(input.utf8), timeout: timeout, environment: environment,
+                  onEvent: onEvent)
+    }
+
+    /// The same with raw stdin, e.g. a `--input-format stream-json` message carrying images.
+    public static func run(claude: URL, arguments: [String], stdin: Data, timeout: TimeInterval = 180,
+                           environment: [String: String] = ProcessInfo.processInfo.environment,
+                           onEvent: @escaping @Sendable (Event) -> Void) async -> Result<String, ClaudeTranslation.Failure> {
         let state = ChatState()
         let started = await ClaudeProcess.run(
-            claude: claude, arguments: arguments, stdin: Data(input.utf8),
+            claude: claude, arguments: arguments, stdin: stdin,
             timeout: timeout, killAfter: 3, environment: environment
         ) { line in
             switch ClaudeStream.parse(line, at: Date()) {
@@ -85,7 +93,8 @@ public enum ClaudeAsk {
     directly, in the user's language. Prefer short paragraphs or brief lists.
     """
 
-    public static func arguments(model: String, resume: String?) -> [String] {
+    /// `streamInput` when the question carries images: the message comes as one stream-json line.
+    public static func arguments(model: String, resume: String?, streamInput: Bool = false) -> [String] {
         var args = [
             "-p",
             "--model", model,
@@ -94,6 +103,7 @@ public enum ClaudeAsk {
             "--append-system-prompt", systemPrompt,
             "--output-format", "stream-json", "--verbose", "--include-partial-messages",
         ]
+        if streamInput { args += ["--input-format", "stream-json"] }
         if let resume { args += ["--resume", resume] }
         return args
     }

@@ -19,6 +19,7 @@ public enum MotionPolicy {
         case .offline: 0      // the struck-through Wi-Fi bubble
         case .newspaper: 0    // reading, eyes over the paper
         case .breakHint: 0    // the mug in its bubble
+        case .catchOpen: 0    // mouth open, looking up
         default: nil
         }
     }

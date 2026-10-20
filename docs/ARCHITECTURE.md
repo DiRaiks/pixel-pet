@@ -13,9 +13,9 @@ PetCore          pure logic, no AppKit: events, sessions, states, limits, config
 
 | Target | Depends on | Holds |
 |---|---|---|
-| `PetCore` | — | `AgentEvent`, `SessionRegistry`, `PetBrain`, `PetState`, `PetPlayer`, `MotionPolicy`, `UsageLimits` and `Inbound`, `ProbePolicy`, `PetConfig` and `ConfigStore`, `HookSettings` and `HookInstaller`, `HomeSpot` and `HomeGeometry`, `Placement`, `DragTracker`, `Gaze`, `ReactionThrottle` and `Fullscreen`, `TranslationPlan` and `SelectionDecision`, `AskConversation`, `ClaudeStream` and `ClaudeTranslation`, `CodexRollout`, `AnswerText` |
+| `PetCore` | — | `AgentEvent`, `SessionRegistry`, `PetBrain`, `PetState`, `PetPlayer`, `MotionPolicy`, `UsageLimits` and `Inbound`, `ProbePolicy`, `PetConfig` and `ConfigStore`, `HookSettings` and `HookInstaller`, `HomeSpot` and `HomeGeometry`, `Placement`, `DragTracker`, `Gaze`, `ReactionThrottle` and `Fullscreen`, `TranslationPlan` and `SelectionDecision`, `AskConversation` and `Attachment`, `ClaudeStream` and `ClaudeTranslation`, `CodexRollout`, `AnswerText` |
 | `PetSprites` | `PetCore` | `PixelCanvas`, `Palette` (`Skin`, `Accessory`, `Figure`, `Look`), `CubeDrawing` (`BodyStyle`), `SpriteFactory`, `AgentStack` |
-| `PetIntegrations` | `PetCore` | `EventServer`, `ClaudeLocator`, `ClaudeProcess`, `LimitsProbe`, `ClaudeChat` and `ClaudeAsk`, the `ClaudeTranslation` runner (an extension), `CodexWatcher`, `CodexLocator`, `CodexLimitsProbe` |
+| `PetIntegrations` | `PetCore` | `EventServer`, `ClaudeLocator`, `ClaudeProcess`, `LimitsProbe`, `ClaudeChat` and `ClaudeAsk`, `AttachmentLoader`, the `ClaudeTranslation` runner (an extension), `CodexWatcher`, `CodexLocator`, `CodexLimitsProbe` |
 | `PixelPet` | all three | `AppDelegate`, `PetController`, `PetPanel`, `SpriteLibrary`, `AgentMonitor`, `StatusMenu`, `StatusPanel` (cards), `TranslationCard`, `AskCard`, `SelectionReader`, `DesktopSensor`, `HotKey`, `SettingsWindow`, `OnboardingWindow`, `HookActions`, `SpriteExport` |
 
 Rule of thumb: when a decision can be stated without AppKit (a priority, a timeout, a privacy rule, a piece of geometry), it lives in `PetCore` with tests. The app target only measures the world and acts on those decisions.
@@ -160,6 +160,8 @@ The three callers:
 | `ClaudeTranslator` | sonnet | `--no-session-persistence`, streamed |
 
 `ClaudeStream` parses the stream. An answer counts as done at `message_stop`; the `result` line arrives about 1.5 s later and is not waited for.
+
+**Files.** `PetView` takes file URLs dragged onto it: while they're over the pet it rests in `catchOpen`; a drop goes to `Asker.attach`, which reads up to `Attachment.maxFiles` with `AttachmentLoader` (PetIntegrations) off the main thread: text and code when the bytes are UTF-8 with no NUL early on, cut to `Attachment.maxText`; a PDF's text through PDFKit, or its first page rendered when it has none; images through ImageIO's thumbnail at `Attachment.imageSide`, JPEG for photos and PNG otherwise. Folders, unknown types, files over 30 MB and empty ones are refused with a reason. Taken files play `swallow` and open the card; none taken plays `shakeHead`. The next question carries them: `Attachment.prompt` puts each text in a `<file name="…">` block before the question; with any image the message goes as one `--input-format stream-json` line with image blocks (`Attachment.streamMessage`). `AskConversation.Turn.files` keeps the names for the history.
 
 `AskConversation` binds every run's events to an epoch (bumped by "New") and a turn index. Late events from an old conversation or a finished turn are dropped. The next question waits until the previous CLI process has exited. Quick-question sessions live in `~/.claude/projects/*-pixelpet-claude` and are deleted on "New", on quit and on launch.
 

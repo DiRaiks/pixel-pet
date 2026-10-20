@@ -126,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let asker = Asker(pet: pet)
         asker.onLimits = { [weak agents] in agents?.absorb($0) }
         self.asker = asker
+        pet.onDropFiles = { [weak asker] in asker?.attach($0) }
         // Only one card at a time.
         translator.panel.onShow = { [weak panel, weak asker] in
             panel?.close()
@@ -220,10 +221,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         let args = CommandLine.arguments
+        // Debug aid: drop a file on the pet without a mouse (with `--ask`, the question goes after it).
+        let dropped = args.firstIndex(of: "--drop-file").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+        if let dropped {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { asker.attach([URL(fileURLWithPath: dropped)]) }
+        }
         if let i = args.firstIndex(of: "--ask"), i + 1 < args.count {
             let question = args[i + 1]
             let followUp = args.firstIndex(of: "--ask-followup").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { asker.ask(question) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + (dropped == nil ? 1 : 3)) { asker.ask(question) }
             if let followUp {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(2))

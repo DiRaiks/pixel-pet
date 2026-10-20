@@ -94,6 +94,7 @@ Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is si
 | `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--show-recap` | Opens the weekly recap card 12 s after launch |
+| `--drop-file <path>` | Drops that file on the pet 1 s after launch, as if dragged there; with `--ask`, the question follows 2 s later |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
 | `--with-claude` | Used with `--translate-text`: also runs "via Claude" |
 | `--translate-again "<text>"` | Used with `--translate-text`: translates a second text 5 s later, in the same languages |

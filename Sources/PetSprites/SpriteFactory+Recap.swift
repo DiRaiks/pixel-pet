@@ -7,8 +7,8 @@ extension SpriteFactory {
         let b = c.body(s)
         switch i {
         case 0: foldedPaper(&c, b, look)
-        case 1: paper(&c, from: b.cx - 6, to: b.cx + 5, top: b.y0 + 7, print: false, look: look)
-        default: paper(&c, from: b.cx - 9, to: b.cx + 8, top: b.y0 + 7, print: true, look: look)
+        case 1: paper(&c, from: b.cx - 6, to: b.cx + 5, top: paperTop(b, look), print: false, look: look)
+        default: paper(&c, from: b.cx - 9, to: b.cx + 8, top: paperTop(b, look), print: true, look: look)
         }
     }
 
@@ -23,7 +23,12 @@ extension SpriteFactory {
         case 10: 1
         default: nil
         }
-        paper(&c, from: b.cx - 9, to: b.cx + 8, top: b.y0 + 7, print: true, flip: flip, look: look)
+        paper(&c, from: b.cx - 9, to: b.cx + 8, top: paperTop(b, look), print: true, flip: flip, look: look)
+    }
+
+    /// Just under the eyes: LM's sit two rows lower in his drop than the cube's.
+    private static func paperTop(_ b: BodyFrame, _ look: Look) -> Int {
+        b.y0 + (look.figure == .lidman ? 9 : 7)
     }
 
     /// Open paper from column `a` to `b` (outline included), 10 rows from `top`, held by a hand on each side.

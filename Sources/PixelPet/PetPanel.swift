@@ -43,6 +43,10 @@ final class PetView: NSView {
     var onHover: ((Bool) -> Void)?
     /// The cursor moved over the pet: its x in screen points (for petting).
     var onMouseMove: ((Double) -> Void)?
+    /// Files dragged over the pet (true) or away again (false).
+    var onFilesOver: ((Bool) -> Void)?
+    /// Files dropped on the pet.
+    var onFilesDropped: (([URL]) -> Void)?
 
     private var tracker: DragTracker?
     private var grabOffset = NSPoint.zero
@@ -57,6 +61,33 @@ final class PetView: NSView {
         agentsLayer.frame = bounds
         layer?.addSublayer(sprite)
         layer?.addSublayer(agentsLayer)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    // MARK: Files dropped on the pet
+
+    private func fileURLs(_ info: NSDraggingInfo) -> [URL] {
+        info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard !fileURLs(sender).isEmpty else { return [] }
+        onFilesOver?(true)
+        return .copy
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        fileURLs(sender).isEmpty ? [] : .copy
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { onFilesOver?(false) }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = fileURLs(sender)
+        onFilesOver?(false)
+        guard !urls.isEmpty else { return false }
+        onFilesDropped?(urls)
+        return true
     }
 
     @available(*, unavailable)

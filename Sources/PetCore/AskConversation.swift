@@ -13,10 +13,13 @@ public struct AskConversation: Equatable, Sendable {
         public var question: String
         public var answer: String
         public var state: State
-        public init(question: String, answer: String, state: State) {
+        /// Names of the files sent with this question.
+        public var files: [String]
+        public init(question: String, answer: String, state: State, files: [String] = []) {
             self.question = question
             self.answer = answer
             self.state = state
+            self.files = files
         }
     }
 
@@ -44,11 +47,11 @@ public struct AskConversation: Equatable, Sendable {
     }
 
     @discardableResult
-    public mutating func ask(_ question: String) -> Bool {
+    public mutating func ask(_ question: String, files: [String] = []) -> Bool {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canAsk, !trimmed.isEmpty else { return false }
         resumeID = sessionID
-        turns.append(Turn(question: trimmed, answer: "", state: .streaming))
+        turns.append(Turn(question: trimmed, answer: "", state: .streaming, files: files))
         return true
     }
 

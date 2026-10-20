@@ -61,6 +61,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .touchKeyHome: L("Waits for a touch (home)", "Ждёт касания (дома)"),
             .newspaperOpen: L("Opens the newspaper", "Разворачивает газету"), .newspaper: L("Reads the recap", "Читает итоги"),
             .breakHint: L("Time for a break", "Пора на перерыв"),
+            .catchOpen: L("Catches a file", "Ловит файл"), .swallow: L("Swallows a file", "Глотает файл"),
+            .shakeHead: L("Shakes its head", "Мотает головой"),
             .question: L("Agent asks", "Агент спрашивает"), .refill: L("Limit reset", "Лимит обновился"),
             .exhausted: L("Limit spent", "Лимит исчерпан"),
             .spawn: L("Subagents", "Сабагенты"), .recall: L("Subagents back", "Сабагенты вернулись"),

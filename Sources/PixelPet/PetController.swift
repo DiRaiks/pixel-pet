@@ -63,6 +63,10 @@ final class PetController {
     private(set) var hasNews = false
     /// A click on the newspaper: open the recap.
     var onOpenNews: (() -> Void)?
+    /// Files dragged over the pet: mouth open, looking up at them.
+    private var catching = false
+    /// Files dropped on the pet.
+    var onDropFiles: (([URL]) -> Void)?
     private var touchEnd: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false
@@ -286,6 +290,8 @@ final class PetController {
     private func resolvedRest() -> PetState {
         // The key waiting for a touch is what the user is waiting on right now, even under do-not-disturb.
         if touching { return config.isHome ? .touchKeyHome : .touchKey }
+        // A file held over it: ready to catch, whatever else is going on.
+        if catching, !config.isHome { return .catchOpen }
         if config.isHome {
             let home = PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb)
             // The last minute before a call: out of the hole to say so (not under do-not-disturb).
@@ -433,6 +439,11 @@ final class PetController {
         // Touched: a happy check mark (from home just a quick peek). A wait that ran into gpg's timeout
         // most likely wasn't touched, so nothing to celebrate.
         if touchWait.duration < TouchWait.likelyTimeout { react(.touchDone) }
+    }
+
+    /// The dropped files were taken (swallowed) or none could be (a shake of the head).
+    func caughtFiles(_ taken: Bool) {
+        react(taken ? .swallow : .shakeHead)
     }
 
     // MARK: Breaks
@@ -950,6 +961,12 @@ final class PetController {
     // MARK: Input
 
     private func wireInput() {
+        view.onFilesOver = { [weak self] over in
+            guard let self, over != catching else { return }
+            catching = over
+            applyRest()
+        }
+        view.onFilesDropped = { [weak self] urls in self?.onDropFiles?(urls) }
         view.onPress = { [weak self] in self?.cancelFlick() }
         view.onHover = { [weak self] inside in self?.hover(inside) }
         view.onMouseMove = { [weak self] x in self?.mouseMoved(x: x) }

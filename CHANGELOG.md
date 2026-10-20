@@ -5,6 +5,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **Drop a file on the cube to ask about it.** It opens its mouth while a file is over it, swallows it, and the question card opens with the file attached and questions to start with. Text, code, PDFs (their text) and images (scaled down), up to 3 at a time; folders and binaries get a shake of the head. The file goes to Claude only inside the question you send; the CLI still runs without tools.
 - **Break reminder.** After an hour of work without five minutes away, the cube yawns and holds up a steaming mug; a click puts it off for 15 minutes, otherwise it comes back every 20 minutes until a break. Coming back from it earns a hop; the status panel counts the time when the reminder is near. Only the system idle time is read. Settings → Breaks (45, 60, 90 minutes or off).
 - **Weekly recap.** Day sums of agent time, turns, steps, waits and the 5-hour limit, per project folder, in `~/.pixelpet/stats.json` (no text, 8 weeks). On Monday morning the cube unfolds a newspaper and reads it until clicked; the click (or the menu) opens last week's recap: time per day for Claude Code and Codex, top projects, the longest turn, waits, answers in the cube, the limit, and the change from the week before. Settings → Weekly recap.
 - **Silent notifications.** While the cube can't be seen, a banner with no sound says when an agent needs permission or an answer, finishes a long turn or fails, and when the YubiKey waits for a touch. One per session, replaced and cleared as things move on; a click opens the app the session runs in. Only the project and what happened. Settings → Notifications. The app has an icon now: the cube.
@@ -29,6 +30,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **LM's newspaper sits under his eyes.** The recap paper covered most of his face; it's two rows lower for him.
 - **No dancing to silence after unplugging headphones.** A paused player's open stream moves to the speakers and keeps them looking busy; a stream carried over to a new output no longer counts as music until it stops once.
 - **Translation card.** A second translation in the same languages sat on "Translating…" for good (a fresh session configuration compared equal to the last one, so it never ran); it now re-runs the configuration. Long results scroll inside the card instead of cutting off at 14 lines, and the card stays on screen as it grows.
 - **SIGPIPE.** A `claude` run that exited before reading its input (a crash, a timeout kill) could take the whole app down with SIGPIPE while the text was still being written. Pipes and the hook socket now opt out of SIGPIPE, and the app ignores it.

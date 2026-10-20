@@ -48,6 +48,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case newspaperOpen, newspaper
     /// Time for a break: a steaming mug in a bubble, after a yawn and a stretch.
     case breakHint
+    /// A file dragged over the pet (mouth open, looking up at it), swallowed when dropped, or refused.
+    case catchOpen, swallow, shakeHead
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -120,6 +122,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .dizzy: Self.repeating(6, 90) + Self.repeating(8, 120)
         case .newspaperOpen: [300, 200, 200]
         case .breakHint: Self.repeating(16, 280)
+        case .catchOpen: [220, 220]
+        case .swallow: [100, 100, 100, 150, 150, 150, 150, 400, 500]
+        case .shakeHead: [80, 80, 80, 80, 150, 200]
         case .newspaper: Self.repeating(6, 300) + [150, 600, 120, 120, 120, 900]
         }
     }
@@ -133,7 +138,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
-             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen: false
+             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
+             .swallow, .shakeHead: false
         default: true
         }
     }

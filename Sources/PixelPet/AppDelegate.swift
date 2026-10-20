@@ -130,6 +130,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if CommandLine.arguments.contains("--with-claude") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { translator.translateWithClaude() }
             }
+            // A second translation in the same languages once the first is done (it used to hang).
+            if let j = CommandLine.arguments.firstIndex(of: "--translate-again"), j + 1 < CommandLine.arguments.count {
+                let again = CommandLine.arguments[j + 1]
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { translator.translate(again) }
+            }
         }
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--ask"), i + 1 < args.count {

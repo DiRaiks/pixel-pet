@@ -42,16 +42,21 @@ final class TranslationModel {
     }
     /// Bumped on every new request and on close; a translation finishing for an older request is dropped.
     private(set) var request = 0
+    /// How tall the translated text may get before it scrolls, from the screen the card is on.
+    var maxResultHeight: CGFloat = 420
 
-    /// Forget the current request: stops its translation (SwiftUI cancels the task when the configuration goes away).
+    /// Forget the current request; a translation still running for it is dropped when it finishes. The
+    /// configuration stays: see `start`.
     func reset() {
         request += 1
         plan = nil
-        configuration = nil
         claude = nil
         phase = .reading
     }
 
+    /// The translation runs when the configuration changes. A fresh configuration for the same languages
+    /// compares equal to the last one, so SwiftUI wouldn't run it again and the card would sit on
+    /// "Translating…" forever; `invalidate()` is how a configuration asks to run again.
     func start(_ plan: TranslationPlan) {
         self.plan = plan
         phase = .translating
@@ -142,11 +147,16 @@ struct TranslationView: View {
             }
         case .done(let text):
             original
-            // Long results are cut here; "Copy" always takes the whole translation.
-            Text(text).font(.body).textSelection(.enabled).lineLimit(14)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            claudeSection
+            // Long results scroll, capped by the screen, so the card never runs off it.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(text).font(.body).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    claudeSection
+                }
+            }
+            .frame(maxHeight: model.maxResultHeight)
             HStack {
                 Spacer()
                 if model.claude == nil { Button(L("Via Claude", "Через Claude"), action: onAskClaude)
@@ -191,7 +201,7 @@ struct TranslationView: View {
             }
             switch claude {
             case .running(let text), .done(let text):
-                Text(text.isEmpty ? "…" : text).font(.body).textSelection(.enabled).lineLimit(14)
+                Text(text.isEmpty ? "…" : text).font(.body).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .failed(let message):
@@ -334,6 +344,9 @@ final class Translator {
     }
 
     private func open() {
+        // Room for the header, the original and the buttons; the rest of the screen for the translation.
+        let screen = pet.anchorView.window?.screen ?? NSScreen.main
+        model.maxResultHeight = max(160, min(480, (screen?.visibleFrame.height ?? 800) - 260))
         panel.show(from: pet.anchorView, animated: false)
         if panel.isShown { pet.setTalking(true) }
     }

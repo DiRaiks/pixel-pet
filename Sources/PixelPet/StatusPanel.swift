@@ -112,14 +112,21 @@ final class CardPanel<Content: View> {
         })
     }
 
-    /// Re-fits the card after its content changed, keeping the edge next to the pet in place.
+    /// Re-fits the card after its content changed, keeping the edge next to the pet in place, and then
+    /// keeping the whole card on screen (a long result grows it past the edge otherwise).
     func refit() {
-        guard isShown, let pet = anchor?.window?.frame, let size = panel.contentView?.fittingSize,
+        guard isShown, let petWindow = anchor?.window, let size = panel.contentView?.fittingSize,
               size != panel.frame.size else { return }
+        let pet = petWindow.frame
         var frame = panel.frame
         let above = frame.minY >= pet.maxY
         if !above { frame.origin.y = frame.maxY - size.height }
         frame.size = size
+        if let area = (petWindow.screen ?? NSScreen.main)?.visibleFrame {
+            frame.size.height = min(frame.height, area.height)
+            if frame.maxY > area.maxY { frame.origin.y = area.maxY - frame.height }
+            if frame.minY < area.minY { frame.origin.y = area.minY }
+        }
         panel.setFrame(frame, display: true)
     }
 

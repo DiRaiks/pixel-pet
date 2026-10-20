@@ -95,6 +95,7 @@ Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is si
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
 | `--with-claude` | Used with `--translate-text`: also runs "via Claude" |
+| `--translate-again "<text>"` | Used with `--translate-text`: translates a second text 5 s later, in the same languages |
 | `--ask "<question>"` | Asks a quick question 1 s after launch |
 | `--ask-followup "<question>"` | Used with `--ask`: sends a follow-up once the first answer is done |
 | `--keep-cards` | Clicks elsewhere do not close the cards (for scripted checks with screenshots) |

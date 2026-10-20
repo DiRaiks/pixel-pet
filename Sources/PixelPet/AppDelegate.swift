@@ -105,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.permissions = permissions
         let panel = StatusPanel(model: agents.status)
+        agents.status.breakWorked = { [weak pet] in pet?.breakWorked(now: $0) }
         let menu = StatusMenu(pet: pet, hooks: hooks)
         agents.onChange = { [weak menu] active, limits, codexLimits in
             menu?.update(active: active, limits: limits, codexLimits: codexLimits)
@@ -311,6 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !on { pet?.setNews(false) }
         }
         settingsModel.onClearStats = { [weak self] in self?.stats?.clear() }
+        settingsModel.onBreakMinutes = { [weak pet] in pet?.setBreakMinutes($0) }
         // Monday's newspaper: looked for at launch and every few minutes after.
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in self?.checkRecap() }
         let recapClock = Timer(timeInterval: 300, repeats: true) { [weak self] _ in

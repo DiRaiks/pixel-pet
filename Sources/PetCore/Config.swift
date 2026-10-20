@@ -45,6 +45,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var notifications = NotificationMode.whenHidden
     /// Keep day sums for the weekly recap (`~/.pixelpet/stats.json`) and bring the newspaper on Mondays.
     public var weeklyRecap = true
+    /// Minutes of work without a break before the mug comes out (`BreakClock.choices`); 0 is off.
+    public var breakMinutes = 60
     /// The Monday the newspaper last came out ("yyyy-MM-dd"), so it comes once a week.
     public var recapShownFor: String?
     /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
@@ -84,6 +86,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         notifications = (try? c.decodeIfPresent(NotificationMode.self, forKey: .notifications)) ?? .whenHidden
         weeklyRecap = try c.decodeIfPresent(Bool.self, forKey: .weeklyRecap) ?? true
+        breakMinutes = try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 60
         recapShownFor = try c.decodeIfPresent(String.self, forKey: .recapShownFor)
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         macReactions = try c.decodeIfPresent(Bool.self, forKey: .macReactions) ?? true

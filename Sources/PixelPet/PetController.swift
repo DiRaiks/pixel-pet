@@ -56,6 +56,9 @@ final class PetController {
     }
     /// A hardware key started or stopped waiting for a touch.
     var onTouching: ((Bool) -> Void)?
+    /// Work without a break, from the system idle time: the mug comes out after `breakMinutes`.
+    private var breakClock: BreakClock
+    private var breakCheck: Timer?
     /// The weekly recap is in: reads the newspaper while calm, until clicked.
     private(set) var hasNews = false
     /// A click on the newspaper: open the recap.
@@ -104,6 +107,7 @@ final class PetController {
         self.store = store
         self.sprites = sprites
         config = store.load()
+        breakClock = BreakClock(minutes: config.breakMinutes)
         sprites.setLook(Self.look(from: config))
         let side = Self.spriteSize * Double(config.scale)
         panel = PetPanel(size: NSSize(width: side, height: side))
@@ -114,6 +118,12 @@ final class PetController {
     }
 
     func start() {
+        let breakCheck = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkBreak() }
+        }
+        breakCheck.tolerance = 5
+        RunLoop.main.add(breakCheck, forMode: .common)
+        self.breakCheck = breakCheck
         scheduleNightCheck()
         scheduleDayChange()
         if config.isHome { panel.level = .statusBar }
@@ -288,6 +298,11 @@ final class PetController {
         if meetingPhase != .none, mood != .error, mood != .alert, mood != .question {
             return meetingPhase == .now ? .meetingNow : .meetingSoon
         }
+        // Time for a break: over work and rest, never over an agent that needs you, an error, a fullscreen
+        // app or do-not-disturb.
+        if breakClock.showing, !dimmed, !config.doNotDisturb, mood != .error, mood != .alert, mood != .question {
+            return .breakHint
+        }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
         // The recap waits behind anything going on: only while idle and awake.
@@ -419,6 +434,29 @@ final class PetController {
         // most likely wasn't touched, so nothing to celebrate.
         if touchWait.duration < TouchWait.likelyTimeout { react(.touchDone) }
     }
+
+    // MARK: Breaks
+
+    private func checkBreak() {
+        switch breakClock.update(now: Date(), userIdle: userIdleProvider()) {
+        case .show:
+            applyRest()
+            // A yawn and a stretch first, when the mug actually shows.
+            if restingState == .breakHint { react(.yawn) }
+        case .hide: applyRest()
+        case .welcomeBack: if isOnScreen, !config.isHome { react(.hop) }
+        case nil: break
+        }
+    }
+
+    /// Settings changed the interval (0 turns it off; a showing mug goes on the next look).
+    func setBreakMinutes(_ minutes: Int) {
+        breakClock.minutes = minutes
+        checkBreak()
+    }
+
+    /// How long this stretch of work has gone, once the reminder is near (for the status card).
+    func breakWorked(now: Date) -> TimeInterval? { breakClock.workedNearReminder(now: now) }
 
     /// The recap came in (unfolds the paper when it can be seen), or was read elsewhere (menu, setting off).
     func setNews(_ on: Bool) {
@@ -920,6 +958,12 @@ final class PetController {
             if restingState == .meetingSoon || restingState == .meetingNow, !config.isHome {
                 // "Got it": the headset comes off, a little hop, and the card stays shut this time.
                 onDismissMeeting?()
+                react(.hop)
+                return
+            }
+            if restingState == .breakHint, !config.isHome {
+                // "Later": the mug goes away for 15 minutes.
+                if breakClock.snooze(now: Date()) != nil { applyRest() }
                 react(.hop)
                 return
             }

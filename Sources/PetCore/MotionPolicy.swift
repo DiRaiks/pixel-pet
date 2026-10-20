@@ -18,6 +18,7 @@ public enum MotionPolicy {
         case .lowPower: 0     // sleepy beside the yellow battery
         case .offline: 0      // the struck-through Wi-Fi bubble
         case .newspaper: 0    // reading, eyes over the paper
+        case .breakHint: 0    // the mug in its bubble
         default: nil
         }
     }

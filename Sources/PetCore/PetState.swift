@@ -46,6 +46,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case meetingSoon, meetingNow
     /// The weekly recap is in: takes out a newspaper and opens it, then reads until clicked.
     case newspaperOpen, newspaper
+    /// Time for a break: a steaming mug in a bubble, after a yawn and a stretch.
+    case breakHint
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -117,6 +119,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .meetingNow: Self.repeating(8, 90)
         case .dizzy: Self.repeating(6, 90) + Self.repeating(8, 120)
         case .newspaperOpen: [300, 200, 200]
+        case .breakHint: Self.repeating(16, 280)
         case .newspaper: Self.repeating(6, 300) + [150, 600, 120, 120, 120, 900]
         }
     }

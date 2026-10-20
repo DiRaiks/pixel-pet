@@ -17,5 +17,7 @@ final class StatusModel {
     var isProbing = false
     var hooksConnected = false
     var now = Date()
+    /// Work without a break so far, when the reminder is near (nil otherwise).
+    @ObservationIgnored var breakWorked: ((Date) -> TimeInterval?)?
     @ObservationIgnored var onRefreshLimits: (() -> Void)?
 }

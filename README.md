@@ -198,6 +198,10 @@ While the cube can't be seen (hidden, covered, behind a fullscreen app), agents 
 
 Each session has at most one notification: a new one replaces it, and it goes away once the session works again, gets its answer or ends (the key's once it's touched). A click brings up the app the session runs in. Notifications carry only the project and what happened, never the command, file or question, since Notification Center keeps a history. macOS asks for permission the first time one is sent; Focus and the cube's do-not-disturb keep them quiet. Settings → Notifications: off, when the cube can't be seen (the default), or always.
 
+### Breaks
+
+After an hour at the Mac without five minutes away, the cube yawns, stretches and holds up a steaming mug. Click it for "later" (15 minutes); left alone, the mug goes after 3 minutes and comes back 20 minutes on, until you take a break. Five minutes away resets the count, and coming back from a break you'd earned gets a hop. The mug stays out of the way of an agent that needs you, an error, a fullscreen app and do not disturb; the status panel shows "No break for N" when the reminder is near. Any keyboard or mouse input counts as work (the same idle time the cube uses to fall asleep); what you do isn't looked at. Settings → Breaks: off, or every 45, 60 (default) or 90 minutes.
+
 ### Weekly recap
 
 The cube keeps day sums of what the agents did, and on Monday morning (from 6:00, or the first time it's out later that week) it unfolds a newspaper and reads it until you click it. The click opens the recap of the week before:
@@ -319,6 +323,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Claude Code hooks and statusline | Connect or disconnect them |
 | Model for questions | haiku, sonnet or opus |
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
+| Breaks | Remind about a break after 45, 60 (default) or 90 minutes of work, or never |
 | Weekly recap | Keep day sums for the recap and the Monday newspaper (on by default); clear the statistics |
 | Notifications | Off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
 | YubiKey | Show when the key waits for a touch (on by default) |

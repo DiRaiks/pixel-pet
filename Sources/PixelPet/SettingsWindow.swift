@@ -104,6 +104,14 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onWeeklyRecap: ((Bool) -> Void)?
+    var breakMinutes = 60 {
+        didSet {
+            guard !loading, breakMinutes != oldValue else { return }
+            update { $0.breakMinutes = breakMinutes }
+            onBreakMinutes?(breakMinutes)
+        }
+    }
+    @ObservationIgnored var onBreakMinutes: ((Int) -> Void)?
     @ObservationIgnored var onClearStats: (() -> Void)?
     /// Whether macOS lets the app post notifications (nil: not asked yet).
     var notificationsAllowed: Bool?
@@ -142,6 +150,7 @@ final class SettingsModel {
         touchHint = c.touchHint
         notifications = c.notifications
         weeklyRecap = c.weeklyRecap
+        breakMinutes = c.breakMinutes
         hookah = c.hookah
         macReactions = c.macReactions
         meetingAlerts = c.meetingAlerts
@@ -347,6 +356,15 @@ struct SettingsView: View {
                         Button(L("Open…", "Открыть…")) { Notifier.openSystemSettings() }
                     }
                 }
+            }
+            Section(L("Breaks", "Перерывы")) {
+                Picker(L("Remind about a break", "Напоминать о перерыве"), selection: $model.breakMinutes) {
+                    ForEach(BreakClock.choices, id: \.self) { minutes in
+                        Text(minutes == 0 ? L("Off", "Выключено") : L("Every \(minutes) min", "Каждые \(minutes) мин")).tag(minutes)
+                    }
+                }
+                .help(L("After this long at the Mac without 5 minutes away, the cube yawns and holds up a mug. A click puts it off for 15 minutes. Any keyboard or mouse input counts as work; what you do isn't looked at",
+                         "Если столько проработать без 5 минут вдали от Mac, кубик зевает и показывает кружку. Клик откладывает на 15 минут. Работой считается любой ввод с клавиатуры и мыши; что именно ты делаешь, не смотрится"))
             }
             Section(L("Weekly recap", "Итоги недели")) {
                 Toggle(L("Keep a weekly recap", "Собирать итоги недели"), isOn: $model.weeklyRecap)

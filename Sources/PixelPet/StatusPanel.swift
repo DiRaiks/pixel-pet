@@ -185,6 +185,14 @@ struct StatusPanelView: View {
                 }
                 Divider()
             }
+            if let worked = model.breakWorked?(model.now) {
+                HStack {
+                    Label(L("No break for", "Без перерыва"), systemImage: "cup.and.saucer").font(.callout)
+                    Spacer()
+                    Text(Format.duration(worked)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                }
+                Divider()
+            }
             LimitsSection(model: model)
             Divider()
             SessionsSection(model: model)

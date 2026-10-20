@@ -41,6 +41,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var approveFromPet = true
     /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
     public var touchHint = true
+    /// Silent system notifications for agents (and the key) while the pet can't be seen, always, or never.
+    public var notifications = NotificationMode.whenHidden
     /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
     public var hookah = true
     /// React to the Mac: headphones, music, mic or camera in use, heat, low power, the network, a full
@@ -76,6 +78,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
         approveFromPet = try c.decodeIfPresent(Bool.self, forKey: .approveFromPet) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
+        notifications = (try? c.decodeIfPresent(NotificationMode.self, forKey: .notifications)) ?? .whenHidden
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         macReactions = try c.decodeIfPresent(Bool.self, forKey: .macReactions) ?? true
         meetingAlerts = try c.decodeIfPresent(Bool.self, forKey: .meetingAlerts) ?? false

@@ -25,8 +25,11 @@ public struct AgentSession: Equatable, Sendable {
     /// When the current turn began, and how many tool calls it made so far.
     public var turnStartedAt: Date?
     public var steps = 0
-    /// How long the last finished turn took, from the prompt to the end.
+    /// How long the last finished turn took, from the prompt to the end, and its tool calls.
     public var lastTurn: TimeInterval?
+    public var lastSteps = 0
+    /// The app the session runs in (Terminal, VS Code, the Claude app), when the hook could tell.
+    public var host: AgentHost?
     /// Active work in this turn before the latest wait, so time spent waiting for the user isn't counted.
     var workedBefore: TimeInterval = 0
     /// The turn ended with a question for the user, so after Stop the session waits for a reply.
@@ -103,6 +106,7 @@ public struct SessionRegistry: Sendable {
         var s = sessions[event.sessionID] ?? AgentSession(id: event.sessionID, firstSeenAt: now, lastEventAt: now)
         s.lastEventAt = now
         if let cwd = event.cwd { s.cwd = cwd }
+        if let host = event.host { s.host = host }
         var reaction: AgentReaction?
 
         switch event.kind {
@@ -276,6 +280,7 @@ public struct SessionRegistry: Sendable {
             }
         }
         s.lastTurn = s.turnStartedAt.map { now.timeIntervalSince($0) }
+        s.lastSteps = s.steps
         becomeIdle(&s)
         s.finishedAt = now
         if s.askedUser {

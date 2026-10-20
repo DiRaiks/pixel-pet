@@ -51,7 +51,11 @@ final class PetController {
     private var nightCheck: DispatchWorkItem?
     /// A hardware key waiting for a touch: shown above everything else.
     private var touchWait = TouchWait()
-    private var touching = false
+    private var touching = false {
+        didSet { if touching != oldValue { onTouching?(touching) } }
+    }
+    /// A hardware key started or stopped waiting for a touch.
+    var onTouching: ((Bool) -> Void)?
     private var touchEnd: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false

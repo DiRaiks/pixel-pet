@@ -31,7 +31,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the parts fit together.
 | Command | What it does |
 |---|---|
 | `swift build` | Debug build of all targets |
-| `./scripts/bundle.sh` | Release build, packaged as `build/PixelPet.app` with `Info.plist` (`LSUIElement`, bundle id `dev.pixelpet.PixelPet`) and signed. Set `CONFIG=debug` for a debug bundle |
+| `./scripts/bundle.sh` | Release build, packaged as `build/PixelPet.app` with `Info.plist` (`LSUIElement`, bundle id `dev.pixelpet.PixelPet`) and the icon `Resources/AppIcon.icns` (drawn from the idle sprite by `scripts/make-icon.swift`), and signed. Set `CONFIG=debug` for a debug bundle |
 | `./scripts/run.sh` | Quits a running copy, bundles, and opens `build/PixelPet.app` |
 | `./scripts/install.sh` | Bundles first (a failed build leaves the running pet alone), then replaces `~/Applications/PixelPet.app` and launches it. Use this for the copy you live with: login items work best from `~/Applications` |
 

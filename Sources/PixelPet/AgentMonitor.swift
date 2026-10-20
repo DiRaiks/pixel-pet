@@ -49,6 +49,11 @@ final class AgentMonitor {
     private var permissionTails: [String: TranscriptTail] = [:]
     /// A request was answered where the session runs; takes the session id.
     var onPermissionAnswered: ((String) -> Void)?
+    /// A session's notification should be posted or cleared: its key ("claude-…" / "codex-…"), the session
+    /// as it is now (nil when gone), what to do, and whether it's a Codex session.
+    var onNotice: ((_ key: String, _ session: AgentSession?, _ action: NoticePlan.Action, _ codex: Bool) -> Void)?
+    /// Sessions whose notification may still be up, so a session dropped by `prune` gets its cleared too.
+    private var noticed: Set<String> = []
 
     /// One hook connection: the payload, and the way back for a hook that waits.
     private struct Incoming: @unchecked Sendable {
@@ -168,8 +173,19 @@ final class AgentMonitor {
 
     private func apply(_ event: AgentEvent) {
         if pet.config.logEvents { EventLog.append(event.logLine) }
-        registry.apply(event, at: Date())
+        let before = registry.sessions[event.sessionID]
+        let reaction = registry.apply(event, at: Date())
+        notice(event.sessionID, before: before, reaction: reaction, codex: false)
         refresh()
+    }
+
+    private func notice(_ id: String, before: AgentSession?, reaction: AgentReaction?, codex: Bool, posting: Bool = true) {
+        let after = (codex ? codexRegistry : registry).sessions[id]
+        guard let action = NoticePlan.action(before: before, after: after, reaction: reaction) else { return }
+        if case .post = action, !posting { return }
+        let key = (codex ? "codex-" : "claude-") + id
+        if case .post = action { noticed.insert(key) } else { noticed.remove(key) }
+        onNotice?(key, after ?? before, action, codex)
     }
 
     private func receive(_ data: Data) {
@@ -193,7 +209,10 @@ final class AgentMonitor {
             if event.pushed, now.timeIntervalSince(lastLaunch) >= Self.launchCooldown, pet.moment(.launch) {
                 lastLaunch = now
             }
-            switch registry.apply(event, at: now) {
+            let before = registry.sessions[event.sessionID]
+            let reaction = registry.apply(event, at: now)
+            notice(event.sessionID, before: before, reaction: reaction, codex: false)
+            switch reaction {
             case .finished: pet.react(.celebrate)
             case .finishedBig:
                 if pet.react(.flip) { pet.maybeHookahBreak() }
@@ -219,9 +238,12 @@ final class AgentMonitor {
             case .event(let event, let at):
                 // "Still working" comes with nearly every line; it would flood the log.
                 if pet.config.logEvents, event.kind != .stillWorking { EventLog.append("codex " + event.logLine) }
+                let before = codexRegistry.sessions[event.sessionID]
                 let reaction = codexRegistry.apply(event, at: at)
-                // Only what just happened earns a reaction, not turns found in a file read late.
-                guard !batch.isReplay, CodexRollout.isLive(at, now: now) else { continue }
+                // Only what just happened earns a reaction (or a notification), not turns found in a file read late.
+                let live = !batch.isReplay && CodexRollout.isLive(at, now: now)
+                notice(event.sessionID, before: before, reaction: reaction, codex: true, posting: live)
+                guard live else { continue }
                 switch reaction {
                 case .finished: pet.react(.celebrate)
                 case .finishedBig:
@@ -307,6 +329,11 @@ final class AgentMonitor {
         codexRegistry.prune(now: now)
         let sessions = registry.ordered
         let codex = codexRegistry.ordered
+        let present = Set(sessions.map { "claude-" + $0.id } + codex.map { "codex-" + $0.id })
+        for key in noticed.subtracting(present) {
+            noticed.remove(key)
+            onNotice?(key, nil, .clear, key.hasPrefix("codex-"))
+        }
         let current = limits?.current(at: now)
         // The mood follows every agent; the drained body and the low-limit look stay Claude's.
         pet.setMood(PetBrain.baseState(for: sessions + codex, limits: limits, now: now))

@@ -88,6 +88,16 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onTouchHint: ((Bool) -> Void)?
+    var notifications = NotificationMode.whenHidden {
+        didSet {
+            guard !loading, notifications != oldValue else { return }
+            update { $0.notifications = notifications }
+            onNotifications?(notifications)
+        }
+    }
+    @ObservationIgnored var onNotifications: ((NotificationMode) -> Void)?
+    /// Whether macOS lets the app post notifications (nil: not asked yet).
+    var notificationsAllowed: Bool?
     var launchAtLogin = false
     var hooksConnected = false
     var statusLine = HookSettings.StatusLineState.absent
@@ -121,6 +131,7 @@ final class SettingsModel {
         watchCodex = c.watchCodex
         approveFromPet = c.approveFromPet
         touchHint = c.touchHint
+        notifications = c.notifications
         hookah = c.hookah
         macReactions = c.macReactions
         meetingAlerts = c.meetingAlerts
@@ -307,6 +318,23 @@ struct SettingsView: View {
                                 Button(L("Allow…", "Разрешить…")) { model.onRequestCalendar?() }
                             }
                         }
+                    }
+                }
+            }
+            Section(L("Notifications", "Уведомления")) {
+                Picker(L("Notifications", "Уведомления"), selection: $model.notifications) {
+                    Text(L("Off", "Выключены")).tag(NotificationMode.off)
+                    Text(L("When the cube can't be seen", "Когда кубика не видно")).tag(NotificationMode.whenHidden)
+                    Text(L("Always", "Всегда")).tag(NotificationMode.always)
+                }
+                .help(L("Silent banners when an agent needs permission or an answer, finishes a long turn or fails, and when the YubiKey waits for a touch. Only the project and what happened, never commands or files",
+                         "Баннеры без звука, когда агент ждёт разрешения или ответа, закончил долгий ход или упал, и когда YubiKey ждёт касания. Только проект и что случилось, без команд и файлов"))
+                if model.notifications != .off, model.notificationsAllowed == false {
+                    HStack {
+                        Text(L("Notifications are off for Pixel Pet in System Settings", "Уведомления для Pixel Pet выключены в Системных настройках"))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L("Open…", "Открыть…")) { Notifier.openSystemSettings() }
                     }
                 }
             }

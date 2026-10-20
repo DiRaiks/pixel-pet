@@ -187,6 +187,17 @@ When Claude Code asks for permission (a command, a file change, a web page, an M
 
 In a terminal or editor, Claude Code doesn't show its own prompt while the card waits; after a minute without an answer it does. The Claude app shows its own dialog at the same time: answer in either place, the first answer counts and the other one closes. The card only waits while the cube is on screen (not hidden, covered or in do-not-disturb). Its buttons wake up half a second after a request appears, so a stray click can't answer one you haven't read. The command is shown in the card only and never stored or logged. Codex requests aren't covered: its approvals don't reach the pet.
 
+### Notifications
+
+While the cube can't be seen (hidden, covered, behind a fullscreen app), agents reach you through silent macOS notifications: banners with no sound or badge.
+
+- **Needs permission** or **asks a question**: unless the permission card by the cube is already showing it.
+- **Done**: after a turn of 20 seconds or more, with how long it worked and how many steps it took.
+- **Stopped with an error.**
+- **Touch your YubiKey**: when a GPG signature waits for the key and the YubiKey hint is on.
+
+Each session has at most one notification: a new one replaces it, and it goes away once the session works again, gets its answer or ends (the key's once it's touched). A click brings up the app the session runs in. Notifications carry only the project and what happened, never the command, file or question, since Notification Center keeps a history. macOS asks for permission the first time one is sent; Focus and the cube's do-not-disturb keep them quiet. Settings → Notifications: off, when the cube can't be seen (the default), or always.
+
 ### Reacting to the Mac
 
 The cube also notices what your Mac is up to. It reads only on/off signals (where sound goes, whether a mic or camera is in use, the thermal and power state, the network, the theme) and asks for no permission. Screenshots are noticed through Spotlight, so they show up after it indexes the file, and not at all where indexing is off. Any Bluetooth audio output counts as headphones. "React to the Mac" in Settings turns all of it off.
@@ -298,6 +309,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Claude Code hooks and statusline | Connect or disconnect them |
 | Model for questions | haiku, sonnet or opus |
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
+| Notifications | Off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
 | YubiKey | Show when the key waits for a touch (on by default) |
 | Calls | Remind about calls from the Mac's calendars (off by default); shows the access status and how many calendars it sees |
 | Event log | Writes to `~/.pixelpet/events.log` |

@@ -152,6 +152,11 @@ final class PermissionDesk {
     var onSettledElsewhere: ((String) -> Void)?
     var isShown: Bool { panel.isShown }
 
+    /// The card is up with a request from this session: a notification would only repeat it.
+    func isAsking(_ sessionID: String) -> Bool {
+        panel.isShown && queue.prompts.contains { $0.sessionID == sessionID }
+    }
+
     init(pet: PetController) {
         self.pet = pet
         var answer: (UUID, PermissionAnswer) -> Void = { _, _ in }

@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var meetings: MeetingMonitor?
     private var mac: MacMonitor?
     private var permissions: PermissionDesk?
+    private let notifier = Notifier()
     private var settingsModel: SettingsModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -75,6 +76,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         agents.onSessionEnd = { permissions.sessionEnded($0) }
         permissions.onSettledElsewhere = { agents.permissionSettled($0) }
         agents.onPermissionAnswered = { permissions.answeredElsewhere($0) }
+        let notifier = notifier
+        agents.onNotice = { [weak pet] key, session, action, codex in
+            guard let pet else { return }
+            switch action {
+            case .clear: notifier.clear(key)
+            case .post(let notice):
+                guard let session,
+                      NoticePlan.posts(mode: pet.config.notifications, petVisible: pet.isOnScreen, doNotDisturb: pet.doNotDisturb)
+                else { return notifier.clear(key) }
+                // The card by the pet already asks.
+                if notice == .permission, !codex, permissions.isAsking(session.id) { return notifier.clear(key) }
+                let project = session.project ?? String(session.id.prefix(8))
+                notifier.post(key, title: NoticeText.title(notice, project: project),
+                              body: NoticeText.body(notice, session: session, codex: codex), host: codex ? nil : session.host?.bundleID)
+            }
+        }
+        pet.onTouching = { [weak pet] waiting in
+            guard let pet else { return }
+            if waiting, NoticePlan.posts(mode: pet.config.notifications, petVisible: pet.isOnScreen, doNotDisturb: pet.doNotDisturb) {
+                notifier.post("key-touch", title: NoticeText.touchTitle(), body: NoticeText.touchBody(), host: nil)
+            } else {
+                notifier.clear("key-touch")
+            }
+        }
         self.permissions = permissions
         let panel = StatusPanel(model: agents.status)
         let menu = StatusMenu(pet: pet, hooks: hooks)
@@ -226,11 +251,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.setMeetingAlerts(on, askForAccess: true)
             settingsModel?.refresh()
         }
-        settingsModel.onRefresh = { [weak self] in self?.meetings?.reload() }
         settingsModel.onRequestCalendar = { [weak self] in self?.meetings?.requestAccess() }
         setMeetingAlerts(pet.config.meetingAlerts, askForAccess: false)
         setTouchHint(pet.config.touchHint)
         settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }
+        settingsModel.notificationsAllowed = notifier.allowed
+        notifier.onAllowedChange = { [weak settingsModel] in settingsModel?.notificationsAllowed = $0 }
+        settingsModel.onNotifications = { [notifier] mode in
+            if mode == .off { notifier.clearAll() }
+        }
+        settingsModel.onRefresh = { [weak self, notifier] in
+            self?.meetings?.reload()
+            Task { await notifier.refreshAllowed() }
+        }
         let desktop = DesktopSensor(pet: pet)
         pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
         desktop.start()

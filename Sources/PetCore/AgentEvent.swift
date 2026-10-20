@@ -33,13 +33,16 @@ public struct AgentEvent: Equatable, Sendable {
     public let pushed: Bool
     /// For a tool call starting: what it does, in a few words (`AgentStep`); the rest of the input is dropped.
     public let step: AgentStep?
+    /// The app the session runs in, from the hook script's tags.
+    public let host: AgentHost?
 
-    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil) {
+    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil, host: AgentHost? = nil) {
         self.sessionID = sessionID
         self.cwd = cwd
         self.kind = kind
         self.pushed = pushed
         self.step = step
+        self.host = host
     }
 
     /// Parses a raw hook payload; nil for events the pet ignores or malformed input.
@@ -75,7 +78,8 @@ public struct AgentEvent: Equatable, Sendable {
         let pushed = name == "PostToolUse" && tool == "Bash" && isGitPush(input["command"] as? String)
         var step: AgentStep?
         if case .toolStarted = kind { step = AgentStep.describe(tool: tool, input: input) }
-        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step)
+        let host = AgentHost(bundleID: json["pixelpet_app"] as? String, term: json["pixelpet_term"] as? String)
+        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step, host: host)
     }
 
     /// `git push` as a command in a shell line (also `git -C dir push`), not a dry run. Quoted text is

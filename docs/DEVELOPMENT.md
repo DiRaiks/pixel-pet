@@ -94,7 +94,9 @@ Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is si
 | `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--show-recap` | Opens the weekly recap card 12 s after launch |
+| `--appearance light\|dark` | The pet's cards in light or dark, whatever the system uses (for screenshots) |
 | `--drop-file <path>` | Drops that file on the pet 1 s after launch, as if dragged there; with `--ask`, the question follows 2 s later |
+| `--ask-delay <seconds>` | With `--ask`: send the question this long after launch instead |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
 | `--with-claude` | Used with `--translate-text`: also runs "via Claude" |
 | `--translate-again "<text>"` | Used with `--translate-text`: translates a second text 5 s later, in the same languages |
@@ -117,7 +119,15 @@ The animations in the README are drawn by the app's own sprite code, so regenera
 swift build && .build/debug/PixelPet --export-readme docs/images
 ```
 
-They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alpha, and GitHub plays them. The two card screenshots (`ask-card.png`, `translate-card.png`) are taken by hand: quit the pet, launch it with `--keep-cards` plus `--ask` or `--translate-text`, and capture the card window with `screencapture -o -l <window id>`.
+They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alpha, and GitHub plays them. The card screenshots are taken by hand, in light mode and English: quit the pet, launch it with `--appearance light --keep-cards` and one of the flags below, and capture the card window with `screencapture -o -l <window id>`.
+
+| Image | How |
+|---|---|
+| `ask-card.png` | `--drop-file <a source file> --ask "<question>"` (add `--ask-delay` if the first `claude -p` after launch is slow) |
+| `translate-card.png` | `--translate-text "<text>"` |
+| `status-card.png` | `--show-panel`, with a few demo sessions sent through `~/.pixelpet/bin/pixelpet-hook` (prompt, tool starts and finishes, a `permission_prompt` notification) |
+| `permission-card.png` | A `PermissionRequest` sent through the hook script with a command, a description and a `permission_suggestions` rule |
+| `recap-card.png` | `--show-recap`, with demo day sums in `~/.pixelpet/stats.json` (keep a copy of the real file and put it back) |
 
 ### Other aids
 
@@ -181,6 +191,7 @@ Without the certificate secrets the workflow still runs, as a dry run published 
 - **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
 - **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.
 - **Subagent animation.** Revisit how the pet shows subagents being created (`spawn` / `recall`).
+- **A ball to play with.** Started from the context menu ("Play"), not a double-click, which would delay every single click that opens the status panel. A small ball on the floor where the pet stands: it bounces, the pet chases and kicks it a few times, the user can flick it with the mouse (the throw physics already exist), and it rolls away after about 30 s. Stays near the pet rather than crossing the screen; no score.
 - **Codex waiting for approval.** Codex doesn't write approval prompts to its session files, so its blocks never turn amber; its hooks (`PermissionRequest`) could fill that in, if the desktop app runs them.
 
 ## Findings worth knowing

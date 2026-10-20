@@ -29,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let exportArgs = CommandLine.arguments
+        // Debug aid for screenshots: the cards in light or dark whatever the system uses.
+        if let i = exportArgs.firstIndex(of: "--appearance"), i + 1 < exportArgs.count {
+            NSApp.appearance = NSAppearance(named: exportArgs[i + 1] == "dark" ? .darkAqua : .aqua)
+        }
         if let i = exportArgs.firstIndex(of: "--export-sprites"), i + 1 < exportArgs.count {
             let skin = i + 2 < exportArgs.count ? Skin.named(exportArgs[i + 2]) : .lavender
             let accessory = i + 3 < exportArgs.count ? Accessory(rawValue: exportArgs[i + 3]) ?? .none : .none
@@ -229,7 +233,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let i = args.firstIndex(of: "--ask"), i + 1 < args.count {
             let question = args[i + 1]
             let followUp = args.firstIndex(of: "--ask-followup").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
-            DispatchQueue.main.asyncAfter(deadline: .now() + (dropped == nil ? 1 : 3)) { asker.ask(question) }
+            let delay = args.firstIndex(of: "--ask-delay").flatMap { $0 + 1 < args.count ? Double(args[$0 + 1]) : nil }
+            DispatchQueue.main.asyncAfter(deadline: .now() + (delay ?? (dropped == nil ? 1 : 3))) { asker.ask(question) }
             if let followUp {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(2))

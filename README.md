@@ -131,7 +131,7 @@ Agent sessions that are already open get picked up as soon as they send their ne
 The menu-bar icon is a tiny cube with the number of active agents next to it. Its menu has:
 
 - the current limits;
-- the status panel;
+- the status panel and the weekly recap;
 - ask, translate and do not disturb;
 - send home or let out on the desk;
 - show or hide the cube;
@@ -197,6 +197,16 @@ While the cube can't be seen (hidden, covered, behind a fullscreen app), agents 
 - **Touch your YubiKey**: when a GPG signature waits for the key and the YubiKey hint is on.
 
 Each session has at most one notification: a new one replaces it, and it goes away once the session works again, gets its answer or ends (the key's once it's touched). A click brings up the app the session runs in. Notifications carry only the project and what happened, never the command, file or question, since Notification Center keeps a history. macOS asks for permission the first time one is sent; Focus and the cube's do-not-disturb keep them quiet. Settings → Notifications: off, when the cube can't be seen (the default), or always.
+
+### Weekly recap
+
+The cube keeps day sums of what the agents did, and on Monday morning (from 6:00, or the first time it's out later that week) it unfolds a newspaper and reads it until you click it. The click opens the recap of the week before:
+
+- how long agents worked (waits for you left out), how many turns and steps, per day with Claude Code and Codex stacked;
+- the top three projects by time, the rest together;
+- the longest turn, how long agents waited for you and how often, permissions answered in the cube, the 5-hour limit's peak and how often it ran out, and the change from the week before.
+
+The newspaper comes only when agents worked on at least two days, and waits behind anything going on (work, a waiting agent, do not disturb, home). The recap is in the menu too, with a switch to this week so far. The sums live in `~/.pixelpet/stats.json`: numbers and project folder names, no commands, files or text, kept for 8 weeks. Settings → Weekly recap turns it off or clears the statistics.
 
 ### Reacting to the Mac
 
@@ -309,6 +319,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Claude Code hooks and statusline | Connect or disconnect them |
 | Model for questions | haiku, sonnet or opus |
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
+| Weekly recap | Keep day sums for the recap and the Monday newspaper (on by default); clear the statistics |
 | Notifications | Off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
 | YubiKey | Show when the key waits for a touch (on by default) |
 | Calls | Remind about calls from the Mac's calendars (off by default); shows the access status and how many calendars it sees |
@@ -344,6 +355,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | Path | What |
 |---|---|
 | `~/.pixelpet/config.json` | Settings, position and the last known limits |
+| `~/.pixelpet/stats.json` | Day sums for the weekly recap: agent time, turns and steps per project folder, waits, answers in the cube, the 5-hour limit's peak. No text; 8 weeks kept; written at most once a minute |
 | `~/.pixelpet/pet.sock` | Unix socket the hooks talk to. It is readable only by you |
 | `~/.pixelpet/bin/pixelpet-hook` | Hook script: `sh` and `nc` forward the hook JSON to the socket and always exit 0. Only a permission request waits for the pet's answer (up to a minute; at once if the pet isn't running, is hidden or in do-not-disturb, or the setting is off) |
 | `~/.pixelpet/bin/pixelpet-statusline` | Optional statusline for terminal sessions. It prints `Model · ctx N% · 5h N% · 7d N%` |

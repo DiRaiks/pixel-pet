@@ -60,6 +60,8 @@ public enum SpriteFactory {
         case .touchKey: touchKey(i, look, &c)
         case .touchDone: touchDone(i, look, &c)
         case .touchKeyHome: touchKeyHome(i, cubes, look, &c)
+        case .newspaperOpen: newspaperOpen(i, look, &c)
+        case .newspaper: newspaper(i, look, &c)
         case .question: question(i, look, &c)
         case .refill: refill(i, look, &c)
         case .exhausted: exhausted(i, look, &c)

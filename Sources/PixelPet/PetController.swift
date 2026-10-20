@@ -56,6 +56,10 @@ final class PetController {
     }
     /// A hardware key started or stopped waiting for a touch.
     var onTouching: ((Bool) -> Void)?
+    /// The weekly recap is in: reads the newspaper while calm, until clicked.
+    private(set) var hasNews = false
+    /// A click on the newspaper: open the recap.
+    var onOpenNews: (() -> Void)?
     private var touchEnd: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false
@@ -286,6 +290,8 @@ final class PetController {
         }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
+        // The recap waits behind anything going on: only while idle and awake.
+        if hasNews, rest == .idle, !config.doNotDisturb { return .newspaper }
         // Idle on a nearly flat battery: droopy instead. Otherwise the Mac may give it something to do.
         return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest, skipping: macDismissed.states)
     }
@@ -412,6 +418,14 @@ final class PetController {
         // Touched: a happy check mark (from home just a quick peek). A wait that ran into gpg's timeout
         // most likely wasn't touched, so nothing to celebrate.
         if touchWait.duration < TouchWait.likelyTimeout { react(.touchDone) }
+    }
+
+    /// The recap came in (unfolds the paper when it can be seen), or was read elsewhere (menu, setting off).
+    func setNews(_ on: Bool) {
+        guard on != hasNews else { return }
+        hasNews = on
+        applyRest()
+        if on, restingState == .newspaper { react(.newspaperOpen) }
     }
 
     /// The setting was switched off mid-wait.
@@ -907,6 +921,13 @@ final class PetController {
                 // "Got it": the headset comes off, a little hop, and the card stays shut this time.
                 onDismissMeeting?()
                 react(.hop)
+                return
+            }
+            if restingState == .newspaper, !config.isHome {
+                hasNews = false
+                applyRest()
+                react(.hop)
+                onOpenNews?()
                 return
             }
             if Self.macRests.contains(restingState), !config.isHome {

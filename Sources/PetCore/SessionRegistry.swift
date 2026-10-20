@@ -28,6 +28,8 @@ public struct AgentSession: Equatable, Sendable {
     /// How long the last finished turn took, from the prompt to the end, and its tool calls.
     public var lastTurn: TimeInterval?
     public var lastSteps = 0
+    /// The last finished turn's active work, waits for the user left out.
+    public var lastWork: TimeInterval = 0
     /// The app the session runs in (Terminal, VS Code, the Claude app), when the hook could tell.
     public var host: AgentHost?
     /// Active work in this turn before the latest wait, so time spent waiting for the user isn't counted.
@@ -281,6 +283,7 @@ public struct SessionRegistry: Sendable {
         }
         s.lastTurn = s.turnStartedAt.map { now.timeIntervalSince($0) }
         s.lastSteps = s.steps
+        s.lastWork = activeWork(s, now)
         becomeIdle(&s)
         s.finishedAt = now
         if s.askedUser {

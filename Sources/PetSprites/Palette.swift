@@ -226,6 +226,12 @@ public enum Palette {
     public static let keyGold = RGBA(0xC9962B)
     public static let keyGoldLit = RGBA(0xFAD978)
     public static let keyPlug = RGBA(0xC9C7C0)
+    /// The weekly newspaper: dark ink, cream paper, grey print, a pale page turning.
+    public static let newsInk = RGBA(0x3B2418)
+    public static let newsPaper = RGBA(0xF6F2E6)
+    public static let newsLine = RGBA(0xB9B1A0)
+    public static let newsFold = RGBA(0xD8D1C0)
+    public static let newsPage = RGBA(0xFFFDF6)
     public static let tea = RGBA(0xB5732F)
     /// The hookah: glass vase, clay bowl, a coal, smoke.
     public static let hookahGlass = RGBA(0x5DA9C4)

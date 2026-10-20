@@ -54,6 +54,8 @@ final class AgentMonitor {
     var onNotice: ((_ key: String, _ session: AgentSession?, _ action: NoticePlan.Action, _ codex: Bool) -> Void)?
     /// Sessions whose notification may still be up, so a session dropped by `prune` gets its cleared too.
     private var noticed: Set<String> = []
+    /// Day sums for the weekly recap.
+    var stats: StatsKeeper?
 
     /// One hook connection: the payload, and the way back for a hook that waits.
     private struct Incoming: @unchecked Sendable {
@@ -165,6 +167,19 @@ final class AgentMonitor {
         }
     }
 
+    /// A finished turn and an answered wait, for the weekly recap.
+    private func count(before: AgentSession?, after: AgentSession?, codex: Bool, at now: Date) {
+        guard let stats else { return }
+        if let after, let done = after.finishedAt, done != before?.finishedAt {
+            let project = after.project ?? "-"
+            stats.record { $0.recordTurn(project: project, agent: codex ? .codex : .claude, active: after.lastWork,
+                                         steps: after.lastSteps, at: now) }
+        }
+        if let before, before.status == .waiting, after?.status != .waiting, let since = before.waitingSince {
+            stats.record { $0.recordWait(now.timeIntervalSince(since), at: now) }
+        }
+    }
+
     /// A request was answered where the session runs; `stopped` when that also ended the turn.
     func permissionSettled(_ sessionID: String, stopped: Bool = false) {
         permissionTails.removeValue(forKey: sessionID)?.stop()
@@ -179,8 +194,11 @@ final class AgentMonitor {
         refresh()
     }
 
-    private func notice(_ id: String, before: AgentSession?, reaction: AgentReaction?, codex: Bool, posting: Bool = true) {
+    private func notice(_ id: String, before: AgentSession?, reaction: AgentReaction?, codex: Bool, posting: Bool = true,
+                        at now: Date = Date()) {
         let after = (codex ? codexRegistry : registry).sessions[id]
+        // Catch-up lines (Codex files read late) were counted when they happened, or are too old to matter.
+        if posting { count(before: before, after: after, codex: codex, at: now) }
         guard let action = NoticePlan.action(before: before, after: after, reaction: reaction) else { return }
         if case .post = action, !posting { return }
         let key = (codex ? "codex-" : "claude-") + id
@@ -242,7 +260,7 @@ final class AgentMonitor {
                 let reaction = codexRegistry.apply(event, at: at)
                 // Only what just happened earns a reaction (or a notification), not turns found in a file read late.
                 let live = !batch.isReplay && CodexRollout.isLive(at, now: now)
-                notice(event.sessionID, before: before, reaction: reaction, codex: true, posting: live)
+                notice(event.sessionID, before: before, reaction: reaction, codex: true, posting: live, at: at)
                 guard live else { continue }
                 switch reaction {
                 case .finished: pet.react(.celebrate)
@@ -298,6 +316,9 @@ final class AgentMonitor {
 
     private func merge(_ observed: UsageLimits) {
         limits = limits.map { $0.merged(with: observed) } ?? observed
+        if let window = limits?.current(at: Date()).fiveHour {
+            stats?.record { $0.recordLimit(window, at: Date()) }
+        }
         pet.rememberLimits(limits)
     }
 

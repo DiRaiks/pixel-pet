@@ -16,6 +16,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let toggleItem = NSMenuItem(title: "", action: #selector(toggleHidden), keyEquivalent: "")
     private let limitsItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let panelItem = NSMenuItem(title: "", action: #selector(showPanel), keyEquivalent: "")
+    private let recapItem = NSMenuItem(title: "", action: #selector(showRecap), keyEquivalent: "")
     private let homeItem = NSMenuItem(title: "", action: #selector(toggleHome), keyEquivalent: "")
     private let dndItem = NSMenuItem(title: "", action: #selector(toggleDND), keyEquivalent: "p")
     private let translateItem = NSMenuItem(title: "", action: #selector(translate), keyEquivalent: "t")
@@ -32,6 +33,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onWelcome: (() -> Void)?
     var onAsk: (() -> Void)?
     var onShowPanel: (() -> Void)?
+    var onShowRecap: (() -> Void)?
     private let stateMenu = NSMenu()
     private let scaleMenu = NSMenu()
 
@@ -57,6 +59,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .glanceLeft: L("Looks at Codex", "Смотрит на Codex"), .glanceRight: L("Looks at Claude", "Смотрит на Claude"),
             .touchKey: L("Waits for a key touch", "Ждёт касания ключа"), .touchDone: L("Key touched", "Ключ коснулись"),
             .touchKeyHome: L("Waits for a touch (home)", "Ждёт касания (дома)"),
+            .newspaperOpen: L("Opens the newspaper", "Разворачивает газету"), .newspaper: L("Reads the recap", "Читает итоги"),
             .question: L("Agent asks", "Агент спрашивает"), .refill: L("Limit reset", "Лимит обновился"),
             .exhausted: L("Limit spent", "Лимит исчерпан"),
             .spawn: L("Subagents", "Сабагенты"), .recall: L("Subagents back", "Сабагенты вернулись"),
@@ -87,6 +90,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(limitsItem)
         panelItem.target = self
         menu.addItem(panelItem)
+        recapItem.target = self
+        menu.addItem(recapItem)
         homeItem.target = self
         menu.addItem(homeItem)
         dndItem.target = self
@@ -149,6 +154,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         logItem.title = L("Log events", "Записывать события")
         openLogItem.title = L("Open event log", "Открыть журнал событий")
         panelItem.title = L("Status panel", "Панель статуса")
+        recapItem.title = L("Weekly recap…", "Итоги недели…")
         dndItem.title = L("Do not disturb", "Не беспокоить")
         translateItem.title = L("Translate selection", "Перевести выделенное")
         askItem.title = L("Ask Claude", "Спросить Claude")
@@ -217,6 +223,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func showPanel() { onShowPanel?() }
+    @objc private func showRecap() { onShowRecap?() }
 
     @objc private func toggleHome() { pet.toggleHome() }
 

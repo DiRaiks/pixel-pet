@@ -430,9 +430,13 @@ enum Format {
     }
 
     static func steps(_ n: Int) -> String {
-        let ru = n % 10 == 1 && n % 100 != 11 ? "шаг"
-            : (2...4).contains(n % 10) && !(12...14).contains(n % 100) ? "шага" : "шагов"
-        return L(n == 1 ? "1 step" : "\(n) steps", "\(n) \(ru)")
+        L(n == 1 ? "1 step" : "\(n) steps", "\(n) \(ru(n, "шаг", "шага", "шагов"))")
+    }
+
+    /// The Russian word for `n`: 1 (and 21, 31…), 2–4 (and 22–24…), or the rest (with 11–14).
+    static func ru(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
+        if n % 10 == 1 && n % 100 != 11 { return one }
+        return (2...4).contains(n % 10) && !(12...14).contains(n % 100) ? few : many
     }
 
     static func code(_ text: String) -> Text {

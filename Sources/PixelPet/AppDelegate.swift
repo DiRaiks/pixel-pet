@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var agents: AgentMonitor?
     private var menu: StatusMenu?
     private var panel: StatusPanel?
+    private var recap: RecapPanel?
+    private var stats: StatsKeeper?
+    private var recapClock: Timer?
     private var hotKeys: [HotKey] = []
     private var translator: Translator?
     private var asker: Asker?
@@ -149,10 +152,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             translator?.panel.close()
             asker?.panel.close()
         }
-        pet.onDragStart = { [weak translator, weak asker] in
+        // The weekly recap: day sums kept as agents work, a card from the menu or the Monday newspaper.
+        let stats = StatsKeeper(enabled: pet.config.weeklyRecap)
+        agents.stats = stats
+        permissions.onAnswered = { stats.record { $0.recordAnswerInPet(at: Date()) } }
+        let recapModel = RecapModel()
+        let recap = RecapPanel(model: recapModel)
+        let showRecap = { [weak pet] in
+            guard let pet, !pet.isHidden else { return }
+            pet.setNews(false)
+            recapModel.stats = stats.stats
+            recapModel.lastWeek = true
+            recap.toggle(from: pet.anchorView)
+        }
+        pet.onOpenNews = showRecap
+        if CommandLine.arguments.contains("--show-recap") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) { showRecap() }
+        }
+        menu.onShowRecap = showRecap
+        let recapShow = recap.onShow
+        recap.onShow = { [weak panel, weak translator, weak asker] in
+            panel?.close()
+            translator?.panel.close()
+            asker?.panel.close()
+            recapShow?()
+        }
+        let statusShows = panel.onShow, translatorShows = translator.panel.onShow, askerShows = asker.panel.onShow
+        panel.onShow = { [weak recap] in statusShows?(); recap?.close() }
+        translator.panel.onShow = { [weak recap] in translatorShows?(); recap?.close() }
+        asker.panel.onShow = { [weak recap] in askerShows?(); recap?.close() }
+        let permissionsShow = permissions.onShow
+        permissions.onShow = { [weak recap] in
+            permissionsShow?()
+            recap?.close()
+        }
+        let cardOpen = pet.isCardOpen
+        pet.isCardOpen = { [weak recap] in cardOpen() || (recap?.isShown ?? false) }
+        self.recap = recap
+        self.stats = stats
+        pet.onDragStart = { [weak translator, weak asker, weak recap] in
             panel.close()
             translator?.panel.close()
             asker?.panel.close()
+            recap?.close()
         }
         // ⌃⌥P: do not disturb (home, quiet). ⌃⌥T: translate the selection. ⌃⌥K: ask Claude.
         // Shown next to the menu items too.
@@ -264,6 +306,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.meetings?.reload()
             Task { await notifier.refreshAllowed() }
         }
+        settingsModel.onWeeklyRecap = { [weak self, weak pet] on in
+            self?.stats?.enabled = on
+            if !on { pet?.setNews(false) }
+        }
+        settingsModel.onClearStats = { [weak self] in self?.stats?.clear() }
+        // Monday's newspaper: looked for at launch and every few minutes after.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in self?.checkRecap() }
+        let recapClock = Timer(timeInterval: 300, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkRecap() }
+        }
+        recapClock.tolerance = 30
+        RunLoop.main.add(recapClock, forMode: .common)
+        self.recapClock = recapClock
         let desktop = DesktopSensor(pet: pet)
         pet.onPlacementChange = { [weak desktop] in desktop?.reconfigure() }
         desktop.start()
@@ -304,7 +359,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The newspaper comes out once a week, when there's a recap worth reading and the pet can be seen.
+    private func checkRecap() {
+        guard let pet, let stats, pet.config.weeklyRecap, pet.isOnScreen else { return }
+        let now = Date()
+        guard RecapPlan.due(now: now, shownFor: pet.config.recapShownFor, stats: stats.stats) else { return }
+        pet.updateConfig { $0.recapShownFor = RecapPlan.weekKey(now) }
+        pet.setNews(true)
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        stats?.stop()
         touch?.stop()
         agents?.stop()
         AskSessions.removeAll()

@@ -44,6 +44,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// A call coming up: headset on, an alarm clock ticking by its head (5 minutes before), then ringing
     /// with the pet bouncing (the last minute).
     case meetingSoon, meetingNow
+    /// The weekly recap is in: takes out a newspaper and opens it, then reads until clicked.
+    case newspaperOpen, newspaper
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -114,6 +116,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .meetingSoon: Self.repeating(12, 250)
         case .meetingNow: Self.repeating(8, 90)
         case .dizzy: Self.repeating(6, 90) + Self.repeating(8, 120)
+        case .newspaperOpen: [300, 200, 200]
+        case .newspaper: Self.repeating(6, 300) + [150, 600, 120, 120, 120, 900]
         }
     }
 
@@ -126,7 +130,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
-             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
+             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen: false
         default: true
         }
     }

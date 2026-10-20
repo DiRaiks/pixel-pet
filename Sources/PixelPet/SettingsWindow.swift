@@ -96,6 +96,15 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onNotifications: ((NotificationMode) -> Void)?
+    var weeklyRecap = true {
+        didSet {
+            guard !loading, weeklyRecap != oldValue else { return }
+            update { $0.weeklyRecap = weeklyRecap }
+            onWeeklyRecap?(weeklyRecap)
+        }
+    }
+    @ObservationIgnored var onWeeklyRecap: ((Bool) -> Void)?
+    @ObservationIgnored var onClearStats: (() -> Void)?
     /// Whether macOS lets the app post notifications (nil: not asked yet).
     var notificationsAllowed: Bool?
     var launchAtLogin = false
@@ -132,6 +141,7 @@ final class SettingsModel {
         approveFromPet = c.approveFromPet
         touchHint = c.touchHint
         notifications = c.notifications
+        weeklyRecap = c.weeklyRecap
         hookah = c.hookah
         macReactions = c.macReactions
         meetingAlerts = c.meetingAlerts
@@ -337,6 +347,12 @@ struct SettingsView: View {
                         Button(L("Open…", "Открыть…")) { Notifier.openSystemSettings() }
                     }
                 }
+            }
+            Section(L("Weekly recap", "Итоги недели")) {
+                Toggle(L("Keep a weekly recap", "Собирать итоги недели"), isOn: $model.weeklyRecap)
+                    .help(L("Day sums in ~/.pixelpet/stats.json: agent time, turns and steps per project folder, waits, the 5-hour limit. No commands, files or text; kept 8 weeks. On Mondays the cube brings a newspaper",
+                             "Суммы по дням в ~/.pixelpet/stats.json: время агентов, ходы и шаги по папкам проектов, ожидания, лимит 5 ч. Без команд, файлов и текстов; хранится 8 недель. По понедельникам кубик приносит газету"))
+                Button(L("Clear statistics", "Очистить статистику")) { model.onClearStats?() }
             }
             Section("YubiKey") {
                 Toggle(L("Show when the key waits for a touch", "Подсказывать касание ключа"), isOn: $model.touchHint)

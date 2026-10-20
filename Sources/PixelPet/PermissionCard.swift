@@ -150,6 +150,8 @@ final class PermissionDesk {
     var onShow: (() -> Void)?
     /// A held request's hook went away: answered where the session runs. Takes the session id.
     var onSettledElsewhere: ((String) -> Void)?
+    /// Allowed or denied from the card.
+    var onAnswered: (() -> Void)?
     var isShown: Bool { panel.isShown }
 
     /// The card is up with a request from this session: a notification would only repeat it.
@@ -217,6 +219,7 @@ final class PermissionDesk {
     /// Only the request on the card, and only once its buttons are live.
     private func answer(_ id: UUID, _ answer: PermissionAnswer) {
         guard id == queue.current?.id, answer == .passToHost || model.armed else { return }
+        if answer != .passToHost { onAnswered?() }
         finish(id, with: answer, activate: answer == .passToHost)
     }
 

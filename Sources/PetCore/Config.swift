@@ -43,6 +43,10 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var touchHint = true
     /// Silent system notifications for agents (and the key) while the pet can't be seen, always, or never.
     public var notifications = NotificationMode.whenHidden
+    /// Keep day sums for the weekly recap (`~/.pixelpet/stats.json`) and bring the newspaper on Mondays.
+    public var weeklyRecap = true
+    /// The Monday the newspaper last came out ("yyyy-MM-dd"), so it comes once a week.
+    public var recapShownFor: String?
     /// Hookah breaks: now and then as an idle fidget, and sometimes after a big finished task.
     public var hookah = true
     /// React to the Mac: headphones, music, mic or camera in use, heat, low power, the network, a full
@@ -79,6 +83,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
         approveFromPet = try c.decodeIfPresent(Bool.self, forKey: .approveFromPet) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         notifications = (try? c.decodeIfPresent(NotificationMode.self, forKey: .notifications)) ?? .whenHidden
+        weeklyRecap = try c.decodeIfPresent(Bool.self, forKey: .weeklyRecap) ?? true
+        recapShownFor = try c.decodeIfPresent(String.self, forKey: .recapShownFor)
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         macReactions = try c.decodeIfPresent(Bool.self, forKey: .macReactions) ?? true
         meetingAlerts = try c.decodeIfPresent(Bool.self, forKey: .meetingAlerts) ?? false

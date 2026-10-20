@@ -17,6 +17,7 @@ public enum MotionPolicy {
         case .overheated: 2   // thermometer high, flushed, sweating
         case .lowPower: 0     // sleepy beside the yellow battery
         case .offline: 0      // the struck-through Wi-Fi bubble
+        case .newspaper: 0    // reading, eyes over the paper
         default: nil
         }
     }

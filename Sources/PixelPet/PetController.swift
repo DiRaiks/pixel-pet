@@ -44,6 +44,8 @@ final class PetController {
     /// The Mac's power (nil until read, or without a battery reading).
     private var power: PowerReading?
     private var mac = MacState()
+    /// Mac states the user clicked away, until they end.
+    private var macDismissed = MacDismissals()
     private var fullCelebrated = false
     /// Redraws the desk when the night lamp goes on or off.
     private var nightCheck: DispatchWorkItem?
@@ -281,7 +283,7 @@ final class PetController {
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
         // Idle on a nearly flat battery: droopy instead. Otherwise the Mac may give it something to do.
-        return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest)
+        return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest, skipping: macDismissed.states)
     }
 
     // MARK: Desktop reactions
@@ -597,6 +599,7 @@ final class PetController {
     func setMac(_ state: MacState, animate: Bool) {
         let before = mac
         mac = state
+        macDismissed.update(with: state)
         applyRest()
         if before.headphones != state.headphones { followHeadphones(animate: animate) }
     }
@@ -899,6 +902,13 @@ final class PetController {
             if restingState == .meetingSoon || restingState == .meetingNow, !config.isHome {
                 // "Got it": the headset comes off, a little hop, and the card stays shut this time.
                 onDismissMeeting?()
+                react(.hop)
+                return
+            }
+            if Self.macRests.contains(restingState), !config.isHome {
+                // "Got it": back to idling (or the next thing in line) until this one ends.
+                macDismissed.dismiss(restingState)
+                applyRest()
                 react(.hop)
                 return
             }

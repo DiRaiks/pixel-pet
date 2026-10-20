@@ -19,6 +19,27 @@ import Testing
         }
     }
 
+    /// A click puts the current state away; the next one in line shows, and the dismissed one only comes back
+    /// once its condition has ended and started again.
+    @Test func clickedAwayStatesStayAwayWhileTheyLast() {
+        var mac = MacState(music: true, onAir: true)
+        var dismissed = MacDismissals()
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .onAir)
+        dismissed.dismiss(.onAir)
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .music)
+        dismissed.dismiss(.music)
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .idle)
+        // The call is still on: it stays away.
+        dismissed.update(with: mac)
+        #expect(dismissed.states == [.onAir, .music])
+        // The call ends; the next one shows again.
+        mac.onAir = false
+        dismissed.update(with: mac)
+        #expect(dismissed.states == [.music])
+        mac.onAir = true
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .onAir)
+    }
+
     @Test func headphonesComeAndGo() {
         let on = MacState(headphones: true), off = MacState()
         #expect(MacState.headphonesMoment(from: off, to: on) == .headphonesOn)

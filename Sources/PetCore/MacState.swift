@@ -27,20 +27,45 @@ public struct MacState: Equatable, Sendable {
     /// What the pet does instead of plain idling. Only an idle pet changes: agents, alerts, sleep and calls
     /// keep their own states. A call (mic or camera) comes first, then heat, then the network, low power, and
     /// music last: sound during a call is the call.
-    public func rest(insteadOf rest: PetState) -> PetState {
+    /// `skipping` are states the user clicked away; the next one in line shows instead.
+    public func rest(insteadOf rest: PetState, skipping dismissed: Set<PetState> = []) -> PetState {
         guard rest == .idle else { return rest }
-        if onAir { return .onAir }
-        if hot { return .overheated }
-        if offline { return .offline }
-        if lowPower { return .lowPower }
-        if music { return .music }
-        return rest
+        return Self.priority.first { isActive($0) && !dismissed.contains($0) } ?? rest
+    }
+
+    static let priority: [PetState] = [.onAir, .overheated, .offline, .lowPower, .music]
+
+    /// Whether the condition behind one of these resting states is still on.
+    public func isActive(_ state: PetState) -> Bool {
+        switch state {
+        case .onAir: onAir
+        case .overheated: hot
+        case .offline: offline
+        case .lowPower: lowPower
+        case .music: music
+        default: false
+        }
     }
 
     /// The one-shot for a change in headphones: on when they connect, off when they go.
     public static func headphonesMoment(from old: MacState?, to new: MacState) -> PetState? {
         guard let old, old.headphones != new.headphones else { return nil }
         return new.headphones ? .headphonesOn : .headphonesOff
+    }
+}
+
+/// Resting states the user clicked away. Each stays away while its condition lasts (the call, the music,
+/// the heat) and can come back the next time it starts.
+public struct MacDismissals: Sendable {
+    public private(set) var states: Set<PetState> = []
+
+    public init() {}
+
+    public mutating func dismiss(_ state: PetState) { states.insert(state) }
+
+    /// Forget dismissals whose condition has ended.
+    public mutating func update(with mac: MacState) {
+        states = states.filter { mac.isActive($0) }
     }
 }
 

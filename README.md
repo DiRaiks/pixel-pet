@@ -188,7 +188,7 @@ The cube also notices what your Mac is up to. It reads only on/off signals (wher
 | <img src="docs/images/mac-dark-mode.png" width="80" alt=""> | <img src="docs/images/mac-light-mode.png" width="80" alt=""> | <img src="docs/images/mac-party-hat.png" width="80" alt=""> | |
 | Switched to dark mode | Switched to light mode: shades on | Friday from 5 pm: a party hat | |
 
-The ongoing ones (music, on air, heat, offline, low power) only replace plain idling: working or waiting agents, errors, calls, sleep and a low battery come first, and idle fidgets pause meanwhile. Among them a mic or camera wins, then heat, the network, low power and music. Virtual audio devices (loopback drivers, call apps' own devices) don't count as sound or a mic. During a call (on air) the one-off reactions wait.
+The ongoing ones (music, on air, heat, offline, low power) only replace plain idling: working or waiting agents, errors, calls, sleep and a low battery come first, and idle fidgets pause meanwhile. Among them a mic or camera wins, then heat, the network, low power and music. Virtual audio devices (loopback drivers, call apps' own devices) don't count as sound or a mic. During a call (on air) the one-off reactions wait. A click on the cube puts the current one away (the next in line shows, if any) until it ends: the call, the music, the heat. Worn headphones take the place of a hat-like accessory.
 
 ### At the keyboard
 

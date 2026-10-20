@@ -27,6 +27,22 @@ import PetCore
         }
     }
 
+    /// Worn headphones take the place of a head accessory, like the call headset does.
+    @Test func headphonesReplaceAHeadAccessory() {
+        var look = Look(skin: .lavender, accessory: .propeller)
+        let hat = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: look)
+        #expect(has(hat, Palette.propellerBlue))
+        look.extras = [.headphones]
+        let worn = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: look)
+        #expect(!has(worn, Palette.propellerBlue))
+        #expect(has(worn, Palette.cushion))
+        // Glasses aren't on the head: they stay.
+        var glasses = Look(skin: .lavender, accessory: .glasses)
+        glasses.extras = [.headphones]
+        #expect(SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: glasses)
+                != SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: { var l = Look(); l.extras = [.headphones]; return l }()))
+    }
+
     @Test func partyHatOnBothFigures() {
         for look in looks([.partyHat]) {
             let f = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: look)

@@ -144,6 +144,8 @@ extension PixelCanvas {
             set(left + 3, top + 9, Palette.capRed)
             if s.accessory.isOnHead { return }
         }
+        // Real headphones on take the place of a head accessory too (and of the accessory headphones).
+        if s.extras.contains(.headphones), s.accessory.isOnHead || s.accessory == .headphones { return }
         switch s.accessory {
         case .none: break
         case .glasses:

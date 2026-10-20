@@ -216,6 +216,27 @@ enum ReadmeExport {
             write(render([Clip(state: .idle, seconds: 3.0, props: prop)], scale: 6),
                   to: directory.appendingPathComponent("\(name).png"))
         }
+        // Reactions to the Mac.
+        var worn = Look.standard
+        worn.extras = [.headphones]
+        var party = Look.standard
+        party.extras = [.partyHat]
+        let macClips: [(String, [Clip])] = [
+            ("mac-headphones", [still, Clip(state: .headphonesOn, look: worn), Clip(state: .working, seconds: 1.6, look: worn)]),
+            ("mac-music", [Clip(state: .music, seconds: 2.6, look: worn)]),
+            ("mac-on-air", [Clip(state: .onAir, seconds: 3.0)]),
+            ("mac-overheated", [Clip(state: .overheated, seconds: 2.9)]),
+            ("mac-offline", [Clip(state: .offline, seconds: 2.1)]),
+            ("mac-low-power", [Clip(state: .lowPower, seconds: 3.4)]),
+            ("mac-battery-full", [still, Clip(state: .batteryFull), still]),
+            ("mac-screenshot", [still, Clip(state: .screenshot), still]),
+            ("mac-dark-mode", [still, Clip(state: .darkMode), still]),
+            ("mac-light-mode", [still, Clip(state: .lightMode), still]),
+            ("mac-party-hat", [Clip(state: .idle, seconds: 1.5, look: party), Clip(state: .hop, look: party)]),
+        ]
+        for (name, clips) in macClips {
+            write(render(clips, scale: 6), to: directory.appendingPathComponent("\(name).png"))
+        }
         // LM's idle fidgets, in place of the cube's roll.
         for state in [PetState.drip, .melt] {
             let clips = [Clip(state: .idle, seconds: 0.8, look: lm), Clip(state: state, look: lm),

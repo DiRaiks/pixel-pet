@@ -23,6 +23,7 @@ struct BodyStyle {
     /// A call headset with a mic; it takes the place of a head accessory while it's on.
     var headset = false
     var figure = Figure.cube
+    var extras: LookExtras = []
     /// Hanging out of the home hole: the top is hidden anyway, so LM isn't lowered to make room for his diamond.
     var inHole = false
     /// Degrees clockwise, around the body's center.
@@ -32,6 +33,7 @@ struct BodyStyle {
         skin = look.skin
         accessory = look.accessory
         figure = look.figure
+        extras = look.extras
     }
 }
 
@@ -71,6 +73,16 @@ extension PixelCanvas {
                 let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
                 eyes(cx + s.lookX, ey, s.eyes, s.skin)
                 mouth(cx + s.lookX, min(ey + 4, by - 4), s.mouth, s.skin)
+            }
+        }
+        // Worn things that follow the body; not while turning (they would need turning too) or under the
+        // call headset.
+        if s.rotation == 0, !s.headset {
+            if s.extras.contains(.headphones) { headphones(x0: x0, y0: y0, w: s.w, h: s.h, figure: s.figure, skin: s.skin) }
+            if s.extras.contains(.partyHat), !s.accessory.isOnHead, !s.nightcap {
+                // On LM it sits a little down the diamond, over its thin tip, so no sliver of the tip shows under it.
+                partyHat(cx: cx, top: lid ? y0 - Int(min(Double(s.h) * 0.6, Double(max(y0, 4))).rounded(.down)) + 3 : y0,
+                         small: lid)
             }
         }
         return BodyFrame(x0: x0, y0: y0, cx: cx)

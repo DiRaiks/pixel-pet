@@ -39,6 +39,8 @@ import PetCore
             #expect(frame.opaquePixelCount > 100, "\(state) frame \(i) looks empty")
             // Inside the notch hole he is (partly) out of sight, and an error turns him red.
             guard ![.burrowed, .peek, .dive, .error].contains(state) else { continue }
+            // The screenshot flash whitens the whole frame on purpose.
+            if state == .screenshot, i == 2 { continue }
             #expect(frame.pixels.contains(Skin.lidman.outline), "\(state) frame \(i) has no outline")
         }
     }

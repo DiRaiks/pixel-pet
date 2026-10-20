@@ -5,6 +5,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **Reacting to the Mac.** Headphones go on when they connect (and stay on in every pose); the cube bobs to music, keeps quiet under a recording light while a mic or camera is in use, sweats with a thermometer when the Mac runs hot, shows a crossed-out Wi-Fi when the network is gone and a yellow battery in low power mode, cheers at 100%, flashes ✌️ for screenshots, greets dark and light mode, and wears a party hat on Friday evening. Only on/off signals, no permissions; "React to the Mac" in Settings turns it off.
 - **CI and releases.** GitHub Actions builds and tests every push and pull request on macOS 26, checks the release bundle and the scripts. A version tag builds a DMG and publishes it as a GitHub release; with the Developer ID and notary secrets set it is signed, notarized and stapled (`scripts/release.sh`).
 - **English interface.** The UI is now English by default; Settings → Language switches it to Russian at once, menus included.
 - **What the agent is doing.** While typing, a bubble over the cube shows the latest Claude Code tool: a terminal for commands, a magnifier for searches, a page of text for reading, a pencil for edits.

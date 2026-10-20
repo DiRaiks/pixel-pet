@@ -43,6 +43,8 @@ final class PetController {
     private var meetingPhase = MeetingPlan.Phase.none
     /// The Mac's power (nil until read, or without a battery reading).
     private var power: PowerReading?
+    private var mac = MacState()
+    private var fullCelebrated = false
     /// Redraws the desk when the night lamp goes on or off.
     private var nightCheck: DispatchWorkItem?
     /// A hardware key waiting for a touch: shown above everything else.
@@ -153,7 +155,7 @@ final class PetController {
                 self?.scheduleNightCheck()
                 self?.scheduleDayChange()
                 // Woke up on another day: today's look.
-                if let self { self.sprites.setLook(Self.look(from: self.config)) }
+                if let self { self.sprites.setLook(self.currentLook()) }
                 self?.render()
             }
         })
@@ -278,8 +280,8 @@ final class PetController {
         }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
-        // Idle on a nearly flat battery: droopy instead.
-        return rest == .idle && power?.isLow == true ? .tired : rest
+        // Idle on a nearly flat battery: droopy instead. Otherwise the Mac may give it something to do.
+        return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest)
     }
 
     // MARK: Desktop reactions
@@ -540,7 +542,8 @@ final class PetController {
     /// Rubbing the cursor back and forth over the pet on the desk: eyes shut, hearts.
     private func mouseMoved(x: Double) {
         // Only a pet free to react counts strokes, so a rub it couldn't answer doesn't use up the cooldown.
-        guard !config.isHome, config.desktopReactions, [.idle, .working, .tired].contains(restingState),
+        guard !config.isHome, config.desktopReactions,
+              [.idle, .working, .tired].contains(restingState) || Self.macRests.contains(restingState),
               player.state == restingState, !isCardOpen() else { return petting.reset() }
         guard petting.move(x: x, at: ProcessInfo.processInfo.systemUptime) else { return }
         shyTimer?.cancel()
@@ -579,6 +582,58 @@ final class PetController {
         power = reading
         applyRest()
         if PowerReading.pluggedIn(from: before, to: reading) { moment(.plugIn) }
+        // Once per plug-in: a battery held near full can flicker between 99 and 100.
+        if !reading.onAC { fullCelebrated = false }
+        if config.macReactions, !fullCelebrated, PowerReading.becameFull(from: before, to: reading) {
+            fullCelebrated = true
+            moment(.batteryFull)
+        }
+    }
+
+    // MARK: The Mac
+
+    /// Headphones, music, the mic or camera, heat, power and the network, from `MacMonitor`.
+    /// `animate` is false for the first reading and the reset when the setting goes off: no put-on then.
+    func setMac(_ state: MacState, animate: Bool) {
+        let before = mac
+        mac = state
+        applyRest()
+        if before.headphones != state.headphones { followHeadphones(animate: animate) }
+    }
+
+    /// What the look shows: headphones settle for 1.5 s first, so a Bluetooth reconnect flapping on and off
+    /// doesn't rebuild every sprite each time.
+    private var headphonesWorn = false
+    private var headphonesChange: DispatchWorkItem?
+
+    private func followHeadphones(animate: Bool) {
+        headphonesChange?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.mac.headphones != self.headphonesWorn else { return }
+                let before = MacState(headphones: self.headphonesWorn)
+                self.headphonesWorn = self.mac.headphones
+                self.sprites.setLook(self.currentLook())
+                self.render()
+                if animate, let moment = MacState.headphonesMoment(from: before, to: self.mac) { self.moment(moment) }
+            }
+        }
+        headphonesChange = work
+        if animate {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+        } else {
+            work.perform()
+        }
+    }
+
+    func screenshotTaken() { moment(.screenshot) }
+
+    func themeChanged(dark: Bool) { moment(dark ? .darkMode : .lightMode) }
+
+    /// The "React to the Mac" setting changed: the party hat may come or go.
+    func macReactionsChanged() {
+        sprites.setLook(currentLook())
+        render()
     }
 
     /// After the somersault for a big task, sometimes a hookah break: once the flip has played, if the pet
@@ -601,10 +656,15 @@ final class PetController {
     @discardableResult
     func moment(_ state: PetState) -> Bool {
         guard !config.isHome, player.state != .dragged,
-              [.idle, .working, .tired, .question].contains(restingState),
+              [.idle, .working, .tired, .question].contains(restingState)
+                || Self.macRests.subtracting([.onAir]).contains(restingState),
               player.state == restingState else { return false }
         return react(state)
     }
+
+    /// Resting states the Mac gives an idle pet; one-offs and petting play over them like over idle, except
+    /// one-offs during a call (on air), when it keeps quiet.
+    static let macRests: Set<PetState> = [.music, .onAir, .overheated, .lowPower, .offline]
 
     /// 1.5–4 minutes between fidgets: rare enough to stay a surprise.
     static func fidgetDelay() -> TimeInterval { Double.random(in: 90...240) }
@@ -639,15 +699,22 @@ final class PetController {
         config.accessory = accessory
         config.figure = figure
         persist()
-        sprites.setLook(Self.look(from: config))
+        sprites.setLook(currentLook())
         render()
     }
 
-    static func look(from config: PetConfig, on date: Date = Date()) -> Look {
-        Look.resolve(skin: config.skin, accessory: config.accessory, figure: config.figure, on: date)
+    /// The look for the settings and the day, plus what the Mac puts on the pet: headphones while they're
+    /// connected, a party hat on Friday evening.
+    static func look(from config: PetConfig, on date: Date = Date(), headphones: Bool = false) -> Look {
+        var look = Look.resolve(skin: config.skin, accessory: config.accessory, figure: config.figure, on: date)
+        if headphones { look.extras.insert(.headphones) }
+        if config.macReactions, PartyTime.isOn(at: date) { look.extras.insert(.partyHat) }
+        return look
     }
 
-    /// With "every day new", the look changes at midnight.
+    private func currentLook() -> Look { Self.look(from: config, headphones: headphonesWorn) }
+
+    /// With "every day new", the look changes at midnight; the party hat goes on at 17:00 on Fridays.
     private var dayChange: DispatchWorkItem?
 
     private func scheduleDayChange() {
@@ -655,7 +722,7 @@ final class PetController {
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.sprites.setLook(Self.look(from: self.config))
+                self.sprites.setLook(self.currentLook())
                 self.render()
                 self.scheduleDayChange()
             }
@@ -664,7 +731,8 @@ final class PetController {
         let calendar = Calendar.autoupdatingCurrent
         let midnight = calendar.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0, second: 0),
                                          matchingPolicy: .nextTime) ?? Date().addingTimeInterval(86400)
-        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, midnight.timeIntervalSinceNow + 1), execute: work)
+        let next = [midnight, PartyTime.nextStart(after: Date(), calendar: calendar)].compactMap { $0 }.min() ?? midnight
+        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, next.timeIntervalSinceNow + 1), execute: work)
     }
 
     // MARK: Home

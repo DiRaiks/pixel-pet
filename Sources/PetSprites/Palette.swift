@@ -74,10 +74,20 @@ public enum Figure: String, CaseIterable, Sendable {
 }
 
 /// Everything about how the pet looks, besides the animation itself.
+/// Things the pet wears because of what's going on: headphones while they're connected, a party hat on
+/// Friday evening. Unlike accessories, LM wears them too.
+public struct LookExtras: OptionSet, Hashable, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let headphones = LookExtras(rawValue: 1)
+    public static let partyHat = LookExtras(rawValue: 2)
+}
+
 public struct Look: Equatable, Hashable, Sendable {
     public var skin: Skin
     public var accessory: Accessory
     public var figure: Figure
+    public var extras: LookExtras = []
     /// LM always wears his own colors and none of the accessories (his diamond takes the top).
     public init(skin: Skin = .lavender, accessory: Accessory = .none, figure: Figure = .cube) {
         self.figure = figure
@@ -190,6 +200,22 @@ public enum Palette {
     public static let fir = RGBA(0x2E8B57)
     public static let firDark = RGBA(0x1F6B43)
     public static let trunk = RGBA(0x7A4E2D)
+    // The Mac around the pet.
+    public static let cushion = RGBA(0x6E7BD9)
+    public static let note = RGBA(0x5DCAA5)
+    public static let noteAlt = RGBA(0xEF9F27)
+    public static let rec = RGBA(0xE5484D)
+    public static let recGlow = RGBA(0xF7A1A3)
+    public static let heat = RGBA(0xF08A5D)
+    public static let heatLight = RGBA(0xF7C1A0)
+    public static let leaf = RGBA(0x6BBF59)
+    public static let leafDark = RGBA(0x3E8E41)
+    public static let moon = RGBA(0xE9C84A)
+    public static let sun = RGBA(0xFFC93C)
+    public static let sunRay = RGBA(0xFFE08A)
+    public static let flash = RGBA(0xFFFFFF, alpha: 215)
+    public static let hatStripe = RGBA(0xF06A8E)
+    public static let hatBase = RGBA(0x5DCAA5)
     public static let waterLight = RGBA(0xD6F2FF)
     /// The coffee mug on the desk during long work (its steam reuses `steam`).
     public static let mug = RGBA(0xF1EFE8)

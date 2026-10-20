@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var touch: TouchWatcher?
     private var power: PowerMonitor?
     private var meetings: MeetingMonitor?
+    private var mac: MacMonitor?
     private var settingsModel: SettingsModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -188,6 +189,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let power = PowerMonitor { [weak pet] reading in pet?.setPower(reading) }
         power.start()
         self.power = power
+        // The Mac around the pet: headphones, music, mic and camera, heat, power, network, screenshots, theme.
+        let mac = MacMonitor()
+        mac.onChange = { [weak pet] state, animate in pet?.setMac(state, animate: animate) }
+        mac.onScreenshot = { [weak pet] in pet?.screenshotTaken() }
+        mac.onTheme = { [weak pet] dark in pet?.themeChanged(dark: dark) }
+        mac.setRunning(pet.config.macReactions)
+        self.mac = mac
+        settingsModel.onMacReactions = { [weak mac, weak pet] on in
+            mac?.setRunning(on)
+            pet?.macReactionsChanged()
+        }
         settingsModel.calendarCountProvider = { [weak self] in self?.meetings?.calendarCount ?? 0 }
         settingsModel.onMeetingAlerts = { [weak self, weak settingsModel] on in
             self?.setMeetingAlerts(on, askForAccess: true)

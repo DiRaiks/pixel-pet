@@ -49,6 +49,14 @@ final class SettingsModel {
     }
     @ObservationIgnored var onWatchCodex: ((Bool) -> Void)?
     var hookah = true { didSet { update { $0.hookah = hookah } } }
+    var macReactions = true {
+        didSet {
+            guard !loading, macReactions != oldValue else { return }
+            update { $0.macReactions = macReactions }
+            onMacReactions?(macReactions)
+        }
+    }
+    @ObservationIgnored var onMacReactions: ((Bool) -> Void)?
     var meetingAlerts = false {
         didSet {
             guard !loading, meetingAlerts != oldValue else { return }
@@ -105,6 +113,7 @@ final class SettingsModel {
         watchCodex = c.watchCodex
         touchHint = c.touchHint
         hookah = c.hookah
+        macReactions = c.macReactions
         meetingAlerts = c.meetingAlerts
         onRefresh?()
         calendarAccess = MeetingMonitor.access
@@ -217,6 +226,9 @@ struct SettingsView: View {
                 Toggle(L("Desktop reactions", "Реагировать на рабочий стол"), isOn: $model.desktopReactions)
                     .help(L("Eyes follow the cursor, glances at the window you switch to, fades over fullscreen apps",
                              "Глаза за курсором, взгляд на новое окно, полупрозрачность над полноэкранными приложениями"))
+                Toggle(L("React to the Mac", "Реагировать на Mac"), isOn: $model.macReactions)
+                    .help(L("Headphones, music, mic or camera in use, heat, low power, the network, a full battery, screenshots, the theme, Friday evening. Only on/off signals, no content",
+                             "Наушники, музыка, занятый микрофон или камера, перегрев, энергосбережение, сеть, полная батарея, скриншоты, тема, вечер пятницы. Только сигналы вкл/выкл, без содержимого"))
                 Toggle(L("Hookah breaks", "Кальян на перерывах"), isOn: $model.hookah)
                     .help(L("Now and then, when idle or after a big task, the cube smokes a hookah",
                              "Иногда в покое и после больших задач кубик курит кальян"))

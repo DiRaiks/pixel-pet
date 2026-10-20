@@ -176,6 +176,20 @@ On top of these, it plays one-off animations:
 
 When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Hookah breaks" in Settings turns it off.
 
+### Reacting to the Mac
+
+The cube also notices what your Mac is up to. It reads only on/off signals (where sound goes, whether a mic or camera is in use, the thermal and power state, the network, the theme) and asks for no permission. Screenshots are noticed through Spotlight, so they show up after it indexes the file, and not at all where indexing is off. Any Bluetooth audio output counts as headphones. "React to the Mac" in Settings turns all of it off.
+
+| <img src="docs/images/mac-headphones.png" width="80" alt=""> | <img src="docs/images/mac-music.png" width="80" alt=""> | <img src="docs/images/mac-on-air.png" width="80" alt=""> | <img src="docs/images/mac-overheated.png" width="80" alt=""> |
+|:---:|:---:|:---:|:---:|
+| Headphones (Bluetooth or the jack) connected: it puts them on and wears them until they go | Sound playing for 10 s+: it bobs to the beat | A mic or camera in use: it keeps quiet under a recording light | The Mac running hot: a thermometer, sweat |
+| <img src="docs/images/mac-offline.png" width="80" alt=""> | <img src="docs/images/mac-low-power.png" width="80" alt=""> | <img src="docs/images/mac-battery-full.png" width="80" alt=""> | <img src="docs/images/mac-screenshot.png" width="80" alt=""> |
+| No network for 5 s+ | Low power mode | Charged to 100% | A screenshot: flash, then ✌️ |
+| <img src="docs/images/mac-dark-mode.png" width="80" alt=""> | <img src="docs/images/mac-light-mode.png" width="80" alt=""> | <img src="docs/images/mac-party-hat.png" width="80" alt=""> | |
+| Switched to dark mode | Switched to light mode: shades on | Friday from 5 pm: a party hat | |
+
+The ongoing ones (music, on air, heat, offline, low power) only replace plain idling: working or waiting agents, errors, calls, sleep and a low battery come first, and idle fidgets pause meanwhile. Among them a mic or camera wins, then heat, the network, low power and music. Virtual audio devices (loopback drivers, call apps' own devices) don't count as sound or a mic. During a call (on air) the one-off reactions wait.
+
 ### At the keyboard
 
 Agents can work for hours, so the typing doesn't run like a metronome: it comes in bursts of uneven length and pace, with pauses to look up at the screen. Every 45–120 seconds the cube has a little moment, and when an agent block changes (one finishes, fails or appears) it looks over at that side:
@@ -265,6 +279,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Color | Lavender, mint, peach, graphite, sky, sakura, vanilla or night (dark, for dark wallpapers), or "every day new" |
 | Accessory | None, glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf or mustache, or "every day new" |
 | Do not disturb | Same as ⌃⌥P |
+| React to the Mac | Headphones, music, mic or camera in use, heat, low power, the network, a full battery, screenshots, the theme, Friday evening (on by default) |
 | Hookah breaks | On by default |
 | Desktop reactions | Eyes follow the cursor, glances at the app you switch to, the cube fades over fullscreen apps, fidgets |
 | Fall asleep after | Never, or 5, 10, 15, 30 or 60 minutes without input |

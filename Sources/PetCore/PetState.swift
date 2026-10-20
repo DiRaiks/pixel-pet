@@ -12,6 +12,10 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case drip, melt
     /// Ideas under review: waving for attention, a rocket launch, being petted, a sneeze.
     case wave, launch, purr, sneeze
+    /// The Mac around it (under review): headphones on and off, music playing, on air (mic or camera in
+    /// use), running hot, low power, offline, battery full, a screenshot, dark and light mode.
+    case headphonesOn, headphonesOff, music, onAir, overheated, lowPower, offline, batteryFull, screenshot,
+         darkMode, lightMode
     /// At the keyboard while agents work: a sip from the mug, a stretch, a pause to think, a burst of fast
     /// typing, and a look over at the agent blocks on either side.
     case workSip, workStretch, workThink, workRush, glanceLeft, glanceRight
@@ -78,6 +82,17 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .launch: [500, 300, 90, 90, 90, 90, 120, 80, 70, 60, 60, 60, 60, 80, 90, 120, 150, 100, 100, 140, 160, 300]
         case .purr: [140, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 200, 300]
         case .sneeze: [300, 220, 180, 180, 260, 80, 90, 110, 90, 90, 90, 160, 120, 300]
+        case .headphonesOn: [250, 120, 90, 80, 70, 60, 90, 110, 140, 160, 160, 300]
+        case .headphonesOff: [250, 140, 90, 80, 90, 110, 130, 160, 300]
+        case .music: [160, 160, 160, 160, 160, 160, 160, 160]
+        case .onAir: [300, 200, 600, 600, 600, 600, 600, 600]
+        case .overheated: [180, 180, 180, 180, 180, 180, 180, 180]
+        case .lowPower: Self.repeating(8, 420)
+        case .offline: Self.repeating(8, 260)
+        case .batteryFull: [200, 160, 160, 160, 160, 120, 80, 70, 90, 120, 160, 300]
+        case .screenshot: [300, 200, 60, 90, 120, 160, 300, 300, 200, 300]
+        case .darkMode: [200, 160, 160, 160, 200, 200, 200, 300, 300, 300]
+        case .lightMode: [200, 160, 160, 160, 200, 140, 120, 300, 300, 400]
         case .workSip: [180, 90, 90, 250, 500, 250, 90, 120, 500, 200]
         case .workStretch: [150, 90, 90, 500, 300, 90, 100, 90, 250, 200]
         case .workThink: [200, 150, 300, 300, 400, 300, 300, 250, 150, 350, 150, 150]
@@ -108,7 +123,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     public var loops: Bool {
         switch self {
         case .hop, .celebrate, .peek, .drop, .dive, .yawn, .shy, .angry, .flip, .tumble, .drip, .melt,
-             .wave, .launch, .purr, .sneeze,
+             .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
+             .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true

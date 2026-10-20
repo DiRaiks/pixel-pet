@@ -45,7 +45,7 @@ The `CFBundleVersion` comes from `git describe --tags --always --dirty`. `CFBund
 ./scripts/test.sh
 ```
 
-The tests use Swift Testing. There are about 420 tests in three targets, covering `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests: it is kept thin on purpose.
+The tests use Swift Testing. There are about 440 tests in three targets, covering `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests: it is kept thin on purpose.
 
 Always run tests through `scripts/test.sh` rather than plain `swift test`. With only the Command Line Tools installed, `swift test` often fails to load the Swift Testing macro plugin (`TestingMacros`) when it reuses the build description that a plain `swift build` left in `.build`. The script works around it:
 

@@ -12,6 +12,11 @@ public enum MotionPolicy {
         case .question: 0     // "?" over a tilted head
         case .exhausted: 0    // lying spent, clock above
         case .meetingNow: 0   // headset on, the alarm ringing
+        case .music: 0        // eyes shut, notes on both sides, no bob
+        case .onAir: 0        // the mic bubble with its red dot
+        case .overheated: 2   // thermometer high, flushed, sweating
+        case .lowPower: 0     // sleepy beside the yellow battery
+        case .offline: 0      // the struck-through Wi-Fi bubble
         default: nil
         }
     }
@@ -20,7 +25,8 @@ public enum MotionPolicy {
     public static func allowsOneShot(_ state: PetState) -> Bool {
         switch state {
         case .hop, .celebrate, .drop, .dive, .peek, .flip, .tumble, .drip, .melt, .yawn, .shy, .angry,
-             .wave, .launch, .purr, .sneeze,
+             .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
+             .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
         default: true

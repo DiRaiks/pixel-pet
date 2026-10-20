@@ -102,6 +102,17 @@ public enum SpriteFactory {
         case .launch: launch(i, look, &c)
         case .purr: purr(i, look, &c)
         case .sneeze: sneeze(i, look, &c)
+        case .headphonesOn: headphonesOn(i, look, &c)
+        case .headphonesOff: headphonesOff(i, look, &c)
+        case .music: music(i, look, &c)
+        case .onAir: onAir(i, look, &c)
+        case .overheated: overheated(i, look, &c)
+        case .lowPower: lowPower(i, look, &c)
+        case .offline: offline(i, look, &c)
+        case .batteryFull: batteryFull(i, look, &c)
+        case .screenshot: screenshot(i, look, &c)
+        case .darkMode: darkMode(i, look, &c)
+        case .lightMode: lightMode(i, look, &c)
         }
         overlays(state, i, props, &c)
     }

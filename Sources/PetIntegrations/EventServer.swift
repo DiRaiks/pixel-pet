@@ -28,7 +28,8 @@ public final class EventServer: @unchecked Sendable {
     }
 
     public func start() throws {
-        guard queue.sync(execute: { source == nil }) else { return }
+        // `self.` spelled out: Swift 6.3 takes a bare `source` for the local declared further down.
+        guard queue.sync(execute: { self.source == nil }) else { return }
         try clearStaleSocket()
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw Error.system("socket", errno) }

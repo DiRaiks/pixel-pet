@@ -1,0 +1,16 @@
+name: Idea
+description: A new animation, reaction or feature.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the pet do, and when?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What it would tell you, or why it would be fun.

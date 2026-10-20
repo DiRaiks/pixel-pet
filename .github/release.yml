@@ -1,0 +1,11 @@
+# Sections for the notes GitHub generates for each release (gh release create --generate-notes).
+changelog:
+  exclude:
+    authors: [dependabot]
+  categories:
+    - title: New
+      labels: [enhancement]
+    - title: Fixes
+      labels: [bug]
+    - title: Other changes
+      labels: ["*"]

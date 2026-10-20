@@ -1,0 +1,32 @@
+name: Bug report
+description: Something the pet does wrong or doesn't do.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw. A screenshot or screen recording helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: macOS, Pixel Pet (menu → Settings shows the build), Claude Code / Codex if agents are involved.
+      placeholder: macOS 26.1, Pixel Pet 0.2.0, Claude Code 2.x
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Event log
+      description: For agent issues, turn on "Log events" and paste the relevant lines of ~/.pixelpet/events.log (it holds only session ids, project names and event names).
+      render: text

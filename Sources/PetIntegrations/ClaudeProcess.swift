@@ -53,6 +53,9 @@ enum ClaudeProcess {
                 }
                 if let stdin {
                     let writer = input.fileHandleForWriting
+                    // A claude that exits before reading it all must not take the app down with SIGPIPE:
+                    // the write then just fails.
+                    _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1)
                     DispatchQueue.global().async {
                         try? writer.write(contentsOf: stdin)
                         // Closed when the process ends (the pipe goes with it) rather than right away.

@@ -23,6 +23,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **SIGPIPE.** A `claude` run that exited before reading its input (a crash, a timeout kill) could take the whole app down with SIGPIPE while the text was still being written. Pipes and the hook socket now opt out of SIGPIPE, and the app ignores it.
 - **Background subagents.** A turn that ends while background subagents still run kept showing as done; the session now stays working until the last one stops, then finishes and celebrates. A new message no longer forgets subagents that are still running.
 - **Moving the pet:** dropping it home, throwing it and sending it home or out from the menu now actually move the window. On macOS 26 and later the window animator ignores `setFrameOrigin`, so the pet stayed where it was let go. When dropped into its home, that could be above the top edge of the screen: out of sight, or showing only the bottom of a peeking cube that could not be grabbed. Cards also land exactly next to the pet now, instead of 6 pt off.
 - **Pulling out of home:** a short tug is enough. Before, letting go anywhere within 90 pt pulled the pet right back in; now it returns only when released within 24 pt of its seat.

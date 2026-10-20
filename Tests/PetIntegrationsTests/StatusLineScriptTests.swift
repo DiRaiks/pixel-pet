@@ -23,7 +23,9 @@ import PetCore
         p.standardInput = input
         p.standardOutput = output
         try p.run()
-        input.fileHandleForWriting.write(Data(payload.utf8))
+        // The script may exit without reading its input (internal sessions): no SIGPIPE for the test run.
+        _ = fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+        try? input.fileHandleForWriting.write(contentsOf: Data(payload.utf8))
         try input.fileHandleForWriting.close()
         p.waitUntilExit()
         return String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)

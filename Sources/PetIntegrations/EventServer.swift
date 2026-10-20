@@ -140,6 +140,9 @@ public enum SocketClient {
     private static func connected(to path: String) throws -> Int32 {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw EventServer.Error.system("socket", errno) }
+        // A server that goes away mid-send gives a failed write, not a SIGPIPE.
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         let bytes = Array(path.utf8)

@@ -101,6 +101,9 @@ func makeDeadSocket(at path: String) throws {
 /// Connects and sends one byte, then goes quiet: a client that never finishes.
 func openTrickle(to path: String) throws -> Int32 {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    // The server may drop the slow client before the byte goes out: no SIGPIPE for the test run.
+    var on: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
     var addr = sockaddr_un()
     addr.sun_family = sa_family_t(AF_UNIX)
     withUnsafeMutableBytes(of: &addr.sun_path) { buf in

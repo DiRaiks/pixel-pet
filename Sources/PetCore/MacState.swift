@@ -78,12 +78,26 @@ public struct SoundDebounce: Sendable {
     private var playingSince: Date?
     private var silentSince: Date?
     public private(set) var isMusic = false
+    /// After the output device changes, a stream already open on the new one doesn't count until it stops
+    /// once: unplugging headphones moves a paused player's open stream to the speakers, which then look busy
+    /// in silence.
+    private var waitingForStop = false
 
     public init() {}
 
+    /// The default output device changed; `running` is whether something already has it open.
+    public mutating func outputChanged(running: Bool, at now: Date) {
+        playingSince = nil
+        silentSince = nil
+        isMusic = false
+        waitingForStop = running
+    }
+
     /// Feed the raw "output is running" flag; returns whether it counts as music now.
     @discardableResult
-    public mutating func update(playing: Bool, at now: Date) -> Bool {
+    public mutating func update(playing raw: Bool, at now: Date) -> Bool {
+        if waitingForStop, !raw { waitingForStop = false }
+        let playing = raw && !waitingForStop
         if playing {
             silentSince = nil
             if playingSince == nil { playingSince = now }

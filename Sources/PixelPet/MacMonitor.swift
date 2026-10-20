@@ -20,6 +20,8 @@ final class MacMonitor {
     private var running = false
     /// While starting, the listeners each refresh; publish once at the end.
     private var starting = false
+    /// The output device the sound debounce was fed from.
+    private var lastOutput: AudioObjectID?
     private var published = false
     private var sound = SoundDebounce()
     private var network = OfflineDebounce()
@@ -102,6 +104,7 @@ final class MacMonitor {
         for l in systemAudio + deviceAudio { remove(l) }
         systemAudio = []
         deviceAudio = []
+        lastOutput = nil
         for l in cameraListeners { remove(l) }
         cameraListeners = []
         if let l = cameraListListener { remove(l) }
@@ -178,6 +181,12 @@ final class MacMonitor {
     private func devicesChanged() {
         for l in deviceAudio { remove(l) }
         deviceAudio = []
+        let output = Self.defaultDevice(kAudioHardwarePropertyDefaultOutputDevice)
+        if output != lastOutput {
+            // Not on the first look: music already playing when the app starts counts as usual.
+            if lastOutput != nil { sound.outputChanged(running: output.map(Self.isRunning) ?? false, at: Date()) }
+            lastOutput = output
+        }
         for selector in [kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDefaultInputDevice] {
             guard let device = Self.defaultDevice(selector) else { continue }
             if let l = listen(device, kAudioDevicePropertyDeviceIsRunningSomewhere, { [weak self] in self?.refresh() }) {

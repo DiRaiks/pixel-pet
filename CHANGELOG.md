@@ -29,6 +29,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **No dancing to silence after unplugging headphones.** A paused player's open stream moves to the speakers and keeps them looking busy; a stream carried over to a new output no longer counts as music until it stops once.
 - **Translation card.** A second translation in the same languages sat on "Translating…" for good (a fresh session configuration compared equal to the last one, so it never ran); it now re-runs the configuration. Long results scroll inside the card instead of cutting off at 14 lines, and the card stays on screen as it grows.
 - **SIGPIPE.** A `claude` run that exited before reading its input (a crash, a timeout kill) could take the whole app down with SIGPIPE while the text was still being written. Pipes and the hook socket now opt out of SIGPIPE, and the app ignores it.
 - **Background subagents.** A turn that ends while background subagents still run kept showing as done; the session now stays working until the last one stops, then finishes and celebrates. A new message no longer forgets subagents that are still running.

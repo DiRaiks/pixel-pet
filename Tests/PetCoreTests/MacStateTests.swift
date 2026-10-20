@@ -64,6 +64,33 @@ import Testing
         }
     }
 
+    /// Headphones unplugged: the paused player's stream lands on the speakers, open but silent. It doesn't
+    /// count until it closes once; sound that starts after that does.
+    @Test func aStreamCarriedOverToNewOutputIsNotMusic() {
+        var d = SoundDebounce()
+        let at = { (s: Double) in self.t0.addingTimeInterval(s) }
+        d.update(playing: true, at: at(0))
+        var music = d.update(playing: true, at: at(12))
+        #expect(music)
+        d.outputChanged(running: true, at: at(20))
+        #expect(!d.isMusic)
+        music = d.update(playing: true, at: at(40))
+        #expect(!music)
+        #expect(d.nextCheck(after: at(40)) == nil)
+        // The stream closes, then real playback starts.
+        music = d.update(playing: false, at: at(60))
+        #expect(!music)
+        d.update(playing: true, at: at(61))
+        music = d.update(playing: true, at: at(71))
+        #expect(music)
+        // Switching to an idle output just ends the music.
+        d.outputChanged(running: false, at: at(80))
+        #expect(!d.isMusic)
+        d.update(playing: true, at: at(81))
+        music = d.update(playing: true, at: at(91))
+        #expect(music)
+    }
+
     @Test func offlineOnlyAfterAFewSeconds() {
         var d = OfflineDebounce()
         let steps: [(Double, Bool, Bool)] = [(0, false, false), (2, true, false), (3, false, false), (8, false, true), (9, true, false)]

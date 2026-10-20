@@ -75,6 +75,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and on 
 | Release bundle | `macos-26` | `scripts/bundle.sh` (signed ad-hoc there), then the Info.plist and the signature |
 | ShellCheck | `ubuntu-latest` | `scripts/*.sh` |
 
+A version tag runs `.github/workflows/release.yml`; see [Releases](#releases).
+
 Dependabot (`.github/dependabot.yml`) keeps the workflow's actions up to date once a month. Runners are free for this public repository.
 
 ## Debugging
@@ -149,7 +151,26 @@ A self-signed code-signing certificate gives every build a stable identity. To c
 2. Set the name to `Pixel Pet Dev`, the identity type to *Self-Signed Root*, and the certificate type to *Code Signing*.
 3. Rebuild with `./scripts/install.sh`, then grant Accessibility one last time.
 
-Notarization and distribution are out of scope. The app is meant to be built from source on your own Mac.
+## Releases
+
+`scripts/release.sh <version>` builds `build/PixelPet-<version>.dmg`: the app (with `SHORT_VERSION` from the version, numbers only) and a link to Applications. What else happens depends on what's available, so the same script is a dry run anywhere:
+
+| Set | Result |
+|---|---|
+| nothing | App signed ad-hoc, DMG unsigned (a dry run; Gatekeeper blocks it on other Macs) |
+| `SIGN_IDENTITY="Developer ID Application: …"` | App signed with hardened runtime, `scripts/PixelPet.entitlements` and a secure timestamp; DMG signed |
+| plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | DMG notarized, stapled and checked with `spctl` |
+
+Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) runs the Release workflow on `macos-26`: it imports the certificate into a temporary keychain, runs `release.sh` and publishes a GitHub release with the DMG and generated notes. It reads these repository secrets, set in Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|---|---|
+| `DEVELOPER_ID_P12` | The Developer ID Application certificate with its private key, exported as .p12, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `DEVELOPER_ID_P12_PASSWORD` | The .p12 export password |
+| `APPLE_API_KEY` | An App Store Connect API key (.p8, "Developer" role), base64-encoded |
+| `APPLE_API_KEY_ID` / `APPLE_API_ISSUER_ID` | Its key id and issuer id |
+
+Without the certificate secrets the workflow still runs, as a dry run published as a draft prerelease. The entitlements file grants only calendar access, which the hardened runtime needs for call reminders; reading the selection (Accessibility) needs no entitlement.
 
 ## Known gaps and ideas
 

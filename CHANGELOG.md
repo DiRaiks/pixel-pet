@@ -5,6 +5,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **CI and releases.** GitHub Actions builds and tests every push and pull request on macOS 26, checks the release bundle and the scripts. A version tag builds a DMG and publishes it as a GitHub release; with the Developer ID and notary secrets set it is signed, notarized and stapled (`scripts/release.sh`).
 - **English interface.** The UI is now English by default; Settings → Language switches it to Russian at once, menus included.
 - **What the agent is doing.** While typing, a bubble over the cube shows the latest Claude Code tool: a terminal for commands, a magnifier for searches, a page of text for reading, a pencil for edits.
 - **Nudges and small joys.** A wave when an agent has waited on you for over a minute (again every ~45 s); a rocket launch when an agent's `git push` goes through (the command is only matched, never stored); hearts when you rub the cursor back and forth over the pet; a sneeze among the idle fidgets (LM sneezes water); a jack-o'-lantern the last week of October and a little fir over New Year.

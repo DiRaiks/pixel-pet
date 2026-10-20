@@ -1,12 +1,15 @@
 #!/bin/sh
-# Builds PixelPet.app into build/. Signs with the "Pixel Pet Dev" certificate when it exists
-# (stable identity keeps Accessibility permission across rebuilds), otherwise ad-hoc.
+# Builds PixelPet.app into build/. Signs with $SIGN_IDENTITY when set (a Developer ID for releases),
+# else with the "Pixel Pet Dev" certificate when it exists (a stable identity keeps the Accessibility
+# permission across rebuilds), otherwise ad-hoc. $SHORT_VERSION sets the marketing version (from a tag).
 set -eu
 cd "$(dirname "$0")/.."
 
 CONFIG="${CONFIG:-release}"
 APP="build/PixelPet.app"
-IDENTITY="Pixel Pet Dev"
+IDENTITY="${SIGN_IDENTITY:-Pixel Pet Dev}"
+ENTITLEMENTS="scripts/PixelPet.entitlements"
+SHORT_VERSION="${SHORT_VERSION:-0.1.0}"
 VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
 
 swift build -c "$CONFIG" --product PixelPet
@@ -26,7 +29,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key><string>Pixel Pet</string>
     <key>CFBundleExecutable</key><string>PixelPet</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
+    <key>CFBundleShortVersionString</key><string>${SHORT_VERSION}</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
@@ -38,7 +41,16 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 if security find-identity -v -p codesigning | grep -q "\"$IDENTITY\""; then
-    codesign --force --options runtime --sign "$IDENTITY" "$APP"
+    # Hardened runtime with the entitlements; releases also get the secure timestamp notarization asks for
+    # (it needs the network, so local builds skip it).
+    if [ -n "${SIGN_IDENTITY:-}" ]; then
+        codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
+    else
+        codesign --force --options runtime --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
+    fi
+elif [ -n "${SIGN_IDENTITY:-}" ]; then
+    echo "error: signing identity '$SIGN_IDENTITY' not found in the keychain" >&2
+    exit 1
 else
     echo "note: '$IDENTITY' certificate not found, signing ad-hoc (see docs/DEVELOPMENT.md, "Code signing")" >&2
     codesign --force --sign - "$APP"

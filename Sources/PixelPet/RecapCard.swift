@@ -13,7 +13,7 @@ final class RecapModel {
 
     var week: AgentStats.Week {
         let current = AgentStats.Week.containing(now)
-        return lastWeek ? current.previous : current
+        return lastWeek ? current.previous() : current
     }
 
     var summary: WeekSummary { stats.summary(of: week) }

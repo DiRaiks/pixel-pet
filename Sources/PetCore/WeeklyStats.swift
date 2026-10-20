@@ -108,8 +108,8 @@ public struct AgentStats: Codable, Equatable, Sendable {
             return Week(start: start, days: days)
         }
 
-        public var previous: Week {
-            Week.containing(Calendar.recap.date(byAdding: .day, value: -7, to: start) ?? start)
+        public func previous(_ calendar: Calendar = .recap) -> Week {
+            Week.containing(calendar.date(byAdding: .day, value: -7, to: start) ?? start, calendar)
         }
     }
 
@@ -139,7 +139,7 @@ public struct AgentStats: Codable, Equatable, Sendable {
         s.projects = ranked.prefix(WeekSummary.shownProjects).map { ($0.key, $0.value) }
         let rest = ranked.dropFirst(WeekSummary.shownProjects)
         if !rest.isEmpty { s.others = (rest.count, rest.reduce(0) { $0 + $1.value }) }
-        let before = week.previous
+        let before = week.previous(calendar)
         let earlier = before.days.compactMap { days[Self.key($0, calendar)] }
         if !earlier.isEmpty {
             s.previousTotal = earlier.reduce(0) { $0 + $1.projects.values.reduce(0) { $0 + $1.claude + $1.codex } }
@@ -236,6 +236,6 @@ public enum RecapPlan {
         let week = AgentStats.Week.containing(now, calendar)
         guard shownFor != weekKey(now, calendar: calendar),
               let opens = calendar.date(byAdding: .hour, value: fromHour, to: week.start), now >= opens else { return false }
-        return stats.summary(of: week.previous, calendar: calendar).worthShowing
+        return stats.summary(of: week.previous(calendar), calendar: calendar).worthShowing
     }
 }

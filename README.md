@@ -441,7 +441,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.pixelpet/events.log` | Only written when the event log is on. It rotates at 1 MB and keeps one old file, `events.log.1` |
 | `~/.claude/settings.json` | One hook entry for each of 13 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/*-pixelpet-claude` | Quick-question sessions, written by the Claude Code CLI, including the text of files you dropped on the cube. Deleted when you start a new conversation, on quit and on launch |
-| `~/.claude/projects/<project>/<session>.jsonl` | Read only, while a permission request waits: the lines appended to that session's transcript, to see when you answered in Claude Code itself. Only the call's result and an "interrupted" line are looked for; nothing is kept |
+| `~/.claude/projects/<project>/<session>.jsonl` | Read only: the end of a session's transcript, while a permission request waits (to see when you answered in Claude Code itself) and when a working session goes quiet for a few seconds (to see a turn stopped with Esc, which no hook reports). Only the call's result and an "interrupted" line are looked for; nothing is kept |
 | Calendars | Read only, when call reminders are on: the next day of events, kept in memory (titles are shown in the status card, never written anywhere) |
 | System log | Read only, one message: the smart-card service's "Time extension received", through a filtered `log stream` that ends with the app |
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |

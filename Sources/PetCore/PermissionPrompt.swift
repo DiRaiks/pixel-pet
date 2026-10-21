@@ -59,6 +59,17 @@ public struct PermissionPrompt: Equatable, Sendable, Identifiable {
             toolUseID: (json["tool_use_id"] as? String).flatMap { $0.isEmpty ? nil : $0 })
     }
 
+    /// Whether the transcript's last exchange is an interrupt: the newest user or assistant entry among these
+    /// lines (oldest first) is "[Request interrupted by user…]". Esc stops a turn without any hook.
+    public static func endsInterrupted(_ lines: [Data]) -> Bool {
+        for line in lines.reversed() {
+            guard let json = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+                  let type = json["type"] as? String, type == "user" || type == "assistant" else { continue }
+            return type == "user" && transcriptSignal(line, toolUseID: "") == .stopped
+        }
+        return false
+    }
+
     public enum TranscriptSignal: Equatable, Sendable {
         /// The call has its result: allowed and run, or denied.
         case answered

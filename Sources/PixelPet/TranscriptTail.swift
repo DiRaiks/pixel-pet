@@ -45,3 +45,21 @@ final class TranscriptTail {
         return lines
     }
 }
+
+extension TranscriptTail {
+    /// The complete lines in the last `bytes` of a file (the first, likely cut, is dropped), oldest first.
+    nonisolated static func lastLines(_ path: String, bytes: Int = 64 << 10) -> [Data] {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return [] }
+        defer { try? handle.close() }
+        guard let end = try? handle.seekToEnd() else { return [] }
+        let start = end > UInt64(bytes) ? end - UInt64(bytes) : 0
+        guard (try? handle.seek(toOffset: start)) != nil, let data = try? handle.readToEnd() else { return [] }
+        var lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true).map { Data($0) }
+        if start > 0, !lines.isEmpty { lines.removeFirst() }
+        return lines
+    }
+
+    nonisolated static func size(_ path: String) -> UInt64? {
+        (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.uint64Value
+    }
+}

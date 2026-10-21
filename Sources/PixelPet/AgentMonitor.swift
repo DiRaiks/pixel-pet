@@ -56,6 +56,11 @@ final class AgentMonitor {
     private var noticed: Set<String> = []
     /// Day sums for the weekly recap.
     var stats: StatsKeeper?
+    /// Esc stops a turn without a hook: quiet sessions get their transcript checked for the interrupt line.
+    private var interruptCheck: Timer?
+    /// Transcript size at the last check, so an unchanged file isn't read again.
+    private var checkedSizes: [String: UInt64] = [:]
+    static let interruptQuiet: TimeInterval = 4
 
     /// One hook connection: the payload, and the way back for a hook that waits.
     private struct Incoming: @unchecked Sendable {
@@ -75,6 +80,12 @@ final class AgentMonitor {
     }
 
     func start() {
+        let interruptCheck = Timer(timeInterval: 3, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkInterrupts() }
+        }
+        interruptCheck.tolerance = 1
+        RunLoop.main.add(interruptCheck, forMode: .common)
+        self.interruptCheck = interruptCheck
         let path = Self.socketPath
         // One stream, one consumer: hook events reach the state machine in the order they arrived.
         let (events, continuation) = AsyncStream.makeStream(of: Incoming.self, bufferingPolicy: .bufferingNewest(1000))
@@ -131,6 +142,8 @@ final class AgentMonitor {
     }
 
     func stop() {
+        interruptCheck?.invalidate()
+        interruptCheck = nil
         permissionTails.values.forEach { $0.stop() }
         permissionTails.removeAll()
         codexWatcher?.stop()
@@ -178,6 +191,22 @@ final class AgentMonitor {
         if let before, before.status == .waiting, after?.status != .waiting, let since = before.waitingSince {
             stats.record { $0.recordWait(now.timeIntervalSince(since), at: now) }
         }
+    }
+
+    /// Sessions that look busy but have gone quiet: when the transcript grew and its last exchange is
+    /// "[Request interrupted by user]", the turn is over.
+    private func checkInterrupts() {
+        let now = Date()
+        for s in registry.ordered where s.status == .working || s.status == .waiting {
+            guard now.timeIntervalSince(s.lastEventAt) >= Self.interruptQuiet, let path = s.transcriptPath,
+                  let size = TranscriptTail.size(path), size != checkedSizes[s.id] else { continue }
+            checkedSizes[s.id] = size
+            if PermissionPrompt.endsInterrupted(TranscriptTail.lastLines(path)) {
+                checkedSizes[s.id] = nil
+                permissionSettled(s.id, stopped: true)
+            }
+        }
+        checkedSizes = checkedSizes.filter { registry.sessions[$0.key] != nil }
     }
 
     /// A request was answered where the session runs; `stopped` when that also ended the turn.

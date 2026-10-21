@@ -32,6 +32,8 @@ public struct AgentSession: Equatable, Sendable {
     public var lastWork: TimeInterval = 0
     /// The app the session runs in (Terminal, VS Code, the Claude app), when the hook could tell.
     public var host: AgentHost?
+    /// The session's transcript, when the hook said where it is.
+    public var transcriptPath: String?
     /// Active work in this turn before the latest wait, so time spent waiting for the user isn't counted.
     var workedBefore: TimeInterval = 0
     /// The turn ended with a question for the user, so after Stop the session waits for a reply.
@@ -109,6 +111,7 @@ public struct SessionRegistry: Sendable {
         s.lastEventAt = now
         if let cwd = event.cwd { s.cwd = cwd }
         if let host = event.host { s.host = host }
+        if let path = event.transcriptPath { s.transcriptPath = path }
         var reaction: AgentReaction?
 
         switch event.kind {

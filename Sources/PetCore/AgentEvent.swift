@@ -35,14 +35,18 @@ public struct AgentEvent: Equatable, Sendable {
     public let step: AgentStep?
     /// The app the session runs in, from the hook script's tags.
     public let host: AgentHost?
+    /// The session's transcript file, to notice a turn stopped with Esc (no hook reports that).
+    public let transcriptPath: String?
 
-    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil, host: AgentHost? = nil) {
+    public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil, host: AgentHost? = nil,
+                transcriptPath: String? = nil) {
         self.sessionID = sessionID
         self.cwd = cwd
         self.kind = kind
         self.pushed = pushed
         self.step = step
         self.host = host
+        self.transcriptPath = transcriptPath
     }
 
     /// Parses a raw hook payload; nil for events the pet ignores or malformed input.
@@ -79,7 +83,9 @@ public struct AgentEvent: Equatable, Sendable {
         var step: AgentStep?
         if case .toolStarted = kind { step = AgentStep.describe(tool: tool, input: input) }
         let host = AgentHost(bundleID: json["pixelpet_app"] as? String, term: json["pixelpet_term"] as? String)
-        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step, host: host)
+        let transcript = (json["transcript_path"] as? String).flatMap { $0.hasPrefix("/") && $0.hasSuffix(".jsonl") ? $0 : nil }
+        return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step, host: host,
+                          transcriptPath: transcript)
     }
 
     /// `git push` as a command in a shell line (also `git -C dir push`), not a dry run. Quoted text is

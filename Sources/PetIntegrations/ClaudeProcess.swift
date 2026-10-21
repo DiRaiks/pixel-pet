@@ -44,9 +44,13 @@ enum ClaudeProcess {
         }
         let started: Bool = await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
-                process.terminationHandler = { _ in continuation.resume(returning: true) }
+                process.terminationHandler = { _ in
+                    Running.shared.remove(box)
+                    continuation.resume(returning: true)
+                }
                 do {
                     try process.run()
+                    Running.shared.add(box)
                 } catch {
                     continuation.resume(returning: false)
                     return
@@ -123,5 +127,39 @@ final class ProcessBox: @unchecked Sendable {
         DispatchQueue.global().asyncAfter(deadline: .now() + killAfter) { [self] in
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
         }
+    }
+}
+
+/// The CLI processes the pet has running, so quitting the app doesn't leave them behind (they'd otherwise run
+/// on until their own API timeout, up to many minutes).
+public enum ClaudeProcesses {
+    /// SIGTERM to every one still running; called as the app quits.
+    public static func terminateAll() {
+        Running.shared.terminateAll()
+    }
+}
+
+final class Running: @unchecked Sendable {
+    static let shared = Running()
+    private let lock = NSLock()
+    private var boxes: [ObjectIdentifier: ProcessBox] = [:]
+
+    func add(_ box: ProcessBox) {
+        lock.lock()
+        boxes[ObjectIdentifier(box)] = box
+        lock.unlock()
+    }
+
+    func remove(_ box: ProcessBox) {
+        lock.lock()
+        boxes[ObjectIdentifier(box)] = nil
+        lock.unlock()
+    }
+
+    func terminateAll() {
+        lock.lock()
+        let all = Array(boxes.values)
+        lock.unlock()
+        for box in all where box.process.isRunning { box.process.terminate() }
     }
 }

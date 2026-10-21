@@ -441,6 +441,12 @@ final class PetController {
         if touchWait.duration < TouchWait.likelyTimeout { react(.touchDone) }
     }
 
+    /// Whether a system notification may go out now: the mode allows it with the pet as it is, and it isn't
+    /// told to keep quiet.
+    var mayNotify: Bool {
+        NoticePlan.posts(mode: config.notifications, petVisible: isOnScreen, doNotDisturb: doNotDisturb)
+    }
+
     /// The dropped files were taken (swallowed) or none could be (a shake of the head).
     func caughtFiles(_ taken: Bool) {
         react(taken ? .swallow : .shakeHead)
@@ -455,7 +461,10 @@ final class PetController {
             // A yawn and a stretch first, when the mug actually shows.
             if restingState == .breakHint { react(.yawn) }
         case .hide: applyRest()
-        case .welcomeBack: if isOnScreen, !config.isHome { react(.hop) }
+        case .welcomeBack:
+            // The mug may have been up when the Mac went to sleep.
+            applyRest()
+            if isOnScreen, !config.isHome { react(.hop) }
         case nil: break
         }
     }

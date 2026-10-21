@@ -10,9 +10,6 @@ import UniformTypeIdentifiers
 public enum AttachmentLoader {
     public enum Refusal: Error, Equatable, Sendable { case folder, unsupported, tooLarge, unreadable, empty }
 
-    /// Pages of a scanned PDF sent as pictures when it has no text.
-    static let scannedPages = 3
-
     public static func load(_ url: URL) -> Result<Attachment, Refusal> {
         var isFolder: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder) else { return .failure(.unreadable) }

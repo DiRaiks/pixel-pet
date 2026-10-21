@@ -372,7 +372,7 @@ private struct SessionRow: View {
             guard source == nil else { return prefix + Text(L("working", "работает")) }
             return session.step.map(Format.step) ?? Text(L("Thinking", "Думает"))
         case .waiting where session.waitingFor == .permission:
-            let what = session.step.flatMap(\.object) ?? session.currentTool.map(Format.tool)
+            let what = session.step.flatMap(\.object) ?? session.currentTool.map(PermissionView.toolName)
             let waiting = Text(L("Waiting for permission", "Ждёт разрешения"))
             return prefix + (what.map { waiting + Text(": ") + Format.code($0) } ?? waiting)
         case .waiting: return prefix + Text(L("Waiting for an answer", "Ждёт ответа"))
@@ -467,10 +467,6 @@ enum Format {
         }
         guard let object = step.object else { return Text(verb) }
         return Text(verb + (step.action == .subagent ? ": " : " ")) + code(object)
-    }
-
-    static func tool(_ name: String) -> String {
-        name.hasPrefix("mcp__") ? String(name.split(separator: "__").last ?? Substring(name)) : name
     }
 }
 

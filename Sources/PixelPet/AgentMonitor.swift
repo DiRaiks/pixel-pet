@@ -60,6 +60,8 @@ final class AgentMonitor {
     private var interruptCheck: Timer?
     /// Transcript size at the last check, so an unchanged file isn't read again.
     private var checkedSizes: [String: UInt64] = [:]
+    /// Sessions whose transcript is being read right now.
+    private var checking: Set<String> = []
     static let interruptQuiet: TimeInterval = 4
 
     /// One hook connection: the payload, and the way back for a hook that waits.
@@ -194,19 +196,31 @@ final class AgentMonitor {
     }
 
     /// Sessions that look busy but have gone quiet: when the transcript grew and its last exchange is
-    /// "[Request interrupted by user]", the turn is over.
+    /// "[Request interrupted by user]", the turn is over. The file is read off the main thread.
     private func checkInterrupts() {
         let now = Date()
         for s in registry.ordered where s.status == .working || s.status == .waiting {
             guard now.timeIntervalSince(s.lastEventAt) >= Self.interruptQuiet, let path = s.transcriptPath,
-                  let size = TranscriptTail.size(path), size != checkedSizes[s.id] else { continue }
-            checkedSizes[s.id] = size
-            if PermissionPrompt.endsInterrupted(TranscriptTail.lastLines(path)) {
-                checkedSizes[s.id] = nil
-                permissionSettled(s.id, stopped: true)
+                  !checking.contains(s.id) else { continue }
+            checking.insert(s.id)
+            let (id, previous, seen) = (s.id, checkedSizes[s.id], s.lastEventAt)
+            Task.detached(priority: .utility) { [weak self] in
+                let size = TranscriptTail.size(path)
+                let grew = size != nil && size != previous
+                let interrupted = grew && PermissionPrompt.endsInterrupted(TranscriptTail.lastLines(path))
+                await self?.finishInterruptCheck(id, size: size, interrupted: interrupted, seen: seen)
             }
         }
         checkedSizes = checkedSizes.filter { registry.sessions[$0.key] != nil }
+    }
+
+    private func finishInterruptCheck(_ id: String, size: UInt64?, interrupted: Bool, seen: Date) {
+        checking.remove(id)
+        checkedSizes[id] = interrupted ? nil : size
+        // Something happened meanwhile (a new prompt, a tool): that's newer than what the file said.
+        guard interrupted, let s = registry.sessions[id], s.lastEventAt == seen,
+              s.status == .working || s.status == .waiting else { return }
+        permissionSettled(id, stopped: true)
     }
 
     /// A request was answered where the session runs; `stopped` when that also ended the turn.

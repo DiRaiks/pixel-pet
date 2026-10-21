@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stats: StatsKeeper?
     private var recapClock: Timer?
     private var hotKeys: [HotKey] = []
+    /// SIGTERM (`pkill`, `kill`) quits like the menu does, so the pet's own `claude` runs are stopped too.
+    private var terminationSignal: DispatchSourceSignal?
     private var translator: Translator?
     private var asker: Asker?
     private var desktop: DesktopSensor?
@@ -28,6 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsModel: SettingsModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        signal(SIGTERM, SIG_IGN)
+        let terminationSignal = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        terminationSignal.setEventHandler { NSApp.terminate(nil) }
+        terminationSignal.resume()
+        self.terminationSignal = terminationSignal
         let exportArgs = CommandLine.arguments
         // Debug aid for screenshots: the cards in light or dark whatever the system uses.
         if let i = exportArgs.firstIndex(of: "--appearance"), i + 1 < exportArgs.count {
@@ -89,9 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch action {
             case .clear: notifier.clear(key)
             case .post(let notice):
-                guard let session,
-                      NoticePlan.posts(mode: pet.config.notifications, petVisible: pet.isOnScreen, doNotDisturb: pet.doNotDisturb)
-                else { return notifier.clear(key) }
+                guard let session, pet.mayNotify else { return notifier.clear(key) }
                 // The card by the pet already asks.
                 if notice == .permission, !codex, permissions.isAsking(session.id) { return notifier.clear(key) }
                 let project = session.project ?? String(session.id.prefix(8))
@@ -101,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         pet.onTouching = { [weak pet] waiting in
             guard let pet else { return }
-            if waiting, NoticePlan.posts(mode: pet.config.notifications, petVisible: pet.isOnScreen, doNotDisturb: pet.doNotDisturb) {
+            if waiting, pet.mayNotify {
                 notifier.post("key-touch", title: NoticeText.touchTitle(), body: NoticeText.touchBody(), host: nil)
             } else {
                 notifier.clear("key-touch")
@@ -382,6 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        ClaudeProcesses.terminateAll()
         stats?.stop()
         touch?.stop()
         agents?.stop()

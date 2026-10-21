@@ -1,39 +1,60 @@
 import Foundation
 
-/// Reads the lines appended to a file from now on, twice a second, until stopped.
-@MainActor
-final class TranscriptTail {
+/// Reads the lines appended to a file from now on, twice a second, until stopped. The file is read on a
+/// queue of its own; the lines are handed over on the main thread.
+final class TranscriptTail: @unchecked Sendable {
+    private let path: String
+    private let queue = DispatchQueue(label: "pixelpet.transcript-tail", qos: .utility)
+    private let timer: DispatchSourceTimer
+    private let onLine: @MainActor (Data) -> Void
+    // Touched only on `queue`.
     private var offset: UInt64
     private var partial = Data()
-    private var timer: Timer?
+    // Read on the main thread before each line goes out.
+    private let lock = NSLock()
+    private var stopped = false
 
+    @MainActor
     init?(path: String, onLine: @escaping @MainActor (Data) -> Void) {
         guard let handle = FileHandle(forReadingAtPath: path), let end = try? handle.seekToEnd() else { return nil }
         try? handle.close()
+        self.path = path
+        self.onLine = onLine
         offset = end
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 0.5, repeating: 0.5, leeway: .milliseconds(200))
+        // Not main-actor isolated, though written in a main-actor init: it runs on `queue`.
+        timer.setEventHandler { @Sendable [weak self] in self?.poll() }
+        timer.resume()
+    }
+
+    deinit { timer.cancel() }
+
+    @MainActor
+    func stop() {
+        lock.withLock { stopped = true }
+        timer.cancel()
+    }
+
+    private var isStopped: Bool { lock.withLock { stopped } }
+
+    private func poll() {
+        let lines = read()
+        guard !lines.isEmpty else { return }
+        DispatchQueue.main.async { [self] in
             MainActor.assumeIsolated {
-                guard let self else { return }
-                for line in self.read(path) {
-                    guard self.timer != nil else { return }
+                for line in lines {
+                    guard !isStopped else { return }
                     onLine(line)
                 }
             }
         }
-        timer.tolerance = 0.2
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
-    }
-
-    func stop() {
-        timer?.invalidate()
-        timer = nil
     }
 
     /// Complete lines since the last read; an unfinished last line waits for the next read. At most 4 MB a
     /// read, and a line longer than 16 MB is dropped.
-    private func read(_ path: String) -> [Data] {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return [] }
+    private func read() -> [Data] {
+        guard !isStopped, let handle = FileHandle(forReadingAtPath: path) else { return [] }
         defer { try? handle.close() }
         guard (try? handle.seek(toOffset: offset)) != nil,
               let chunk = try? handle.read(upToCount: 4 << 20), !chunk.isEmpty else { return [] }
@@ -48,7 +69,7 @@ final class TranscriptTail {
 
 extension TranscriptTail {
     /// The complete lines in the last `bytes` of a file (the first, likely cut, is dropped), oldest first.
-    nonisolated static func lastLines(_ path: String, bytes: Int = 64 << 10) -> [Data] {
+    static func lastLines(_ path: String, bytes: Int = 64 << 10) -> [Data] {
         guard let handle = FileHandle(forReadingAtPath: path) else { return [] }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd() else { return [] }
@@ -59,7 +80,7 @@ extension TranscriptTail {
         return lines
     }
 
-    nonisolated static func size(_ path: String) -> UInt64? {
+    static func size(_ path: String) -> UInt64? {
         (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.uint64Value
     }
 }

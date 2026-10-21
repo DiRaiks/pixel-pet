@@ -23,6 +23,9 @@ public struct BreakClock: Sendable {
     /// The stretch before this break reached the reminder: coming back earns a hop.
     var earnedBreak = false
     var away = false
+    /// The previous look: a longer gap than a break (the Mac asleep, the lid shut) is a break, whatever the
+    /// idle time says after waking.
+    var lastLook: Date?
 
     public init(minutes: Int) {
         self.minutes = minutes
@@ -31,18 +34,18 @@ public struct BreakClock: Sendable {
     public var showing: Bool { hintSince != nil }
     var interval: TimeInterval { TimeInterval(minutes * 60) }
 
-    /// Called every half minute or so; `userIdle` is the seconds since the last input.
+    /// Called every half minute or so; `userIdle` is the seconds since the last input. A gap between looks
+    /// longer than a break (the Mac asleep) counts as one, even if the idle time is short after waking.
     public mutating func update(now: Date, userIdle: TimeInterval) -> Change? {
-        if userIdle >= Self.breakAfter {
-            let wasShowing = showing
-            if let start = workStart, interval > 0, now.addingTimeInterval(-userIdle).timeIntervalSince(start) >= interval {
-                earnedBreak = true
-            }
-            workStart = nil
-            hintSince = nil
-            notBefore = nil
-            away = true
-            return wasShowing ? .hide : nil
+        let previous = lastLook
+        lastLook = now
+        let slept = previous.map { now.timeIntervalSince($0) >= Self.breakAfter } ?? false
+        var hid = false
+        if userIdle >= Self.breakAfter || slept {
+            // The stretch ended at the last input, or at the last look when the Mac slept in between.
+            let ended = userIdle >= Self.breakAfter ? now.addingTimeInterval(-userIdle) : previous ?? now
+            hid = endStretch(at: ended)
+            if userIdle >= Self.breakAfter { return hid ? .hide : nil }
         }
         if workStart == nil {
             workStart = now.addingTimeInterval(-userIdle)
@@ -53,6 +56,7 @@ public struct BreakClock: Sendable {
             }
             away = false
         }
+        if hid { return .hide }
         guard minutes > 0, let start = workStart else { return hide(until: nil) }
         if let since = hintSince {
             guard now.timeIntervalSince(since) >= Self.showFor else { return nil }
@@ -63,6 +67,18 @@ public struct BreakClock: Sendable {
             return .show
         }
         return nil
+    }
+
+    /// A break: the stretch of work is over (it earned a hop if it reached the reminder). True when the mug
+    /// was up and goes away.
+    private mutating func endStretch(at ended: Date) -> Bool {
+        let wasShowing = showing
+        if let start = workStart, interval > 0, ended.timeIntervalSince(start) >= interval { earnedBreak = true }
+        workStart = nil
+        hintSince = nil
+        notBefore = nil
+        away = true
+        return wasShowing
     }
 
     /// A click on the mug: later.

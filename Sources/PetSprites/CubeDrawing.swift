@@ -389,10 +389,6 @@ extension PixelCanvas {
         set(x - 1, y, color); set(x + 1, y, color); set(x, y - 1, color); set(x, y + 1, color)
     }
 
-    mutating func zee(_ x: Int, _ y: Int, _ color: RGBA) {
-        fill(x, y, 3, 1, color); set(x + 1, y + 1, color); fill(x, y + 2, 3, 1, color)
-    }
-
     mutating func circle(_ cx: Int, _ cy: Int, radius r: Int, _ color: RGBA) {
         for i in 0..<16 {
             let t = Double(i) / 16 * 2 * .pi

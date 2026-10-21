@@ -56,6 +56,25 @@ struct BreakClockTests {
         #expect(c.update(now: at(81), userIdle: 1) == nil)
     }
 
+    /// The Mac slept through lunch: no checks for an hour, and the idle time after waking may be small.
+    @Test func aLongGapBetweenLooksIsABreak() {
+        var c = BreakClock(minutes: 60)
+        _ = work(&c, from: 0, to: 50)
+        #expect(c.update(now: at(110), userIdle: 1) == nil)
+        // The count started again at the wake-up: no mug for another hour.
+        #expect(work(&c, from: 110.5, to: 169).isEmpty)
+        #expect(c.update(now: at(170.5), userIdle: 2) == .show)
+    }
+
+    /// Asleep with the mug up, after a full hour: on waking it goes, and the earned break gets its hop.
+    @Test func wakingWithTheMugUp() {
+        var c = BreakClock(minutes: 45)
+        _ = work(&c, from: 0, to: 46)
+        #expect(c.showing)
+        #expect(c.update(now: at(120), userIdle: 1) == .welcomeBack)
+        #expect(!c.showing)
+    }
+
     @Test func offMeansNothing() {
         var c = BreakClock(minutes: 0)
         #expect(work(&c, from: 0, to: 200).isEmpty)

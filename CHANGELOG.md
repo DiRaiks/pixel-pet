@@ -30,6 +30,8 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **No mug right after the Mac wakes.** Time asleep (no look for more than a break's length) now counts as a break, whatever the idle time reads after waking.
+- **Quitting stops the pet's own `claude` runs.** They used to run on after the app quit, until their own timeout; `pkill` now quits the app the normal way too.
 - **A turn stopped with Esc ends at once.** No hook reports it, so the cube kept "Thinking" for 5 minutes (or for good, with a tool running); a quiet session's transcript is now checked for the interrupt line.
 - **LM's newspaper sits under his eyes.** The recap paper covered most of his face; it's two rows lower for him.
 - **No dancing to silence after unplugging headphones.** A paused player's open stream moves to the speakers and keeps them looking busy; a stream carried over to a new output no longer counts as music until it stops once.

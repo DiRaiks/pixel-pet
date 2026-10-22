@@ -18,19 +18,21 @@ jobs:
     name: Build and publish
     runs-on: macos-26
     timeout-minutes: 60
+    # Secrets go only to the steps that use them, not to the build of the repository's code. Whether
+    # signing is set up at all is known from these two flags.
     env:
-      P12: ${{ secrets.DEVELOPER_ID_P12 }}
-      P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
-      API_KEY: ${{ secrets.APPLE_API_KEY }}
-      NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
+      HAS_P12: ${{ secrets.DEVELOPER_ID_P12 != '' }}
+      HAS_API_KEY: ${{ secrets.APPLE_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # git describe for CFBundleVersion
 
       - name: Import the Developer ID certificate
-        if: env.P12 != ''
+        if: env.HAS_P12 == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
         run: |
           KC="$RUNNER_TEMP/release.keychain-db"
           KC_PASS="$(uuidgen)"
@@ -49,12 +51,17 @@ jobs:
           echo "RELEASE_KEYCHAIN=$KC" >> "$GITHUB_ENV"
 
       - name: Notary API key
-        if: env.P12 != '' && env.API_KEY != ''
+        if: env.HAS_P12 == 'true' && env.HAS_API_KEY == 'true'
+        env:
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
           echo "$API_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
           echo "NOTARY_KEY=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
 
       - name: Build the DMG
+        env:
+          NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: ./scripts/release.sh "$GITHUB_REF_NAME"
 
       - name: Publish

@@ -24,7 +24,7 @@ enum ClaudeProcess {
         for key in strippedEnvironment { env.removeValue(forKey: key) }
         env["PIXELPET_INTERNAL"] = "1"
         process.environment = env
-        let workdir = FileManager.default.temporaryDirectory.appendingPathComponent("pixelpet-claude", isDirectory: true)
+        let workdir = ClaudeWorkdir.url
         try? FileManager.default.createDirectory(at: workdir, withIntermediateDirectories: true)
         process.currentDirectoryURL = workdir
         let output = Pipe()

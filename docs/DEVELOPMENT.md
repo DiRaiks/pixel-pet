@@ -174,7 +174,7 @@ A self-signed code-signing certificate gives every build a stable identity. To c
 | `SIGN_IDENTITY="Developer ID Application: …"` | App signed with hardened runtime, `scripts/PixelPet.entitlements` and a secure timestamp; DMG signed |
 | plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | DMG notarized, stapled and checked with `spctl` |
 
-Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) runs the Release workflow on `macos-26`: it imports the certificate into a temporary keychain, runs `release.sh` and publishes a GitHub release with the DMG and generated notes. It reads these repository secrets, set in Settings → Secrets and variables → Actions:
+Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) runs the Release workflow on `macos-26`: it imports the certificate into a temporary keychain, runs `release.sh` and publishes a GitHub release with the DMG and generated notes. Each secret is passed only to the step that needs it (the certificate to the keychain import, the notary key to its own step), and the actions are pinned to commits (Dependabot keeps the pins current). It reads these repository secrets, set in Settings → Secrets and variables → Actions:
 
 | Secret | Value |
 |---|---|

@@ -158,9 +158,9 @@ public struct HookInstaller: Sendable {
 
     public static let script = """
     #!/bin/sh
-    # Pixel Pet hook: forwards the hook JSON to the pet over a unix socket and prints whatever the pet sends
-    # back. The pet answers only a permission request (when it's on screen and the setting is on) and closes
-    # every other connection at once, so only that one ever waits, and at most \(PermissionWait.ncTimeout) s.
+    # Pixel Pet hook: forwards the hook JSON to the pet over a unix socket. For a permission request it prints
+    # what the pet sends back (its answer, when it's on screen and the setting is on); every other connection
+    # is closed at once, so only that one ever waits, and at most \(PermissionWait.ncTimeout) s.
     # Never fails Claude Code: always exit 0, stdin always drained.
     if [ -n "${PIXELPET_INTERNAL:-}" ]; then
         cat >/dev/null
@@ -175,8 +175,15 @@ public struct HookInstaller: Sendable {
     # break out of the JSON string.
     app=$(printf '%s' "${__CFBundleIdentifier:-}" | tr -cd 'A-Za-z0-9._-')
     term=$(printf '%s' "${TERM_PROGRAM:-}" | tr -cd 'A-Za-z0-9._-')
-    sed "1s/^{/{\\"pixelpet_app\\":\\"$app\\",\\"pixelpet_term\\":\\"$term\\",/" \\
-        | nc -U -w \(PermissionWait.ncTimeout) "$SOCK" 2>/dev/null
+    input=$(cat)
+    reply=$(printf '%s' "$input" \\
+        | sed "1s/^{/{\\"pixelpet_app\\":\\"$app\\",\\"pixelpet_term\\":\\"$term\\",/" \\
+        | nc -U -w \(PermissionWait.ncTimeout) "$SOCK" 2>/dev/null)
+    # Only a permission request takes an answer back. Anything else that comes over the socket (something
+    # other than the pet listening there) is dropped, so it can't steer other hooks.
+    if printf '%s' "$input" | grep -Eq '"hook_event_name"[[:space:]]*:[[:space:]]*"PermissionRequest"'; then
+        printf '%s' "$reply"
+    fi
     exit 0
 
     """

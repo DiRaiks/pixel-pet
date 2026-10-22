@@ -61,6 +61,37 @@ import PetCore
         var data: Data? { lock.withLock { value } }
     }
 
+    /// Something other than the pet listening on the socket, answering every connection: only a permission
+    /// request's hook prints what it says, so it can't steer other hooks.
+    @Test func onlyAPermissionRequestPrintsTheReply() throws {
+        defer { cleanUp() }
+        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        withUnsafeMutableBytes(of: &addr.sun_path) { $0.copyBytes(from: Array(socket.utf8) + [0]) }
+        let bound = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        #expect(bound == 0)
+        listen(fd, 4)
+        defer { close(fd) }
+        let answer = #"{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}"#
+        DispatchQueue.global().async {
+            for _ in 0..<2 {
+                let client = accept(fd, nil, nil)
+                guard client >= 0 else { return }
+                var buffer = [UInt8](repeating: 0, count: 65536)
+                while read(client, &buffer, buffer.count) > 0 {}
+                _ = answer.withCString { write(client, $0, strlen($0)) }
+                close(client)
+            }
+        }
+        let other = try runHook(#"{"hook_event_name":"PreToolUse","session_id":"s1","tool_name":"Bash"}"#)
+        #expect(other.output.isEmpty)
+        let request = try runHook(Self.request)
+        #expect(request.output == answer)
+    }
+
     @Test func allowIsPrintedForClaudeCode() throws {
         defer { cleanUp() }
         let prompt = PermissionPrompt.parse(Data(Self.request.utf8))!

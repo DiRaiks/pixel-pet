@@ -30,6 +30,9 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **Quick-question cleanup removes only its own folder.** It deleted every `~/.claude/projects` folder ending in `-pixelpet-claude`, which would include the session history of a project of yours in a folder by that name; now it removes only the exact folder Claude Code makes for the pet's workdir, and the leftover one older builds used for the limits check.
+- **The hook prints an answer only for a permission request.** Anything else coming back over the socket is dropped, so whatever might be listening there can't hand other hooks a decision.
+- **Release workflow.** Signing secrets reach only the steps that use them, and `actions/checkout` is pinned to a commit.
 - **No mug right after the Mac wakes.** Time asleep (no look for more than a break's length) now counts as a break, whatever the idle time reads after waking.
 - **Quitting stops the pet's own `claude` runs.** They used to run on after the app quit, until their own timeout; `pkill` now quits the app the normal way too.
 - **A turn stopped with Esc ends at once.** No hook reports it, so the cube kept "Thinking" for 5 minutes (or for good, with a tool running); a quiet session's transcript is now checked for the interrupt line.

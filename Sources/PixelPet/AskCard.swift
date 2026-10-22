@@ -432,12 +432,12 @@ final class Asker {
 }
 
 /// Quick-ask sessions live under the pet's own workdir in ~/.claude/projects. They exist only so
-/// follow-ups can resume; the pet removes them when a conversation is dropped, on quit and on launch.
+/// follow-ups can resume; the pet removes them when a conversation is dropped, on quit and on launch. Only
+/// the folders named after the pet's own workdirs go, never a project that merely ends the same way.
 enum AskSessions {
     static func removeAll() {
         let projects = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: projects.path)) ?? []
-        for name in names where name.hasSuffix("-pixelpet-claude") {
+        for name in ClaudeWorkdir.sessionFolderNames {
             try? FileManager.default.removeItem(at: projects.appendingPathComponent(name))
         }
     }

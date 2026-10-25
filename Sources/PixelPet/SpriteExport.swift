@@ -88,12 +88,16 @@ enum ReadmeExport {
         // Moments tied to agents, limits, the battery and the user's hand.
         let waiting: [AgentCube] = [.init(status: .waiting, subagents: 0), .init(status: .working, subagents: 0)]
         let rest = Clip(state: .idle, seconds: 0.6)
+        // One session, before and while it runs subagents (its block's dot).
+        let alone = [AgentCube(status: .working, subagents: 0)], helped = [AgentCube(status: .working, subagents: 1)]
         let moments: [(String, [Clip])] = [
             ("question", [Clip(state: .question, seconds: 3.2, cubes: waiting)]),
             ("refill", [Clip(state: .idle, seconds: 0.8, drain: 10), Clip(state: .refill), rest]),
             ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),
-            ("spawn-recall", [Clip(state: .working, seconds: 0.6), Clip(state: .spawn), Clip(state: .working, seconds: 1.2),
-                              Clip(state: .recall), rest]),
+            ("spawn-recall", [rest, Clip(state: .spawn), Clip(state: .idle, seconds: 1.2), Clip(state: .recall), rest]),
+            ("spawn-recall-desk", [Clip(state: .working, seconds: 1.0, cubes: alone), Clip(state: .spawnDesk, cubes: helped),
+                                   Clip(state: .working, seconds: 1.6, cubes: helped), Clip(state: .recallDesk, cubes: alone),
+                                   Clip(state: .working, seconds: 0.8, cubes: alone)]),
             ("compact", [Clip(state: .working, seconds: 0.6), Clip(state: .compact), Clip(state: .working, seconds: 0.6)]),
             ("tired", [Clip(state: .tired, seconds: 3.5)]),
             ("plug-in", [Clip(state: .tired, seconds: 1.0), Clip(state: .plugIn), rest]),
@@ -170,8 +174,11 @@ enum ReadmeExport {
             ("hookah", [Clip(state: .idle, seconds: 0.6), Clip(state: .hookah), Clip(state: .idle, seconds: 0.6)]),
             ("refill", [Clip(state: .idle, seconds: 0.6, drain: 10), Clip(state: .refill), Clip(state: .idle, seconds: 0.6)]),
             ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),
-            ("spawn", [Clip(state: .working, seconds: 0.6), Clip(state: .spawn), Clip(state: .working, seconds: 0.8),
-                       Clip(state: .recall), Clip(state: .working, seconds: 0.6)]),
+            ("spawn", [Clip(state: .working, seconds: 0.6, cubes: [.init(status: .working, subagents: 0)]),
+                       Clip(state: .spawnDesk, cubes: [.init(status: .working, subagents: 1)]),
+                       Clip(state: .working, seconds: 0.8, cubes: [.init(status: .working, subagents: 1)]),
+                       Clip(state: .recallDesk, cubes: [.init(status: .working, subagents: 0)]),
+                       Clip(state: .working, seconds: 0.6, cubes: [.init(status: .working, subagents: 0)])]),
             ("compact", [Clip(state: .working, seconds: 0.6), Clip(state: .compact), Clip(state: .working, seconds: 0.6)]),
             ("tired", [Clip(state: .tired, seconds: 2.0), Clip(state: .plugIn), Clip(state: .idle, seconds: 0.6)]),
             ("thrown", [Clip(state: .dragged, seconds: 0.4), Clip(state: .thrown), Clip(state: .splatRight), Clip(state: .idle, seconds: 0.6)]),

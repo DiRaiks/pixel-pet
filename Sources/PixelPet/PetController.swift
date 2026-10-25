@@ -738,7 +738,7 @@ final class PetController {
               [.idle, .working, .tired, .question].contains(restingState)
                 || Self.macRests.subtracting([.onAir]).contains(restingState),
               player.state == restingState else { return false }
-        return react(state)
+        return react(state.atDesk(over: restingState))
     }
 
     /// Resting states the Mac gives an idle pet; one-offs and petting play over them like over idle, except

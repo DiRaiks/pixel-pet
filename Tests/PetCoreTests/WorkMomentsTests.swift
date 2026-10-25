@@ -102,7 +102,8 @@ import Testing
     }
 
     @Test func deskStatesAreTheKeyboardFamily() {
-        let desk: Set<PetState> = [.working, .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight]
+        let desk: Set<PetState> = [.working, .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight,
+                                   .spawnDesk, .recallDesk]
         #expect(Set(PetState.allCases.filter(\.isAtDesk)) == desk)
         for state in desk where state != .working {
             #expect(!state.loops)

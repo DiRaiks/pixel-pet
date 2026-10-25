@@ -30,6 +30,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case refill, exhausted
     /// Subagents: little copies pop out of the pet, and come back when they're done.
     case spawn, recall
+    /// The same at the keyboard: a harder keystroke sends a copy over to the agent blocks, and it flies back
+    /// into the keys, so the typing rhythm goes on.
+    case spawnDesk, recallDesk
     /// Claude compacts its context: squeezed like an accordion.
     case compact
     /// Battery: low and not charging (droopy, a red battery), and plugged in (a lightning bolt).
@@ -111,6 +114,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .exhausted: Self.repeating(8, 400)
         case .spawn: Self.repeating(8, 90) + [200, 250]
         case .recall: Self.repeating(6, 90) + [200, 250]
+        case .spawnDesk: [110] + Self.repeating(6, 70) + [130, 160]
+        case .recallDesk: [130] + Self.repeating(5, 70) + [110, 160]
         case .compact: [60, 60, 80, 300, 80, 60, 100, 150]
         case .tired: Self.repeating(16, 220)
         case .plugIn: [80, 80, 100, 150, 200, 250, 250, 300]
@@ -138,7 +143,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
-             .refill, .spawn, .recall, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
+             .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
              .swallow, .shakeHead: false
         default: true
         }

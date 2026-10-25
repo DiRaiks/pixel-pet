@@ -248,6 +248,15 @@ import Testing
         #expect(m.update(count: 1, now: at(40)) == .spawn)
     }
 
+    /// At the keyboard the copies come and go without leaving it; a pet at rest plays the big version.
+    @Test func atTheDeskTheCopiesStayAtTheKeyboard() {
+        #expect(PetState.spawn.atDesk(over: .working) == .spawnDesk)
+        #expect(PetState.recall.atDesk(over: .working) == .recallDesk)
+        #expect(PetState.spawn.atDesk(over: .idle) == .spawn)
+        #expect(PetState.recall.atDesk(over: .question) == .recall)
+        #expect(PetState.compact.atDesk(over: .working) == .compact)
+    }
+
     /// Subagents cleared by bookkeeping (a new prompt) without a spawn shown first: nothing to call back.
     @Test func noRecallWithoutASpawn() {
         var m = SubagentMoments()

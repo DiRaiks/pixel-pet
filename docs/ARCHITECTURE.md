@@ -230,7 +230,7 @@ How the pet moves between the desk and home:
 
 ### Moments from events
 
-`AgentMonitor` compares each refresh with the last one: more subagents than before plays `spawn`, all of them gone plays `recall`, and the 5-hour window resetting after at least 10% use plays `refill` (`UsageLimits.refilled`). `PreCompact` (and Codex's `compacted` lines) play `compact`. Plugging in plays `plugIn`. `PetController.moment` lets these through only on the desk, over a calm or working pet with nothing else playing; catch-up batches never trigger them.
+`AgentMonitor` compares each refresh with the last one: more subagents than before plays `spawn`, all of them gone plays `recall` (over a typing pet, `PetState.atDesk` swaps in `spawnDesk` / `recallDesk`, which keep it at the keyboard), and the 5-hour window resetting after at least 10% use plays `refill` (`UsageLimits.refilled`). `PreCompact` (and Codex's `compacted` lines) play `compact`. Plugging in plays `plugIn`. `PetController.moment` lets these through only on the desk, over a calm or working pet with nothing else playing; catch-up batches never trigger them.
 
 ## Desktop reactions
 

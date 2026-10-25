@@ -66,6 +66,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .question: L("Agent asks", "Агент спрашивает"), .refill: L("Limit reset", "Лимит обновился"),
             .exhausted: L("Limit spent", "Лимит исчерпан"),
             .spawn: L("Subagents", "Сабагенты"), .recall: L("Subagents back", "Сабагенты вернулись"),
+            .spawnDesk: L("Subagents (at the desk)", "Сабагенты (за столом)"),
+            .recallDesk: L("Subagents back (at the desk)", "Сабагенты вернулись (за столом)"),
             .compact: L("Compacting context", "Сжимает контекст"),
             .tired: L("Battery low", "Батарея садится"), .plugIn: L("Charging", "Зарядка"), .thrown: L("Thrown", "Кувырок"),
             .dizzy: L("Dizzy", "Кружится голова"),

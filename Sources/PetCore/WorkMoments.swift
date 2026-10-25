@@ -99,8 +99,18 @@ extension PetState {
     /// At the keyboard: typing and its moments. These show the desk props.
     public var isAtDesk: Bool {
         switch self {
-        case .working, .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight: true
+        case .working, .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .spawnDesk, .recallDesk: true
         default: false
+        }
+    }
+
+    /// A moment played over a typing pet: the version that stays at the keyboard, where there is one.
+    public func atDesk(over rest: PetState) -> PetState {
+        guard rest.isAtDesk else { return self }
+        switch self {
+        case .spawn: return .spawnDesk
+        case .recall: return .recallDesk
+        default: return self
         }
     }
 }

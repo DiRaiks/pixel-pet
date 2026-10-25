@@ -71,6 +71,8 @@ public enum SpriteFactory {
         case .exhausted: exhausted(i, look, &c)
         case .spawn: spawn(i, look, &c)
         case .recall: recall(i, look, &c)
+        case .spawnDesk: spawnDesk(i, look, props, &c)
+        case .recallDesk: recallDesk(i, look, props, &c)
         case .compact: compact(i, look, &c)
         case .tired: tired(i, look, &c)
         case .plugIn: plugIn(i, look, &c)

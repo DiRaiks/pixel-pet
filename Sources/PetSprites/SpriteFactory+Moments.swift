@@ -90,6 +90,55 @@ extension SpriteFactory {
         c.miniCube(b.cx - 2 + dx, 21 + dy, look.skin)
     }
 
+    /// Over the keyboard's right end, up and across to just above the nearest Claude Code block.
+    static let deskCopyArc = [(18, 18), (20, 14), (23, 12), (25, 13), (26, 17)]
+
+    /// Subagents start while typing: a harder keystroke, and a copy hops out of the keyboard over to the
+    /// agent blocks, the eyes following it; it shrinks into the block with a spark.
+    static func spawnDesk(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        var s = deskBody(look, props)
+        s.mouth = .flat
+        switch i {
+        case 0: s.h = 12; s.eyes = .squeeze
+        case 1...6: followCopy(&s, right: i < 3 ? 1 : 2)
+        case 7: followCopy(&s, right: 2); s.eyes = .happy
+        default: followCopy(&s, right: 1)
+        }
+        c.body(s)
+        desk(&c, props, lit: i == 0 ? [19, 21] : i == 1 ? [21] : [])
+        switch i {
+        case 1...5: let (x, y) = deskCopyArc[i - 1]; c.miniCube(x, y, look.skin)
+        // Shrunk to 2x2 on the dots' side of the column, clear of the blocks above when several sessions run.
+        case 6: c.fill(AgentStack.x + 3, AgentStack.bottomY - 3, 2, 2, look.skin.outline)
+        case 7, 8: c.sparkle(AgentStack.x + 3, AgentStack.bottomY - 2, Palette.amberLight, big: i == 7)
+        default: break
+        }
+    }
+
+    /// Subagents done while typing: a spark at the blocks, the copy hops back and drops into the keys,
+    /// which flash, and a happy little squish.
+    static func recallDesk(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {
+        var s = deskBody(look, props)
+        s.mouth = .flat
+        switch i {
+        case 0...5: followCopy(&s, right: i < 4 ? 2 : 1)
+        case 6: s.h = 13; s.eyes = .happy
+        default: s.eyes = .happy
+        }
+        c.body(s)
+        desk(&c, props, lit: i == 6 ? [17, 19, 21] : [])
+        switch i {
+        case 0: c.sparkle(AgentStack.x + 3, AgentStack.bottomY - 2, Palette.amberLight, big: true)
+        case 1...5: let (x, y) = deskCopyArc[5 - i]; c.miniCube(x, y, look.skin)
+        default: break
+        }
+    }
+
+    /// Eyes up off the keys and over to the right, after the copy.
+    private static func followCopy(_ s: inout BodyStyle, right: Int) {
+        s.lookX = right; s.lookY = 0; s.eyes = .open
+    }
+
     /// Context compaction: squeezed flat like an accordion with fold lines, then springs back.
     static func compact(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let keys = [(16, 14), (18, 12), (20, 10), (22, 8), (20, 10), (14, 16), (17, 13), (16, 14)]

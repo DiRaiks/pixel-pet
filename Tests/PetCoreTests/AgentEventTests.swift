@@ -62,5 +62,16 @@ import Testing
     @Test func logLineHasNoContent() {
         let e = AgentEvent(sessionID: "7d34aa38-5817", cwd: "/Users/a/secret-project", kind: .toolStarted(name: "Bash", useID: "t"))
         #expect(e.logLine == "7d34aa38 secret-project toolStarted Bash")
+        let sub = AgentEvent(sessionID: "7d34aa38-5817", cwd: "/Users/a/secret-project", kind: .toolStarted(name: "Bash", useID: "t"),
+                             agentID: "a1")
+        #expect(sub.logLine == "7d34aa38 secret-project toolStarted Bash [agent]")
+    }
+
+    /// Tool calls inside a subagent carry its id; the session's own agent sends none.
+    @Test func parsesTheSubagentAToolRunsIn() {
+        let inside = parse(#"{"hook_event_name":"PreToolUse","session_id":"s","agent_id":"a1","agent_type":"Explore","tool_name":"Bash","tool_input":{"command":"true"}}"#)
+        #expect(inside?.agentID == "a1")
+        #expect(parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"Bash","tool_input":{"command":"true"}}"#)?.agentID == nil)
+        #expect(parse(#"{"hook_event_name":"PreToolUse","session_id":"s","agent_id":"","tool_name":"Bash"}"#)?.agentID == nil)
     }
 }

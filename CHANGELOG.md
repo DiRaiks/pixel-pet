@@ -31,6 +31,8 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **No "working" after the turn is over.** The Claude app's post-turn helper runs a tool under the session's id (shown as `Runs true`) and never reports it done, so the session lit up as working for 5 minutes after every such turn. Tool calls from inside an agent (`agent_id`) no longer wake a session between turns.
+- **Resumed sessions show up again.** A session the Claude app unloaded and later resumed under the same id stayed hidden for good, every event of it ignored; a new start or prompt now brings it back.
 - **Quick-question cleanup removes only its own folder.** It deleted every `~/.claude/projects` folder ending in `-pixelpet-claude`, which would include the session history of a project of yours in a folder by that name; now it removes only the exact folder Claude Code makes for the pet's workdir, and the leftover one older builds used for the limits check.
 - **The hook prints an answer only for a permission request.** Anything else coming back over the socket is dropped, so whatever might be listening there can't hand other hooks a decision.
 - **Release workflow.** Signing secrets reach only the steps that use them, and `actions/checkout` is pinned to a commit.

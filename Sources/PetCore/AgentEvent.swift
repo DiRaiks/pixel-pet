@@ -37,9 +37,11 @@ public struct AgentEvent: Equatable, Sendable {
     public let host: AgentHost?
     /// The session's transcript file, to notice a turn stopped with Esc (no hook reports that).
     public let transcriptPath: String?
+    /// Set when the hook fired inside a subagent rather than the session's own agent (Claude Code's `agent_id`).
+    public let agentID: String?
 
     public init(sessionID: String, cwd: String?, kind: Kind, pushed: Bool = false, step: AgentStep? = nil, host: AgentHost? = nil,
-                transcriptPath: String? = nil) {
+                transcriptPath: String? = nil, agentID: String? = nil) {
         self.sessionID = sessionID
         self.cwd = cwd
         self.kind = kind
@@ -47,6 +49,7 @@ public struct AgentEvent: Equatable, Sendable {
         self.step = step
         self.host = host
         self.transcriptPath = transcriptPath
+        self.agentID = agentID
     }
 
     /// Parses a raw hook payload; nil for events the pet ignores or malformed input.
@@ -84,8 +87,9 @@ public struct AgentEvent: Equatable, Sendable {
         if case .toolStarted = kind { step = AgentStep.describe(tool: tool, input: input) }
         let host = AgentHost(bundleID: json["pixelpet_app"] as? String, term: json["pixelpet_term"] as? String)
         let transcript = (json["transcript_path"] as? String).flatMap { $0.hasPrefix("/") && $0.hasSuffix(".jsonl") ? $0 : nil }
+        let agent = (json["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         return AgentEvent(sessionID: session, cwd: json["cwd"] as? String, kind: kind, pushed: pushed, step: step, host: host,
-                          transcriptPath: transcript)
+                          transcriptPath: transcript, agentID: agent)
     }
 
     /// `git push` as a command in a shell line (also `git -C dir push`), not a dry run. Quoted text is
@@ -126,6 +130,24 @@ public struct AgentEvent: Equatable, Sendable {
         case .sessionEnded: detail = "sessionEnded"
         case .compacting: detail = "compacting"
         }
-        return "\(sessionID.prefix(8)) \(project) \(detail)"
+        return "\(sessionID.prefix(8)) \(project) \(detail)\(agentID == nil ? "" : " [agent]")"
+    }
+}
+
+extension AgentEvent.Kind {
+    /// A tool starting or finishing.
+    var isToolCall: Bool {
+        switch self {
+        case .toolStarted, .toolFinished: true
+        default: false
+        }
+    }
+
+    /// Only a session starting again or a new prompt brings an ended session back; its late stragglers don't.
+    var resumesSession: Bool {
+        switch self {
+        case .sessionStart, .promptSubmitted: true
+        default: false
+        }
     }
 }

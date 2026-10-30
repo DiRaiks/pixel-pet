@@ -216,6 +216,91 @@ import Testing
         #expect(r.ordered.isEmpty)
     }
 
+    /// A session closed by the app and then resumed keeps its id: a new start or prompt brings it back.
+    @Test func resumedSessionComesBack() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.sessionEnded), at: at(1))
+        r.apply(ev(.toolStarted(name: "Bash", useID: "late")), at: at(2))
+        #expect(r.ordered.isEmpty)
+        r.apply(ev(.sessionStart(model: nil)), at: at(100))
+        #expect(r.ordered.map(\.id) == ["s1"])
+        r.apply(ev(.promptSubmitted), at: at(101))
+        #expect(r.ordered[0].status == .working)
+        // Ended again, and a prompt alone (no start) also brings it back.
+        r.apply(ev(.sessionEnded), at: at(102))
+        r.apply(ev(.promptSubmitted), at: at(200))
+        #expect(r.ordered[0].status == .working)
+    }
+
+    func agentEv(_ kind: AgentEvent.Kind) -> AgentEvent { AgentEvent(sessionID: "s1", cwd: "/w/proj", kind: kind, agentID: "helper") }
+
+    /// The app's post-turn helper runs a tool under the session's id with no end reported: the session stays done.
+    @Test func agentToolAfterTheTurnDoesNotRestartWork() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.stopped), at: at(5))
+        r.apply(agentEv(.toolStarted(name: "Bash", useID: "t")), at: at(7))
+        #expect(r.ordered[0].status == .idle)
+        #expect(r.ordered[0].step == nil)
+        r.apply(ev(.subagentStopped(id: "helper")), at: at(8))
+        #expect(r.ordered[0].status == .idle)
+        // The session's own agent picking up again still counts.
+        r.apply(ev(.toolStarted(name: "Bash", useID: "u")), at: at(20))
+        #expect(r.ordered[0].status == .working)
+    }
+
+    /// Nor does it end a wait for the user's answer, or wake a session that hasn't had a prompt yet.
+    @Test func agentToolBetweenTurnsLeavesWaitsAndFreshSessionsAlone() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.questionAsked), at: at(1))
+        r.apply(ev(.stopped), at: at(2))
+        r.apply(agentEv(.toolStarted(name: "Bash", useID: "t")), at: at(3))
+        #expect(r.ordered[0].status == .waiting)
+        var fresh = SessionRegistry()
+        fresh.apply(ev(.sessionStart(model: nil)), at: t0)
+        fresh.apply(agentEv(.toolStarted(name: "Bash", useID: "t")), at: at(1))
+        #expect(fresh.ordered[0].status == .idle)
+    }
+
+    /// Inside a turn, and while background subagents outlive it, their tools count as before.
+    @Test func agentToolsInsideATurnStillCount() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.apply(ev(.permissionRequested), at: at(1))
+        r.apply(agentEv(.toolFinished(name: "Bash", useID: "t")), at: at(2))
+        #expect(r.ordered[0].status == .working)
+        r.apply(ev(.subagentStarted(id: "bg")), at: at(3))
+        r.apply(ev(.stopped), at: at(4))
+        r.apply(agentEv(.toolStarted(name: "Read", useID: "r")), at: at(5))
+        #expect(r.ordered[0].status == .working)
+        #expect(r.ordered[0].currentTool == "Read")
+        r.apply(ev(.subagentStopped(id: "bg")), at: at(6))
+        #expect(r.ordered[0].status == .idle)
+    }
+
+    /// Going quiet is only a guess that the turn was stopped: an agent reporting in afterwards still counts.
+    @Test func agentToolAfterTheSilentTimeoutStillCounts() {
+        var r = SessionRegistry()
+        r.apply(ev(.promptSubmitted), at: t0)
+        r.prune(now: at(SessionRegistry.silentWorkTimeout + 1))
+        #expect(r.ordered[0].status == .idle)
+        r.apply(agentEv(.toolStarted(name: "Bash", useID: "t")), at: at(SessionRegistry.silentWorkTimeout + 2))
+        #expect(r.ordered[0].status == .working)
+    }
+
+    /// A resumed session still ignores stragglers once it has ended again.
+    @Test func lateEventsAfterASecondEndAreIgnored() {
+        var r = SessionRegistry()
+        r.apply(ev(.sessionEnded), at: t0)
+        r.apply(ev(.promptSubmitted), at: at(1))
+        r.apply(ev(.sessionEnded), at: at(2))
+        r.apply(ev(.stopped), at: at(3))
+        r.apply(ev(.subagentStopped(id: "summary")), at: at(3))
+        #expect(r.ordered.isEmpty)
+    }
+
     @Test func waitingTimeDoesNotCountTowardCelebration() {
         var r = SessionRegistry()
         r.apply(ev(.promptSubmitted), at: t0)

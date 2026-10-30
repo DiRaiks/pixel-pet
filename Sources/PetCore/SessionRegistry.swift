@@ -44,6 +44,8 @@ public struct AgentSession: Equatable, Sendable {
     var pendingQuestion: String?
     /// The turn has ended but background subagents still run: the session finishes when the last one stops.
     var turnEnded = false
+    /// Nothing runs until the next prompt: the turn finished, failed or was interrupted.
+    var betweenTurns = false
 
     public init(id: String, firstSeenAt: Date, lastEventAt: Date) {
         self.id = id
@@ -88,6 +90,7 @@ public struct SessionRegistry: Sendable {
     /// nil for agents that always report an interrupt (Codex): a quiet turn then stays "working".
     private let silentTimeout: TimeInterval?
     /// Ended sessions still emit a few late events (e.g. the post-turn summary); they must not come back.
+    /// A resumed session (same id, a new `SessionStart` or prompt) does.
     private var ended: Set<String> = []
 
     public init(silentWorkTimeout: TimeInterval? = SessionRegistry.silentWorkTimeout) {
@@ -100,7 +103,10 @@ public struct SessionRegistry: Sendable {
 
     @discardableResult
     public mutating func apply(_ event: AgentEvent, at now: Date) -> AgentReaction? {
-        guard !ended.contains(event.sessionID) else { return nil }
+        if ended.contains(event.sessionID) {
+            guard event.kind.resumesSession else { return nil }
+            ended.remove(event.sessionID)
+        }
         if event.kind == .sessionEnded {
             sessions.removeValue(forKey: event.sessionID)
             if ended.count >= Self.endedMemory { ended.removeAll() }
@@ -112,11 +118,18 @@ public struct SessionRegistry: Sendable {
         if let cwd = event.cwd { s.cwd = cwd }
         if let host = event.host { s.host = host }
         if let path = event.transcriptPath { s.transcriptPath = path }
+        // An agent's tool calls between turns (the desktop app's post-turn helper, say) aren't the session at
+        // work: they must not put it back to working, where it would stay with no tool end to come.
+        if s.betweenTurns, event.agentID != nil, event.kind.isToolCall {
+            sessions[event.sessionID] = s
+            return nil
+        }
         var reaction: AgentReaction?
 
         switch event.kind {
         case .sessionStart(let model):
             if let model { s.model = model }
+            if s.status == .idle { s.betweenTurns = true }
         case .promptSubmitted:
             s.turnStartedAt = now
             s.steps = 0
@@ -235,6 +248,8 @@ public struct SessionRegistry: Sendable {
                 sessions.removeValue(forKey: id)
             } else if let silentTimeout, s.status == .working, s.currentTool == nil, quiet > silentTimeout {
                 becomeIdle(&s)
+                // Only a guess that the turn is over (Esc sends nothing): an agent still at work may yet report in.
+                s.betweenTurns = false
                 // Nothing heard for this long: subagents whose stop never came are gone too.
                 s.subagents.removeAll()
                 sessions[id] = s
@@ -255,6 +270,7 @@ public struct SessionRegistry: Sendable {
     }
 
     private func startWorking(_ s: inout AgentSession, _ now: Date) {
+        s.betweenTurns = false
         s.waitingFor = nil
         s.waitingSince = nil
         if s.turnStartedAt == nil { s.turnStartedAt = now }
@@ -299,6 +315,7 @@ public struct SessionRegistry: Sendable {
 
     private func becomeIdle(_ s: inout AgentSession) {
         s.turnEnded = false
+        s.betweenTurns = true
         s.status = .idle
         s.waitingFor = nil
         s.waitingSince = nil

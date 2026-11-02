@@ -40,6 +40,8 @@ final class MacMonitor {
     }
     private var systemAudio: [AudioListener] = []
     private var deviceAudio: [AudioListener] = []
+    /// One per process CoreAudio knows: whether it has output running.
+    private var processAudio: [AudioListener] = []
     private var cameraListeners: [CameraListener] = []
     private var cameraListListener: CameraListener?
     private var pathMonitor: NWPathMonitor?
@@ -62,6 +64,11 @@ final class MacMonitor {
                 systemAudio.append(l)
             }
         }
+        if let l = listen(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyProcessObjectList,
+                          { [weak self] in self?.processesChanged() }) {
+            systemAudio.append(l)
+        }
+        processesChanged()
         devicesChanged()
         watchCameras()
 
@@ -101,9 +108,10 @@ final class MacMonitor {
     }
 
     private func stop() {
-        for l in systemAudio + deviceAudio { remove(l) }
+        for l in systemAudio + deviceAudio + processAudio { remove(l) }
         systemAudio = []
         deviceAudio = []
+        processAudio = []
         lastOutput = nil
         for l in cameraListeners { remove(l) }
         cameraListeners = []
@@ -132,7 +140,7 @@ final class MacMonitor {
         let now = Date()
         let output = Self.defaultDevice(kAudioHardwarePropertyDefaultOutputDevice)
         let input = Self.defaultDevice(kAudioHardwarePropertyDefaultInputDevice)
-        let playing = output.map { Self.isRunning($0) } ?? false
+        let playing = output.map(Self.isPlaying) ?? false
         var next = MacState()
         next.headphones = output.map(Self.isHeadphones) ?? false
         next.music = sound.update(playing: playing, at: now)
@@ -184,7 +192,7 @@ final class MacMonitor {
         let output = Self.defaultDevice(kAudioHardwarePropertyDefaultOutputDevice)
         if output != lastOutput {
             // Not on the first look: music already playing when the app starts counts as usual.
-            if lastOutput != nil { sound.outputChanged(running: output.map(Self.isRunning) ?? false, at: Date()) }
+            if lastOutput != nil { sound.outputChanged(running: output.map(Self.isPlaying) ?? false, at: Date()) }
             lastOutput = output
         }
         for selector in [kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDefaultInputDevice] {
@@ -199,6 +207,64 @@ final class MacMonitor {
             }
         }
         refresh()
+    }
+
+    /// Processes come and go: follow whether each one has output running. A system service holding the
+    /// device open doesn't change the device's own flag when a player starts, so the device alone can't tell.
+    private func processesChanged() {
+        for l in processAudio { remove(l) }
+        processAudio = []
+        for process in Self.audioProcesses() ?? [] {
+            if let l = listen(process, kAudioProcessPropertyIsRunningOutput, { [weak self] in self?.refresh() }) {
+                processAudio.append(l)
+            }
+        }
+        refresh()
+    }
+
+    /// The device runs and the one running it isn't only a system service with a stream left open.
+    private static func isPlaying(_ device: AudioObjectID) -> Bool {
+        isRunning(device) && AudioClient.anyPlays(audioClients())
+    }
+
+    private static func audioProcesses() -> [AudioObjectID]? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return nil }
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return nil }
+        return Array(ids.prefix(Int(size) / MemoryLayout<AudioObjectID>.size))
+    }
+
+    /// The processes with output running right now; nil when CoreAudio won't list them.
+    private static func audioClients() -> [AudioClient]? {
+        audioProcesses().map { processes in
+            processes.filter { (uint32($0, kAudioProcessPropertyIsRunningOutput) ?? 0) != 0 }.map { process in
+                let pid = uint32(process, kAudioProcessPropertyPID).map { pid_t(bitPattern: $0) }
+                return AudioClient(bundleID: bundleID(process), path: pid.flatMap(executablePath))
+            }
+        }
+    }
+
+    private static func bundleID(_ process: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyBundleID,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(process, &address, 0, nil, &size, &value) == noErr,
+              let id = value?.takeRetainedValue() as String?, !id.isEmpty else { return nil }
+        return id
+    }
+
+    private static func executablePath(_ pid: pid_t) -> String? {
+        var buffer = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        guard length > 0 else { return nil }
+        return String(decoding: buffer.prefix(Int(length)), as: UTF8.self)
     }
 
     private static func defaultDevice(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {

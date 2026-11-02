@@ -91,6 +91,22 @@ import Testing
         #expect(music)
     }
 
+    /// The charger chime or Siri left holding the speakers isn't music; a player beside them still is, and an
+    /// unreadable process list falls back to the device alone.
+    @Test func systemServicesHoldingTheSpeakersAreNotMusic() {
+        let chime = AudioClient(bundleID: "com.apple.PowerChime")
+        let siri = AudioClient(path: "/System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd")
+        let chrome = AudioClient(bundleID: "com.google.Chrome.helper")
+        let afplay = AudioClient(path: "/usr/bin/afplay")
+        #expect(chime.isSystemService && siri.isSystemService)
+        #expect(!chrome.isSystemService && !afplay.isSystemService && !AudioClient().isSystemService)
+        #expect(!AudioClient.anyPlays([chime, siri]))
+        #expect(!AudioClient.anyPlays([]))
+        #expect(AudioClient.anyPlays([chime, chrome]))
+        #expect(AudioClient.anyPlays([afplay]))
+        #expect(AudioClient.anyPlays(nil))
+    }
+
     @Test func offlineOnlyAfterAFewSeconds() {
         var d = OfflineDebounce()
         let steps: [(Double, Bool, Bool)] = [(0, false, false), (2, true, false), (3, false, false), (8, false, true), (9, true, false)]

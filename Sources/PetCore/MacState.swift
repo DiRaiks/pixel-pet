@@ -69,6 +69,36 @@ public struct MacDismissals: Sendable {
     }
 }
 
+/// A process that has audio output running, as CoreAudio lists it.
+public struct AudioClient: Equatable, Sendable {
+    public var bundleID: String?
+    /// The executable's path, for clients without a bundle (command-line players).
+    public var path: String?
+
+    public init(bundleID: String? = nil, path: String? = nil) {
+        self.bundleID = bundleID
+        self.path = path
+    }
+
+    /// macOS services that open the speakers for their own short sounds (the charger chime, Siri) and can
+    /// leave the stream running for hours afterwards: the device looks busy while nothing plays.
+    static let systemServices: Set<String> = ["PowerChime", "corespeechd", "corespeechd_system"]
+    static let systemBundles: Set<String> = ["com.apple.PowerChime", "com.apple.corespeechd"]
+
+    public var isSystemService: Bool {
+        if let bundleID, Self.systemBundles.contains(bundleID) { return true }
+        guard let path else { return false }
+        return Self.systemServices.contains((path as NSString).lastPathComponent)
+    }
+
+    /// Whether any of the clients plays something that may be music. `nil` means the list couldn't be read:
+    /// then the running device alone decides, as before.
+    public static func anyPlays(_ clients: [AudioClient]?) -> Bool {
+        guard let clients else { return true }
+        return clients.contains { !$0.isSystemService }
+    }
+}
+
 /// Sound that keeps playing for a while is music; a notification ding isn't. And a pause between tracks
 /// doesn't stop the dancing.
 public struct SoundDebounce: Sendable {

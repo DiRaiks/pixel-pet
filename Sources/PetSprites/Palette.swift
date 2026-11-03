@@ -219,6 +219,10 @@ public enum Palette {
     public static let keyBody = RGBA(0x2C2C2A)
     public static let keyGold = RGBA(0xC9962B)
     public static let keyGoldLit = RGBA(0xFAD978)
+    public static let wax = RGBA(0xF6E7C8)
+    public static let waxShade = RGBA(0xD9BE8E)
+    public static let waxEdge = RGBA(0x9C7A48)
+    public static let candleGlow = RGBA(0xFFC86E, alpha: 80)
     public static let keyPlug = RGBA(0xC9C7C0)
     /// The weekly newspaper: dark ink, cream paper, grey print, a pale page turning.
     public static let newsInk = RGBA(0x3B2418)
@@ -264,4 +268,14 @@ public struct WorkProps: OptionSet, Hashable, Sendable {
     public static let pumpkin = WorkProps(rawValue: 256)
     public static let fir = WorkProps(rawValue: 512)
     public static let holiday: WorkProps = [.pumpkin, .fir]
+    /// Now and then at night a candle instead of the lamp, burning down: `candle(melted:)` sets how far.
+    public static let candle = WorkProps(rawValue: 1024)
+    static let meltBits = WorkProps(rawValue: 2048 | 4096)
+
+    public static func candle(melted: Int) -> WorkProps {
+        [.candle, WorkProps(rawValue: (max(0, min(3, melted)) << 11) & meltBits.rawValue)]
+    }
+
+    /// 0 (fresh) ... 3 (a stub in a pool of wax).
+    var candleMelt: Int { (rawValue & Self.meltBits.rawValue) >> 11 }
 }

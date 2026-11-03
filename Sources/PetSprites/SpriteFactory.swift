@@ -206,6 +206,47 @@ public enum SpriteFactory {
         }
     }
 
+    /// Flame shapes as (dx, dy, bright) above the wick, and the order they come in: it sways and dips.
+    static let flames: [[(Int, Int, Bool)]] = [
+        [(0, -1, false), (0, -2, true), (0, -3, true), (0, -4, false)],
+        [(0, -1, false), (0, -2, true), (1, -3, true), (1, -4, false)],
+        [(0, -1, false), (0, -2, true), (0, -3, false)],
+        [(0, -1, false), (0, -2, true), (-1, -3, true), (-1, -4, false)],
+    ]
+    static let flicker = [0, 0, 1, 0, 2, 0, 3, 1, 0, 2, 0, 0, 3, 0, 1, 2]
+
+    /// The candle some nights get instead of the lamp, in the same gap left of the body: cream wax on a
+    /// brass dish, a flickering flame and a warm glow on the pet's side. It burns down through the night
+    /// (`melt` 0...3): shorter, drips down the side, then a pool of wax.
+    static func deskCandle(_ c: inout PixelCanvas, melt: Int, tick: Int) {
+        let x = 5, height = [9, 7, 5, 4][max(0, min(3, melt))]
+        let top = 25 - height
+        glow(&c, cx: x + 1, cy: top - 3, radius: 5, color: Palette.candleGlow)
+        c.fill(x - 1, 25, 5, 1, Palette.crownShade)                 // dish
+        c.fill(x, top, 3, height, Palette.wax)                       // wax: edge, lit middle, shade
+        c.fill(x, top, 1, height, Palette.waxEdge)
+        c.fill(x + 2, top, 1, height, Palette.waxShade)
+        c.set(x + 1, top, Palette.waxShade)                          // the dip around the wick
+        if melt >= 1 {
+            c.set(x, top + 1, Palette.wax); c.set(x, top + 2, Palette.wax)
+            c.set(x + 2, top + 2, Palette.wax)
+        }
+        if melt >= 2 { c.fill(x - 1, 24, 5, 1, Palette.wax) }       // pool
+        c.set(x + 1, top - 1, Palette.keyboard)                      // wick
+        for (dx, dy, bright) in flames[flicker[tick % flicker.count]] {
+            c.set(x + 1 + dx, top - 1 + dy, bright ? Palette.candle : Palette.candleDim)
+        }
+    }
+
+    /// A translucent disc over what's already drawn, so it adds no clickable area.
+    static func glow(_ c: inout PixelCanvas, cx: Int, cy: Int, radius: Int, color: RGBA) {
+        for y in (cy - radius)...(cy + radius) {
+            for x in (cx - radius)...(cx + radius) where (x - cx) * (x - cx) + (y - cy) * (y - cy) <= radius * radius {
+                c.tint(x, y, color)
+            }
+        }
+    }
+
     /// A sip of coffee: stops typing, lifts the mug to the mouth, eyes closed, a contented sigh. Brings its own
     /// mug when there isn't one on the desk yet.
     static func workSip(_ i: Int, _ look: Look, _ props: WorkProps, _ c: inout PixelCanvas) {

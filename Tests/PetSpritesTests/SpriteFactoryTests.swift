@@ -89,6 +89,26 @@ import PetCore
         }
     }
 
+    /// The candle stands in the lamp's gap and gets shorter as it burns; its glow adds no pixels to the air
+    /// around the pet, and the flame moves from frame to frame.
+    @Test func candleBurnsDownAndGlowsWithoutPixels() {
+        func top(_ melt: Int) -> Int? {
+            let f = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: .candle(melted: melt))
+            return (0..<32).first { y in (5...7).contains { f.pixel($0, y) == Palette.waxEdge } }
+        }
+        let tops = (0...3).compactMap(top)
+        #expect(tops.count == 4 && tops == tops.sorted() && Set(tops).count == 4)
+        let bare = SpriteFactory.frame(for: .working, index: 0, agentCubes: false)
+        let lit = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, props: .candle(melted: 0))
+        for y in 0..<32 {
+            for x in 9...12 where bare.pixel(x, y) == nil { #expect(lit.pixel(x, y) == nil, "(\(x), \(y))") }
+        }
+        let flames = (0..<PetState.working.frameCount).map {
+            SpriteFactory.frame(for: .working, index: $0, agentCubes: false, props: .candle(melted: 0))
+        }
+        #expect(Set(flames.map { f in (0..<32).flatMap { y in (4...8).map { f.pixel($0, y) == Palette.candle } } }).count > 1)
+    }
+
     @Test func backgroundIsTransparent() {
         let idle = SpriteFactory.frames(for: .idle)[0]
         #expect(idle.pixel(0, 0) == nil)

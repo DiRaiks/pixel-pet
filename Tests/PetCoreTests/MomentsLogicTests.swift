@@ -175,6 +175,25 @@ import Testing
         #expect(NightDesk.nextChange(after: date(23, 30)) == Calendar.current.date(byAdding: .hour, value: 6, to: date(23))!)
         #expect(NightDesk.nextChange(after: date(3)) == date(5))
     }
+
+    /// One light per night: the hours after midnight belong to the evening before. A candle comes every
+    /// third night, never two in a row.
+    @Test func oneLightPerNightCandleEveryThird() {
+        let cal = Calendar.current
+        func night(_ offset: Int, _ h: Int) -> Date { cal.date(byAdding: .day, value: offset, to: date(h))! }
+        let lights = (0..<9).map { NightDesk.light(at: night($0, 23)) }
+        #expect(lights.filter { $0 == .candle }.count == 3)
+        for k in 1..<lights.count { #expect(!(lights[k] == .candle && lights[k - 1] == .candle)) }
+        for k in 0..<9 { #expect(NightDesk.light(at: night(k + 1, 3)) == lights[k], "night \(k)") }
+    }
+
+    /// The candle burns down through the night; the desk is redrawn every hour while it does.
+    @Test func candleMeltsAndTheDeskRedrawsHourly() {
+        #expect([22, 23, 0, 1, 2, 3, 4].map { NightDesk.candleMelt(at: date($0)) } == [0, 0, 1, 1, 2, 2, 3])
+        #expect(NightDesk.nextRedraw(after: date(23, 30)) == Calendar.current.date(byAdding: .minute, value: 30, to: date(23, 30))!)
+        #expect(NightDesk.nextRedraw(after: date(14)) == date(22))
+        #expect(NightDesk.nextRedraw(after: date(4, 10)) == date(5))
+    }
 }
 
 @Suite struct CompactionTests {

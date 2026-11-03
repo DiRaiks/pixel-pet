@@ -50,6 +50,7 @@ extension SpriteFactory {
             if props.contains(.toolSearch) { magnifierIcon(tick(state, i, step: 220), &c) }
             if props.contains(.toolRead) { bookIcon(tick(state, i, step: 200), &c) }
             if props.contains(.toolEdit) { pencilIcon(tick(state, i, step: 160), &c) }
+            if props.contains(.candle) { deskCandle(&c, melt: props.candleMelt, tick: tick(state, i, step: 120)) }
         }
         guard showsFloorProps(state) else { return }
         if props.contains(.pumpkin) { pumpkin(tick(state, i, step: 240), &c) }

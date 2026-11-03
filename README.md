@@ -279,6 +279,13 @@ The file goes to Claude inside the question only when you send it; the CLI runs 
 
 **Translate a paragraph.** Select text in any app and press ⌃⌥T. Text in your language goes to the other language, anything else comes into yours. With the defaults (Russian and English), English becomes Russian and Russian becomes English. While the translation card is open, the cube talks along: <img src="docs/images/talk.png" width="48" alt="" align="center">
 
+**Say it instead of typing.** Press and hold the cube, or press ⌃⌥L. The cube holds a mic out toward you like an interviewer: waves fly into it while you speak, three dots show while you pause. <img src="docs/images/listen.png" width="64" alt="" align="center"> A card shows the words as they're recognized. Held down, it stops when you let go; with ⌃⌥L, on a second press or after a 4-second pause (10 seconds if nothing was said); either way after 2 minutes at most. Then the cube nods and the card holds the text, ready to fix by hand: "Ask Claude" (Return) sends it to the question card, "Translate" to the translation card, "Copy" to the clipboard.
+
+- Speech is recognized on the Mac by the system's dictation model, with no network. The model for a language is downloaded once, the first time.
+- It listens in your language from Translation, or the one picked in Settings → Listening.
+- With the question card open, there's no separate card: the words go straight into its field and are sent as a follow-up when you finish (they wait there if an answer is still coming in).
+- macOS asks for the microphone the first time. Nothing is recorded: the sound goes straight to the recognizer, and the text lives only in the card.
+
 ## Reacting to the Mac
 
 The cube also notices what your Mac is up to. It reads only on/off signals (where sound goes, whether a mic or camera is in use, the thermal and power state, the network, the theme) and asks for no permission. Screenshots are noticed through Spotlight, so they show up after it indexes the file, and not at all where indexing is off. Any Bluetooth audio output counts as headphones. "React to the Mac" in Settings turns all of it off.
@@ -338,6 +345,7 @@ Only session-id prefixes, project folder names and event names are logged.
 | Drop anywhere along the top edge of a screen | It slides over and dives home into the notch, or the burrow at the top center |
 | Drag it out of home | A short tug is enough; it only goes back in if you let go right where it sat |
 | Drop a file on it | It swallows it and the question card opens with the file attached ([ask about a file](#ask-and-translate)) |
+| Press and hold it | It listens to the mic until you let go; the words go to a card ([say it instead of typing](#ask-and-translate)) |
 | Hover over it for 2 s | It gets shy, at most once a minute. This happens only while it is idle on the desk with desktop reactions on and no card open |
 | Rub the cursor back and forth over it | It purrs |
 | Click it 5 times in 3 s | It gets cross |
@@ -352,6 +360,7 @@ Only session-id prefixes, project folder names and event names are logged.
 |---|---|
 | ⌃⌥K | Ask Claude a quick question. Esc closes the card |
 | ⌃⌥T | Translate the selected text |
+| ⌃⌥L | Listen to the mic; press again to finish |
 | ⌃⌥P | Do not disturb: the cube goes home and only comes out for errors |
 
 ### Menu bar
@@ -403,6 +412,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | YubiKey | Show when the key waits for a touch (on by default) |
 | **Text** | |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
+| Listening | The language you speak to the cube in (by default, your language from Translation) |
 | Accessibility | Shows the permission status, with a button to request it |
 
 With **Reduce Motion** turned on in macOS (Accessibility → Display), the cube stops jumping, throwing and shaking. Cards open without animation. Looping alarm states hold a single expressive frame instead of animating.
@@ -442,6 +452,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.claude/settings.json` | One hook entry for each of 13 events, plus a `statusLine` entry only if you had none. A timestamped backup `settings.json.pixelpet-backup-<ms>` is written before every change. Other hooks are never touched |
 | `~/.claude/projects/-…-T-pixelpet-claude` | Quick-question sessions, written by the Claude Code CLI in the folder it names after `$TMPDIR/pixelpet-claude`, including the text of files you dropped on the cube. Deleted when you start a new conversation, on quit and on launch; only that exact folder (and the one older builds used for the limits check) is ever removed |
 | `~/.claude/projects/<project>/<session>.jsonl` | Read only: the end of a session's transcript, while a permission request waits (to see when you answered in Claude Code itself) and when a working session goes quiet for a few seconds (to see a turn stopped with Esc, which no hook reports). Only the call's result and an "interrupted" line are looked for; nothing is kept |
+| Microphone | Only while listening (press and hold, ⌃⌥L). The sound goes straight to macOS's on-device speech recognition and is never recorded; the text stays in the card |
 | Calendars | Read only, when call reminders are on: the next day of events, kept in memory (titles are shown in the status card, never written anywhere) |
 | System log | Read only, one message: the smart-card service's "Time extension received", through a filtered `log stream` that ends with the app |
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |

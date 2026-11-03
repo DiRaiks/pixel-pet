@@ -22,6 +22,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Translation: text in your language goes to `foreignLanguage`, anything else into `nativeLanguage`.
     public var nativeLanguage = "ru"
     public var foreignLanguage = "en"
+    /// The language you speak to the cube in; empty means `nativeLanguage`.
+    public var speechLanguage = ""
     /// Model for quick questions (⌃⌥K).
     public var askModel = "haiku"
     /// Eyes follow the cursor, glances at newly focused windows, dimming over fullscreen apps.
@@ -75,6 +77,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         uiLanguage = try c.decodeIfPresent(String.self, forKey: .uiLanguage) ?? "en"
         nativeLanguage = try c.decodeIfPresent(String.self, forKey: .nativeLanguage) ?? "ru"
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
+        speechLanguage = try c.decodeIfPresent(String.self, forKey: .speechLanguage) ?? ""
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
         desktopReactions = try c.decodeIfPresent(Bool.self, forKey: .desktopReactions) ?? true
         onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
@@ -124,4 +127,9 @@ public struct ConfigStore: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(config).write(to: url, options: .atomic)
     }
+}
+
+extension PetConfig {
+    /// The language to recognize speech in.
+    public var spokenLanguage: String { speechLanguage.isEmpty ? nativeLanguage : speechLanguage }
 }

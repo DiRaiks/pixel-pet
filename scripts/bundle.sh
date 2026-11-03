@@ -36,6 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSMicrophoneUsageDescription</key><string>So the cube can listen while you hold it or press ⌃⌥L. Speech is turned into text on this Mac; nothing is recorded or sent anywhere.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>So the cube can turn what you say into text, on this Mac.</string>
     <key>NSCalendarsFullAccessUsageDescription</key><string>So the cube can get ready for calls from your calendar. Meeting titles are never sent anywhere or stored.</string>
     <key>NSCalendarsUsageDescription</key><string>So the cube can get ready for calls from your calendar. Meeting titles are never sent anywhere or stored.</string>
 </dict>

@@ -5,5 +5,8 @@
     <!-- Hardened runtime: calendar access for call reminders (EventKit). -->
     <key>com.apple.security.personal-information.calendars</key>
     <true/>
+    <!-- The mic, while listening (press and hold, ⌃⌥L). -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
 </dict>
 </plist>

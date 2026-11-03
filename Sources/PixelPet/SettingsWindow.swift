@@ -34,6 +34,7 @@ final class SettingsModel {
     @ObservationIgnored var onLanguage: (() -> Void)?
     var nativeLanguage = "ru" { didSet { update { $0.nativeLanguage = nativeLanguage } } }
     var foreignLanguage = "en" { didSet { update { $0.foreignLanguage = foreignLanguage } } }
+    var speechLanguage = "" { didSet { update { $0.speechLanguage = speechLanguage } } }
     var askModel = "haiku" { didSet { update { $0.askModel = askModel } } }
     var figure = "cube" { didSet { if !loading, figure != oldValue { applyLook() } } }
     var skin = "lavender" { didSet { if !loading, skin != oldValue { applyLook() } } }
@@ -140,6 +141,7 @@ final class SettingsModel {
         uiLanguage = UILanguage(rawValue: c.uiLanguage) ?? .en
         nativeLanguage = c.nativeLanguage
         foreignLanguage = c.foreignLanguage
+        speechLanguage = c.speechLanguage
         askModel = c.askModel
         figure = c.figure
         skin = c.skin
@@ -396,6 +398,14 @@ struct SettingsView: View {
                         if !model.accessibility { Button(L("Allow…", "Разрешить…")) { model.requestAccessibility() } }
                     }
                 }
+            }
+            Section(L("Listening (⌃⌥L, or press and hold the cube)", "Слушать (⌃⌥L или зажать кубик)")) {
+                Picker(L("I speak", "Я говорю на"), selection: $model.speechLanguage) {
+                    Text(L("My language", "Моём языке")).tag("")
+                    ForEach(Choices.languages, id: \.code) { Text($0.name).tag($0.code) }
+                }
+                .help(L("Recognized on this Mac; the language model is downloaded once. Nothing is recorded or sent anywhere",
+                         "Распознаётся на этом Mac, языковая модель скачивается один раз. Ничего не записывается и никуда не отправляется"))
             }
             if let message = model.message {
                 Text(message).font(.callout).foregroundStyle(.red)

@@ -47,7 +47,7 @@ final class PetController {
     /// Mac states the user clicked away, until they end.
     private var macDismissed = MacDismissals()
     private var fullCelebrated = false
-    /// Redraws the desk when the night lamp goes on or off.
+    /// Redraws the desk when the night light goes on, off, or burns down.
     private var nightCheck: DispatchWorkItem?
     /// A hardware key waiting for a touch: shown above everything else.
     private var touchWait = TouchWait()
@@ -565,7 +565,13 @@ final class PetController {
         case .mug: props = [.mug]
         case .headband: props = [.mug, .headband]
         }
-        if NightDesk.isLate(at: Date()) { props.formUnion([.lamp, .tea]) }
+        let now = Date()
+        if NightDesk.isLate(at: now) {
+            props.insert(.tea)
+            // The pumpkin and the fir stand where the candle would.
+            let candle = NightDesk.light(at: now) == .candle && Holiday.on(now) == nil
+            props.formUnion(candle ? .candle(melted: NightDesk.candleMelt(at: now)) : .lamp)
+        }
         switch toolKind {
         case .run: props.insert(.toolRun)
         case .search: props.insert(.toolSearch)
@@ -651,7 +657,8 @@ final class PetController {
         react(.purr)
     }
 
-    /// Redraws at the next 22:00 or 05:00, when the lamp goes on or off.
+    /// Redraws when the desk light changes: the lamp or candle at 22:00 and 05:00, and every hour between
+    /// as the candle burns down.
     private func scheduleNightCheck() {
         nightCheck?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -664,7 +671,7 @@ final class PetController {
         nightCheck = work
         // Wall-clock deadline: it keeps counting while the Mac sleeps (wake and time zone changes also
         // reschedule, see `start`).
-        let wait = NightDesk.nextChange(after: Date()).timeIntervalSinceNow + 1
+        let wait = NightDesk.nextRedraw(after: Date()).timeIntervalSinceNow + 1
         DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(1, wait), execute: work)
     }
 

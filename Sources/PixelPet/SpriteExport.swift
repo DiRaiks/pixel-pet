@@ -186,6 +186,7 @@ enum ReadmeExport {
             ("thrown", [Clip(state: .dragged, seconds: 0.4), Clip(state: .thrown), Clip(state: .splatRight), Clip(state: .idle, seconds: 0.6)]),
             ("dizzy", [Clip(state: .dragged, seconds: 0.6), Clip(state: .dizzy), Clip(state: .idle, seconds: 0.4)]),
             ("late-night", [Clip(state: .working, seconds: 2.0, props: [.mug, .tea, .lamp]), Clip(state: .workSip, props: [.mug, .tea, .lamp])]),
+            ("late-night-candle", [Clip(state: .working, seconds: 2.4, props: [.mug, .tea, .candle(melted: 1)])]),
             ("work-sip", [Clip(state: .working, seconds: 0.9), Clip(state: .workSip), Clip(state: .working, seconds: 0.6)]),
             ("work-stretch", [Clip(state: .working, seconds: 0.9), Clip(state: .workStretch), Clip(state: .working, seconds: 0.6)]),
             ("work-think", [Clip(state: .working, seconds: 0.9), Clip(state: .workThink), Clip(state: .working, seconds: 0.6)]),

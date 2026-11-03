@@ -240,7 +240,7 @@ How the pet moves between the desk and home:
 - **Glance.** The pet glances toward the frontmost window of an app the user switches to: normal apps only, at most once every 10 s.
 - **Fullscreen.** The pet dims over a fullscreen window instead of hiding.
 - **Throws.** A release faster than 1,200 pt/s plays `thrown` (quarter turns, lossless) while the window flies, then the landing once it arrives: `splatLeft`/`splatRight` when the aim was clamped at that side of the screen (`Placement.throwOutcome`), `dizzy` if the drag was shaken (`DragTracker.isShaken`: four quick horizontal reversals of at least 20 pt within 1.2 s), otherwise `drop`.
-- **Late night.** From 22:00 to 05:00 by the Mac's local time, desk poses get a lamp and tea instead of coffee (`NightDesk`); the desk is redrawn at the next boundary.
+- **Late night.** From 22:00 to 05:00 by the Mac's local time, desk poses get a lamp and tea instead of coffee (`NightDesk`). Every third night (`NightDesk.light`, picked from the evening's date, so it never changes mid-night) a candle takes the lamp's place, except on holidays, whose pumpkin and fir stand in the same spot. It burns down in four steps (`candleMelt`, carried in `WorkProps.candle(melted:)`) and flickers through the frames (drawn in `overlays`, so its glow tints the body without adding pixels). The desk is redrawn every hour through the night (`nextRedraw`).
 - **Away and back.** Sleep uses the live idle time, the pet hops when the user returns, and it greets after the Mac wakes.
 
 `PetController` adds the personality layer:

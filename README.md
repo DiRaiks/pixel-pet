@@ -204,8 +204,8 @@ On top of these, it plays one-off animations:
 | Shaken while dragged | From 10 pm: a lamp and tea | A file dropped on it: swallowed | A folder or an app dropped on it |
 | <img src="docs/images/hookah.png" width="80" alt=""> | <img src="docs/images/wave.png" width="80" alt=""> | <img src="docs/images/launch.png" width="80" alt=""> | <img src="docs/images/purr.png" width="80" alt=""> |
 | A hookah break | An agent has waited on you for over a minute: a wave every ~45 s | An agent's `git push` went through: a rocket | Petted: rub the cursor back and forth over it |
-| <img src="docs/images/sneeze.png" width="80" alt=""> | <img src="docs/images/pumpkin.png" width="80" alt=""> | <img src="docs/images/fir.png" width="80" alt=""> | |
-| Idle fidget: a sneeze | October 25–31: a jack-o'-lantern | December 20 – January 7: a little fir | |
+| <img src="docs/images/sneeze.png" width="80" alt=""> | <img src="docs/images/pumpkin.png" width="80" alt=""> | <img src="docs/images/fir.png" width="80" alt=""> | <img src="docs/images/late-night-candle.png" width="80" alt=""> |
+| Idle fidget: a sneeze | October 25–31: a jack-o'-lantern | December 20 – January 7: a little fir | Every third night: a candle instead of the lamp, burning down by morning |
 
 When plugged in, the tired cube perks up with a lightning bolt. Now and then, with nothing going on, the cube takes a hookah break (about one idle fidget in four, and sometimes after a big task); every fourth or so ends in one big cloud instead of smoke rings. "Hookah breaks" in Settings turns it off.
 

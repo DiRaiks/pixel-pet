@@ -126,26 +126,21 @@ final class CardPanel<Content: View> {
         guard isShown, let petWindow = anchor?.window, let size = panel.contentView?.fittingSize,
               size != panel.frame.size else { return }
         let pet = petWindow.frame
-        var frame = panel.frame
-        let above = frame.minY >= pet.maxY
-        if !above { frame.origin.y = frame.maxY - size.height }
-        frame.size = size
-        if let area = (petWindow.screen ?? NSScreen.main)?.visibleFrame {
-            frame.size.height = min(frame.height, area.height)
-            if frame.maxY > area.maxY { frame.origin.y = area.maxY - frame.height }
-            if frame.minY < area.minY { frame.origin.y = area.minY }
-        }
-        panel.setFrame(frame, display: true)
+        // Grown past the edge of the screen where it is: placed again, which may move it to the other side
+        // of the pet rather than over it.
+        let above = panel.frame.minY >= pet.maxY
+        var fitted = size
+        if let area = (petWindow.screen ?? NSScreen.main)?.visibleFrame { fitted.height = min(fitted.height, area.height) }
+        // On the same side it grows away from the pet, from its edge nearest to it.
+        let origin = position(for: fitted, near: pet, on: petWindow.screen, preferAbove: above)
+        panel.setFrame(NSRect(origin: origin, size: fitted), display: true)
     }
 
-    /// Above the pet when there's room, otherwise below; centered on it and kept on screen.
-    private func position(for size: NSSize, near pet: NSRect, on screen: NSScreen?) -> NSPoint {
-        let area = screen?.visibleFrame ?? pet.insetBy(dx: -1000, dy: -1000)
-        let gap: CGFloat = 4
-        var y = pet.maxY + gap
-        if y + size.height > area.maxY { y = pet.minY - gap - size.height }
-        let x = min(max(pet.midX - size.width / 2, area.minX + 8), area.maxX - size.width - 8)
-        return NSPoint(x: x, y: max(y, area.minY))
+    /// Above the pet when there's room, otherwise below, otherwise beside it; centered and kept on screen.
+    private func position(for size: NSSize, near pet: NSRect, on screen: NSScreen?, preferAbove: Bool = true) -> NSPoint {
+        let area = (screen ?? NSScreen.main)?.visibleFrame ?? pet.insetBy(dx: -1000, dy: -1000)
+        let p = CardPlacement.origin(for: PetSize(size), near: PetRect(pet), in: PetRect(area), preferAbove: preferAbove)
+        return NSPoint(x: p.x, y: p.y)
     }
 
     /// Debug aid (`--keep-cards`): scripted checks shouldn't be cut short by clicks elsewhere.

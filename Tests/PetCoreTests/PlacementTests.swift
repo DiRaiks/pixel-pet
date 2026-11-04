@@ -69,3 +69,50 @@ import Testing
         #expect(landed == PetPoint(x: 2560 - 128, y: 1415 - 128))
     }
 }
+
+@Suite struct CardPlacementTests {
+    let area = PetRect(x: 0, y: 0, width: 1440, height: 900)
+    let card = PetSize(width: 360, height: 300)
+
+    func overlaps(_ o: PetPoint, _ size: PetSize, _ pet: PetRect) -> Bool {
+        o.x < pet.maxX && o.x + size.width > pet.x && o.y < pet.maxY && o.y + size.height > pet.y
+    }
+
+    /// Room above: above, centered on the pet.
+    @Test func aboveWhenThereIsRoom() {
+        let pet = PetRect(x: 600, y: 300, width: 128, height: 128)
+        let o = CardPlacement.origin(for: card, near: pet, in: area)
+        #expect(o == PetPoint(x: 484, y: 432))
+    }
+
+    /// The pet near the top (the case that hid the card's buttons): below it, never over it, also after
+    /// the card grew and is placed again preferring the side it was on.
+    @Test func belowWhenTheTopIsNear() {
+        let pet = PetRect(x: 600, y: 700, width: 128, height: 128)
+        for prefer in [true, false] {
+            let o = CardPlacement.origin(for: card, near: pet, in: area, preferAbove: prefer)
+            #expect(o.y + card.height <= pet.y)
+            #expect(!overlaps(o, card, pet))
+        }
+    }
+
+    /// A card that grew from below stays below while it fits there.
+    @Test func keepsItsSideWhileItFits() {
+        let pet = PetRect(x: 600, y: 500, width: 128, height: 128)
+        let o = CardPlacement.origin(for: card, near: pet, in: area, preferAbove: false)
+        #expect(o.y == 500 - CardPlacement.gap - card.height)
+    }
+
+    /// Too tall for either side: beside the pet, on the roomier side, still on screen and off the pet.
+    @Test func besideWhenNeitherFits() {
+        let tall = PetSize(width: 360, height: 600)
+        let pet = PetRect(x: 300, y: 380, width: 128, height: 128)
+        let o = CardPlacement.origin(for: tall, near: pet, in: area)
+        #expect(o.x == pet.maxX + CardPlacement.gap)
+        #expect(!overlaps(o, tall, pet))
+        #expect(o.y >= area.y && o.y + tall.height <= area.maxY)
+        let nearRight = PetRect(x: 1200, y: 380, width: 128, height: 128)
+        let left = CardPlacement.origin(for: tall, near: nearRight, in: area)
+        #expect(left.x + tall.width <= nearRight.x)
+    }
+}

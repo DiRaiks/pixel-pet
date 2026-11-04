@@ -284,7 +284,7 @@ How the pet moves between the desk and home:
 ## Cards, menus and settings
 
 - **Cards.** The status, translation and quick-question cards are borderless panels rather than `NSPopover`: glass popovers tint with the wallpaper and lose contrast.
-  - Placement: above the pet when there is room, otherwise below.
+  - Placement (`CardPlacement`): above the pet when there is room, otherwise below, otherwise beside it on the roomier side. A card that grows is placed again, keeping its side while it fits, so it never ends up over the pet.
   - Only one card is open at a time.
   - A click in another app closes the card.
   - Cards opened from a hotkey appear without animation.

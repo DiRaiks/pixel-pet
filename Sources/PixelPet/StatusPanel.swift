@@ -128,7 +128,9 @@ final class CardPanel<Content: View> {
         let pet = petWindow.frame
         // Grown past the edge of the screen where it is: placed again, which may move it to the other side
         // of the pet rather than over it.
-        let above = panel.frame.minY >= pet.maxY
+        // By the middle, not the edge: SwiftUI may already have resized the window from its top, pulling
+        // its bottom edge below the pet's top.
+        let above = panel.frame.midY >= pet.midY
         var fitted = size
         if let area = (petWindow.screen ?? NSScreen.main)?.visibleFrame { fitted.height = min(fitted.height, area.height) }
         // On the same side it grows away from the pet, from its edge nearest to it.

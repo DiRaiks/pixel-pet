@@ -20,6 +20,7 @@ public enum MotionPolicy {
         case .newspaper: 0    // reading, eyes over the paper
         case .breakHint: 0    // the mug in its bubble
         case .catchOpen: 0    // mouth open, looking up
+        case .listening: 0    // the mic held out, a wave coming in
         default: nil
         }
     }
@@ -31,7 +32,8 @@ public enum MotionPolicy {
              .wave, .launch, .purr, .sneeze, .headphonesOn, .headphonesOff, .batteryFull, .screenshot,
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
-             .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud: false
+             .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud,
+             .listenIn, .listenOut: false
         default: true
         }
     }

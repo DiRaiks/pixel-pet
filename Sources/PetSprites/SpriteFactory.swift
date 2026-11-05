@@ -121,6 +121,10 @@ public enum SpriteFactory {
         case .screenshot: screenshot(i, look, &c)
         case .darkMode: darkMode(i, look, &c)
         case .lightMode: lightMode(i, look, &c)
+        case .listenIn: listenIn(i, look, &c)
+        case .listening: listening(i, look, &c)
+        case .listenQuiet: listenQuiet(i, look, &c)
+        case .listenOut: listenOut(i, look, &c)
         }
         overlays(state, i, props, &c)
     }

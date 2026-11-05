@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminationSignal: DispatchSourceSignal?
     private var translator: Translator?
     private var asker: Asker?
+    private var listener: Listener?
     private var desktop: DesktopSensor?
     private var settings: AppWindow<SettingsView>?
     private var welcome: AppWindow<OnboardingView>?
@@ -152,16 +153,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusShow?()
         }
         menu.onAsk = { [weak asker] in asker?.toggle() }
-        menu.onTranslate = { [weak translator] in translator?.translateSelection() }
-        pet.isCardOpen = { [weak panel, weak translator, weak asker, weak permissions] in
-            (panel?.isShown ?? false) || (translator?.panel.isShown ?? false) || (asker?.panel.isShown ?? false)
-                || (permissions?.isShown ?? false)
-        }
-        // A permission request is what needs you now: the other cards make way for it.
-        permissions.onShow = { [weak panel, weak translator, weak asker] in
+        // Press and hold the pet, or ⌃⌥L: listen to the mic; the text goes on to Claude or the translator.
+        let listener = Listener(pet: pet)
+        self.listener = listener
+        listener.onAsk = { [weak asker] text in asker?.ask(text) }
+        listener.onTranslate = { [weak translator] text in translator?.translate(text) }
+        listener.questionOpen = { [weak asker] in asker?.panel.isShown ?? false }
+        listener.questionDraft = { [weak asker] in asker?.model.draft ?? "" }
+        listener.onDraft = { [weak asker] text in asker?.model.draft = text }
+        listener.panel.onShow = { [weak panel, weak translator, weak asker] in
             panel?.close()
             translator?.panel.close()
             asker?.panel.close()
+        }
+        // Any other card opening ends the take.
+        let showTranslator = translator.panel.onShow, showAsker = asker.panel.onShow, showStatus = panel.onShow
+        translator.panel.onShow = { [weak listener] in showTranslator?(); listener?.stop() }
+        asker.panel.onShow = { [weak listener] in showAsker?(); listener?.stop() }
+        panel.onShow = { [weak listener] in showStatus?(); listener?.stop() }
+        pet.onHoldBegan = { [weak listener] in listener?.begin(handsFree: false) ?? false }
+        pet.onHoldEnded = { [weak listener] in listener?.end() }
+        menu.onListen = { [weak listener] in listener?.toggle() }
+        menu.onTranslate = { [weak translator] in translator?.translateSelection() }
+        pet.isCardOpen = { [weak panel, weak translator, weak asker, weak permissions, weak listener] in
+            (panel?.isShown ?? false) || (translator?.panel.isShown ?? false) || (asker?.panel.isShown ?? false)
+                || (permissions?.isShown ?? false) || (listener?.panel.isShown ?? false)
+        }
+        // A permission request is what needs you now: the other cards make way for it.
+        permissions.onShow = { [weak panel, weak translator, weak asker, weak listener] in
+            panel?.close()
+            translator?.panel.close()
+            asker?.panel.close()
+            listener?.stop()
         }
         // The weekly recap: day sums kept as agents work, a card from the menu or the Monday newspaper.
         let stats = StatsKeeper(enabled: pet.config.weeklyRecap)
@@ -201,13 +224,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.isCardOpen = { [weak recap] in cardOpen() || (recap?.isShown ?? false) }
         self.recap = recap
         self.stats = stats
-        pet.onDragStart = { [weak translator, weak asker, weak recap] in
+        pet.onDragStart = { [weak translator, weak asker, weak recap, weak listener] in
+            listener?.stop()
             panel.close()
             translator?.panel.close()
             asker?.panel.close()
             recap?.close()
         }
-        // ⌃⌥P: do not disturb (home, quiet). ⌃⌥T: translate the selection. ⌃⌥K: ask Claude.
+        // ⌃⌥P: do not disturb (home, quiet). ⌃⌥T: translate the selection. ⌃⌥K: ask Claude. ⌃⌥L: listen.
         // Shown next to the menu items too.
         hotKeys = [
             HotKey(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { [weak menu] in menu?.toggleDND() },
@@ -215,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 translator?.translateSelection()
             },
             HotKey(keyCode: kVK_ANSI_K, modifiers: controlKey | optionKey, id: 3) { [weak asker] in asker?.toggle() },
+            HotKey(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 4) { [weak listener] in listener?.toggle() },
         ]
         // Debug aid: `open PixelPet.app --args --show-panel` opens the panel once limits had time to load.
         if let i = CommandLine.arguments.firstIndex(of: "--translate-text"), i + 1 < CommandLine.arguments.count {

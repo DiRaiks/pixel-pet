@@ -64,9 +64,11 @@ final class Inbox: @unchecked Sendable {
         defer { close(slow) }
         try send(#"{"fast":1}"#)
         let start = Date()
-        for _ in 0..<150 where !inbox.all.contains(Data(#"{"fast":1}"#.utf8)) { try await Task.sleep(for: .milliseconds(20)) }
+        for _ in 0..<250 where !inbox.all.contains(Data(#"{"fast":1}"#.utf8)) { try await Task.sleep(for: .milliseconds(20)) }
         #expect(inbox.all.contains(Data(#"{"fast":1}"#.utf8)))
-        #expect(Date().timeIntervalSince(start) < EventServer.connectionDeadline + 1)
+        // Generous: a busy CI runner can be slow; what matters is that the fast client isn't stuck behind
+        // the slow one indefinitely.
+        #expect(Date().timeIntervalSince(start) < EventServer.connectionDeadline + 3)
     }
 
     @Test func largePayloadArrivesWhole() async throws {

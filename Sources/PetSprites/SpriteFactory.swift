@@ -435,11 +435,15 @@ public enum SpriteFactory {
     static func sleep(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let exhale = i % 4 < 2 ? 0 : 1
         var s = BodyStyle(look: look)
+        // A pixel left of the middle, which leaves room for the bubble off its right side.
+        s.cx = 15
         s.w = 16 + 2 * exhale; s.h = 14 - exhale
         s.eyes = .closed; s.mouth = .none; s.nightcap = true
         let b = c.body(s)
         let radius = [0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 0, 0][i]
-        let bx = b.cx + 5, by = b.y0 + 9
+        // Off the right side at nose height: a pixel clear of the outline even at its biggest on the out-breath,
+        // and still on the canvas.
+        let bx = 28, by = b.y0 + 9
         if radius > 0 {
             c.circle(bx, by, radius: radius, Palette.bubble)
             c.set(bx - 1, by - radius + 1, Palette.white)
@@ -476,7 +480,8 @@ public enum SpriteFactory {
             let b = c.body(s)
             for n in 0..<3 {
                 let t = (Double(k) / 10 + Double(n) / 3) * 2 * .pi
-                let x = b.cx + jsRound(cos(t) * 5), y = b.y0 - 3 + jsRound(sin(t) * 2)
+                // Orbiting a row clear of the outline, and above a hat.
+            let x = b.cx + jsRound(cos(t) * 5), y = max(3, b.y0 - 5 - s.headroom) + jsRound(sin(t) * 2)
                 c.sparkle(x, y, n % 2 == 1 ? Palette.amber : Palette.amberLight, big: true)
             }
         }
@@ -619,7 +624,8 @@ public enum SpriteFactory {
         s.blush = 0
         let b = c.body(s)
         guard puffed else { return }
-        let r = Palette.errorFill, mx = b.x0 + s.w - 3, my = b.y0 - 1
+        // The cross mark sits clear of the corner (and of a hat), where the outline can't swallow it.
+        let r = Palette.errorFill, mx = b.x0 + s.w - 2, my = max(1, b.y0 - 3 - s.headroom)
         c.set(mx - 1, my, r); c.set(mx + 1, my, r); c.set(mx, my - 1, r); c.set(mx, my + 1, r)
         for k in 0..<2 {
             let t = (i - 6 + k * 2) % 6
@@ -652,8 +658,19 @@ public enum SpriteFactory {
         }
     }
 
-    /// A roll over its own edge to the right and back, pivoting on the bottom corner.
+    /// A roll over its own edge to the right and back, pivoting on the bottom corner. It scoots over to the
+    /// left to start (16, 14, 12, then 9) and back after, instead of jumping there.
     static func tumble(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        if i == 0 || i == 15 {
+            var s = BodyStyle(look: look)
+            s.cx = 14
+            c.body(s)
+            return
+        }
+        roll(i - 1, look, &c)
+    }
+
+    private static func roll(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let dir = i < 7 ? 1.0 : -1.0, k = i % 7, start = i < 7 ? 9.0 : 23.0
         let angles = [0.0, 0, 22, 45, 68, 90, 90]
         let side = 14.0
@@ -670,6 +687,8 @@ public enum SpriteFactory {
             let cx = px + vx * cos(a) - vy * sin(a), cy = py + vx * sin(a) + vy * cos(a)
             s.cx = jsRound(cx); s.by = jsRound(cy + Double(s.h) / 2)
             s.rotation = angles[k] * dir
+        } else if i == 0 || i == 13 {
+            s.cx = 12
         } else {
             s.cx = Int(k >= 5 ? start + dir * side : start)
         }

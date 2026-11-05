@@ -29,7 +29,8 @@ extension SpriteFactory {
         let mouthY = b.y0 + (look.figure == .lidman ? 11 : 8)
         switch i {
         // Over the head, then already small in the mouth: the eyes stay in sight.
-        case 0: page(&c, x: b.cx - 3, bottom: b.y0 - 1, w: 5, h: 6)
+        // Above a hat rather than over it, as far as the canvas allows.
+        case 0: page(&c, x: b.cx - 3, bottom: b.y0 - 1 - min(s.headroom, b.y0 - 7), w: 5, h: 6)
         case 1: page(&c, x: b.cx - 2, bottom: mouthY + 1, w: 3, h: 3)
         case 2: page(&c, x: b.cx - 1, bottom: mouthY + 1, w: 2, h: 2)
         case 7, 8:

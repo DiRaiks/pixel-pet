@@ -67,6 +67,12 @@ public struct PixelCanvas: Equatable, Sendable {
         blend(x, y, color)
     }
 
+    /// Sets a pixel only where nothing is drawn yet.
+    mutating func setIfEmpty(_ x: Int, _ y: Int, _ color: RGBA) {
+        guard x >= 0, y >= 0, x < width, y < height, pixel(x, y) == nil else { return }
+        set(x, y, color)
+    }
+
     /// `blend` over a rectangle.
     mutating func fillBlend(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ color: RGBA) {
         for yy in y..<(y + h) { for xx in x..<(x + w) { blend(xx, yy, color) } }

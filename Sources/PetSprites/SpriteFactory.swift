@@ -355,9 +355,10 @@ public enum SpriteFactory {
         s.blush = 2
         let b = c.body(s)
         let bob = i % 4 < 2 ? 0 : -1
-        yubiKey(&c, x: b.cx - 4, y: 21 + bob, lit: i % 2 == 0)
+        // Held a row above the bottom edge, so a band of the body separates it from the dark outline.
+        yubiKey(&c, x: b.cx - 4, y: 20 + bob, lit: i % 2 == 0)
         // Rings around the pad: one pixel out, then two, then gone.
-        let (px, py) = (b.cx + 1, 21 + bob + 1)
+        let (px, py) = (b.cx + 1, 20 + bob + 1)
         let r = i % 4
         if r == 1 || r == 2 {
             let d = r + 1
@@ -396,8 +397,13 @@ public enum SpriteFactory {
     }
 
     /// A YubiKey lying sideways: plug on the left, black body, round gold pad near the right end.
+    /// Where a status battery goes (low power, a low battery): top left, clear of hats and the agent blocks.
+    static let batterySpot = (x: 2, y: 5)
+
     static func yubiKey(_ c: inout PixelCanvas, x: Int, y: Int, lit: Bool) {
-        c.fill(x, y + 1, 2, 2, Palette.keyPlug)
+        // A USB stick: a bigger silver plug with its contacts, so the black body reads as a key.
+        c.fill(x - 1, y + 1, 3, 2, Palette.keyPlug)
+        c.set(x - 1, y + 1, Palette.keyboardTop)
         c.fill(x + 2, y, 8, 4, Palette.keyBody)
         c.fill(x + 5, y + 1, 2, 2, lit ? Palette.keyGoldLit : Palette.keyGold)
         c.set(x + 9, y, Palette.keyPlug)   // the key ring hole

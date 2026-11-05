@@ -15,12 +15,15 @@ extension SpriteFactory {
     /// The shared tool bubble with a mug of coffee and two wisps of steam that sway every frame.
     static func mugBubble(steam: Int, _ c: inout PixelCanvas) {
         toolBubble(&c)
-        let ink = Palette.keyboard
-        c.fill(3, 4, 4, 4, ink)
-        c.fill(4, 5, 2, 2, Palette.mug)
-        c.fill(4, 5, 2, 1, Palette.coffee)
-        c.set(7, 5, ink); c.set(8, 6, ink); c.set(7, 7, ink)   // the handle
-        let wisps = steam == 0 ? [(4, 3), (5, 2)] : [(5, 3), (4, 2)]
-        for (x, y) in wisps { c.set(x, y, Palette.mugShade) }
+        // A teal mug with a dark outline, coffee at the top and a handle, under two wisps of teal steam:
+        // the old 4x4 brown mug with grey steam was a blob at 64 pt.
+        c.pixelMap([
+            "DDDDD.",
+            "DCCCDD",
+            "DMMMD.D",
+            "DMMMDD",
+        ], x: 3, y: 4, colors: ["D": Palette.keyboard, "C": Palette.coffee, "M": Palette.note])
+        let wisps = steam == 0 ? [(4, 3), (5, 2), (6, 3)] : [(5, 3), (4, 2), (6, 2)]
+        for (x, y) in wisps { c.set(x, y, Palette.tealLight) }
     }
 }

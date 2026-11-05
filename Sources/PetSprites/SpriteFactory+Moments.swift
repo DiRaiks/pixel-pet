@@ -164,7 +164,7 @@ extension SpriteFactory {
         s.lookY = 1
         let b = c.body(s)
         // The last bar blinks out once a loop (3.5 s), not twice a second.
-        c.battery(b.cx + 4, b.y0 - 5, level: (12...13).contains(i) ? 0 : 1, color: Palette.batteryRed)
+        c.battery(batterySpot.x, batterySpot.y, level: (12...13).contains(i) ? 0 : 1, color: Palette.batteryRed)
     }
 
     /// Plugged in: a lightning bolt, the battery filling up, a happy little bounce.
@@ -340,16 +340,25 @@ extension SpriteFactory {
     /// A twin-bell alarm clock floating over the head: round white face with a dark rim, brass bells on
     /// top, a hand going round (`hand` 0...3), little legs; ringing adds lines either side.
     static func alarmClock(_ c: inout PixelCanvas, x: Int, y: Int, hand: Int, ringing: Bool) {
-        let rim = Palette.accessoryDark
-        c.fill(x + 1, y, 5, 1, rim); c.fill(x + 1, y + 6, 5, 1, rim)
-        c.fill(x, y + 1, 1, 5, rim); c.fill(x + 6, y + 1, 1, 5, rim)
-        c.fill(x + 1, y + 1, 5, 5, Palette.white)
-        c.fill(x - 1, y - 1, 2, 2, Palette.crownGold); c.fill(x + 6, y - 1, 2, 2, Palette.crownGold)
-        c.set(x + 3, y + 3, rim)
-        let tip = [(3, 1), (5, 3), (3, 5), (1, 3)][hand]
-        c.set(x + (3 + tip.0) / 2, y + (3 + tip.1) / 2, rim)
-        c.set(x + tip.0, y + tip.1, rim)
-        c.set(x + 1, y + 7, rim); c.set(x + 5, y + 7, rim)
+        // A round red-rimmed face with brass bells on its shoulders (their top row is `y`, so they stay off
+        // the canvas edge): it has to read as a clock at 64 pt, which the old square white face with one hand
+        // didn't. No legs: they ran into the headset band below.
+        let (x, y) = (x, y + 1)
+        c.pixelMap([
+            "BB.....BB",
+            "BB.RRR.BB",
+            "..RWWWR..",
+            ".RWWWWWR.",
+            ".RWWWWWR.",
+            ".RWWWWWR.",
+            "..RWWWR..",
+            "...RRR...",
+        ], x: x - 1, y: y - 1, colors: ["B": Palette.crownGold, "R": Palette.rec, "W": Palette.white, "D": Palette.accessoryDark])
+        let ink = Palette.accessoryDark
+        // The hour hand stays put; the minute hand goes round in quarters.
+        c.set(x + 3, y + 3, ink); c.set(x + 4, y + 4, ink)
+        let minute = [[(3, 1), (3, 2)], [(4, 3), (5, 3)], [(3, 4), (3, 5)], [(1, 3), (2, 3)]][hand % 4]
+        for (dx, dy) in minute { c.set(x + dx, y + dy, ink) }
         guard ringing else { return }
         for dy in [1, 3, 5] { c.set(x - 3, y + dy, Palette.amber); c.set(x + 9, y + dy, Palette.amber) }
     }

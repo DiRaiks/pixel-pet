@@ -37,7 +37,6 @@ import PetCore
         echo '{"type":"result","subtype":"success","is_error":false,"result":"Ответ"}'
         """)
         let events = Lines()
-        let start = Date()
         let doneAt = Lines()
         let result = await ClaudeChat.run(
             claude: claude, arguments: ClaudeAsk.arguments(model: "haiku", resume: nil), input: "секретный вопрос",
@@ -47,13 +46,16 @@ import PetCore
                 case .text(let text): events.add("text \(text)")
                 case .done(let text):
                     events.add("done \(text)")
-                    doneAt.add(String(Date().timeIntervalSince(start) < 1.5))
+                    doneAt.add(String(Date().timeIntervalSinceReferenceDate))
                 case .limits: break
                 }
             })
         #expect(result == .success("Ответ"))
         #expect(events.all == ["session s-42", "text Ответ", "done Ответ"])
-        #expect(doneAt.all == ["true"])
+        // Measured against the exit rather than the start, so a slow launch on a busy CI runner doesn't count.
+        let exited = Date().timeIntervalSinceReferenceDate
+        #expect(doneAt.all.count == 1)
+        #expect(doneAt.all.compactMap(Double.init).allSatisfy { exited - $0 > 1 })
     }
 }
 

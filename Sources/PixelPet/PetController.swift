@@ -70,6 +70,12 @@ final class PetController {
     private var touchEnd: DispatchWorkItem?
     /// The pet "talks" while the translation card is open.
     private var talking = false
+    /// Listening to the mic: waves while there's sound, dots while it's quiet.
+    enum Listening { case sound, quiet }
+    private var listening: Listening?
+    /// Press and hold: start listening; let go: stop.
+    var onHoldBegan: (() -> Bool)?
+    var onHoldEnded: (() -> Void)?
     /// When to doze off, and a live reading of how long the user has been away (sampled each time the
     /// rest state is decided, so a keyboard-only return is never judged from an old reading).
     private var sleepAfter: TimeInterval { Double(config.sleepAfterMinutes) * 60 }
@@ -292,6 +298,8 @@ final class PetController {
         if touching { return config.isHome ? .touchKeyHome : .touchKey }
         // A file held over it: ready to catch, whatever else is going on.
         if catching, !config.isHome { return .catchOpen }
+        // Listening is what the user is doing right now.
+        if let listening, !config.isHome { return listening == .quiet ? .listenQuiet : .listening }
         if config.isHome {
             let home = PetBrain.homeState(for: mood, doNotDisturb: config.doNotDisturb)
             // The last minute before a call: out of the hole to say so (not under do-not-disturb).
@@ -383,6 +391,20 @@ final class PetController {
     func setTalking(_ on: Bool) {
         talking = on
         applyRest()
+    }
+
+    /// Starts with a perk-up and ends with a nod (`nod: false` when nothing came of it); in between, sound
+    /// and quiet only swap the loop.
+    func setListening(_ phase: Listening?, nod: Bool = true) {
+        let was = listening
+        listening = phase
+        applyRest()
+        guard !config.isHome, (was == nil) != (phase == nil) else { return }
+        if phase != nil {
+            react(.listenIn)
+        } else if nod {
+            react(.listenOut)
+        }
     }
 
     private func applyRest() {
@@ -984,6 +1006,8 @@ final class PetController {
         }
         view.onFilesDropped = { [weak self] urls in self?.onDropFiles?(urls) }
         view.onPress = { [weak self] in self?.cancelFlick() }
+        view.onHoldBegan = { [weak self] in self?.onHoldBegan?() ?? false }
+        view.onHoldEnded = { [weak self] in self?.onHoldEnded?() }
         view.onHover = { [weak self] inside in self?.hover(inside) }
         view.onMouseMove = { [weak self] x in self?.mouseMoved(x: x) }
         view.onClick = { [weak self] in

@@ -292,7 +292,8 @@ final class Asker {
         }
     }
 
-    /// Debug aid (`--ask`, `--ask-followup`): type and send a question.
+    /// Type and send a question: what was said to the pet, and the `--ask` / `--ask-followup` debug aid.
+    /// While an answer is still coming in, the question waits in the field.
     func ask(_ question: String) {
         if !panel.isShown { toggle() }
         model.draft = question

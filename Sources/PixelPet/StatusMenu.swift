@@ -21,6 +21,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let dndItem = NSMenuItem(title: "", action: #selector(toggleDND), keyEquivalent: "p")
     private let translateItem = NSMenuItem(title: "", action: #selector(translate), keyEquivalent: "t")
     private let askItem = NSMenuItem(title: "", action: #selector(ask), keyEquivalent: "k")
+    private let listenItem = NSMenuItem(title: "", action: #selector(listen), keyEquivalent: "l")
     private let statesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let scalesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let settingsItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
@@ -32,6 +33,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onSettings: (() -> Void)?
     var onWelcome: (() -> Void)?
     var onAsk: (() -> Void)?
+    var onListen: (() -> Void)?
     var onShowPanel: (() -> Void)?
     var onShowRecap: (() -> Void)?
     private let stateMenu = NSMenu()
@@ -73,6 +75,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .dizzy: L("Dizzy", "Кружится голова"),
             .splatLeft: L("Splat on the left edge", "Шлёп о левый край"), .splatRight: L("Splat on the right edge", "Шлёп о правый край"),
             .hookah: L("Hookah", "Кальян"), .hookahCloud: L("Hookah: cloud", "Кальян: облако"),
+            .listenIn: L("Starts listening", "Начинает слушать"), .listening: L("Listening", "Слушает"),
+            .listenQuiet: L("Listening: quiet", "Слушает: тишина"), .listenOut: L("Heard it", "Услышал"),
             .meetingSoon: L("Call soon", "Скоро звонок"), .meetingNow: L("Call now", "Звонок сейчас"),
         ]
     }
@@ -108,6 +112,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         askItem.target = self
         askItem.keyEquivalentModifierMask = [.control, .option]
         menu.addItem(askItem)
+        listenItem.target = self
+        listenItem.keyEquivalentModifierMask = [.control, .option]
+        menu.addItem(listenItem)
         menu.addItem(.separator())
         toggleItem.target = self
         menu.addItem(toggleItem)
@@ -163,6 +170,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         dndItem.title = L("Do not disturb", "Не беспокоить")
         translateItem.title = L("Translate selection", "Перевести выделенное")
         askItem.title = L("Ask Claude", "Спросить Claude")
+        listenItem.title = L("Listen", "Слушать")
         statesItem.title = L("State", "Состояние")
         scalesItem.title = L("Size", "Размер")
         settingsItem.title = L("Settings…", "Настройки…")
@@ -235,6 +243,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func translate() { onTranslate?() }
 
     @objc private func ask() { onAsk?() }
+    @objc private func listen() { onListen?() }
 
     @objc func toggleDND() { pet.setDoNotDisturb(!pet.doNotDisturb) }
 

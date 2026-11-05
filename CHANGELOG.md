@@ -32,6 +32,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 - **Going home:** drop the pet anywhere along the top edge of a screen (at the edge, above it, or within 60 pt below) and it slides into that screen's home. Before, it had to land within 90 pt of the notch or burrow in the middle.
 
 ### Fixed
+- **Marks over a tall hat.** The spent-limit clock and the "!" now step aside for a propeller, crown, beanie or party hat, as they already did for LM's diamond, instead of merging into the hat.
 - **No music from system sounds.** The charger chime (PowerChime) or Siri can leave the speakers open for hours after a short sound, and the cube bobbed to music that wasn't there. It now asks CoreAudio which processes have output running and ignores those macOS services; a player running beside them still counts.
 - **No "working" after the turn is over.** The Claude app's post-turn helper runs a tool under the session's id (shown as `Runs true`) and never reports it done, so the session lit up as working for 5 minutes after every such turn. Tool calls from inside an agent (`agent_id`) no longer wake a session between turns.
 - **Resumed sessions show up again.** A session the Claude app unloaded and later resumed under the same id stayed hidden for good, every event of it ignored; a new start or prompt now brings it back.

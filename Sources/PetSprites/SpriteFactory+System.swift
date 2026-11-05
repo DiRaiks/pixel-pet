@@ -194,7 +194,8 @@ extension SpriteFactory {
         c.fill(tx + 1, ty + 1, 1, 6, Palette.white)
         c.fill(tx - 1, ty + 7, 5, 3, Palette.keyboardTop)
         c.fill(tx, ty + 8, 3, 1, Palette.rec)
-        let level = [3, 4, 5, 6, 6, 5, 6, 6][i]
+        // It wobbles near the top; rising from 3 each loop made it cool down and heat up again every 1.4 s.
+        let level = [5, 6, 6, 5, 6, 6, 5, 6][i]
         c.fill(tx + 1, ty + 7 - level, 1, level, Palette.rec)
         // Heat shimmer rising on the right.
         for row in 0..<4 {
@@ -260,7 +261,8 @@ extension SpriteFactory {
         let b = c.body(s)
         if i >= 4 { c.peaceEmoji(x: 5, y: i == 4 ? 1 : 0) }
         if i >= 5, i % 2 == 1 { c.sparkle(b.x0 + s.w + 1, b.y0, Palette.amberLight, big: true) }
-        if i == 2 { c.fillBlend(0, 0, 32, 32, Palette.flash) }
+        // The flash lights up what's drawn, not the whole canvas: on the clear window that would be a white square.
+        if i == 2 { for y in 0..<c.height { for x in 0..<c.width { c.tint(x, y, Palette.flash) } } }
     }
 
     /// Dark mode: a crescent moon and two stars come out; the pet goes sleepy-eyed and says "oh".

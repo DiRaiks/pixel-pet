@@ -17,6 +17,14 @@ public enum TypingScript {
     }
 
     public static let keyCount = 7
+
+    /// Whether beat `i` is a key going down at the start or the end of a burst.
+    public static func isAccent(_ i: Int) -> Bool {
+        guard case .down = beats[i].beat else { return false }
+        let first = i == 0 || beats[i - 1].beat != .up
+        let last = i + 2 >= beats.count || { if case .down = beats[i + 2].beat { false } else { true } }()
+        return first || last
+    }
     public static let bursts = [6, 11, 4, 9, 13, 7]
 
     public static let beats: [(beat: Beat, ms: Double)] = {

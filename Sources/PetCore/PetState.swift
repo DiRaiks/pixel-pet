@@ -73,7 +73,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .working: TypingScript.beats.map(\.ms)
         case .alert: [80, 80, 70, 60, 60, 70, 80, 120, 90, 90, 90, 90]
         case .celebrate: [140, 90, 60, 50, 50, 60, 90, 90, 60, 50, 50, 110, 90, 80, 160, 200]
-        case .sleep: Self.repeating(8, 300) + [120, 400, 300, 300]
+        case .sleep: Self.repeating(8, 600) + [120, 400, 300, 300]
         case .lowLimit: Self.repeating(16, 100)
         case .error: Self.repeating(6, 70) + Self.repeating(10, 90)
         case .peek: Self.repeating(12, 83) + Self.repeating(10, 100) + Self.repeating(6, 70)
@@ -142,6 +142,16 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     }
 
     private static func repeating(_ count: Int, _ ms: Double) -> [Double] { Array(repeating: ms, count: count) }
+
+    /// Where a loop starts again after its first pass: the frames before it are an intro played once on
+    /// entering the state (the red flash and shake of an error), not every couple of seconds for as long as
+    /// it lasts.
+    public var loopStart: Int {
+        switch self {
+        case .error, .lowLimit: 6
+        default: 0
+        }
+    }
 
     /// One-shots play once and hand control back to the base state.
     public var loops: Bool {

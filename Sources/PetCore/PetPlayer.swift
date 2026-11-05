@@ -49,7 +49,7 @@ public struct PetPlayer: Sendable {
                 restart()
                 break
             } else {
-                frame = 0
+                frame = state.loopStart
             }
         }
         return changed

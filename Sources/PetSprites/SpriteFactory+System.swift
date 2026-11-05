@@ -150,13 +150,14 @@ extension SpriteFactory {
 
     /// Sound is playing: a bob to the beat, eyes shut happily, notes drifting up on both sides.
     static func music(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
+        // A gentle bob on every other note (320 ms) and one squash a bar; no sway. Music can play for hours,
+        // so the notes carry the motion.
         var s = BodyStyle(look: look)
-        s.dy = i % 2 == 0 ? 0 : -1
-        if i % 4 == 0 { s.w = 17; s.h = 13 }
+        s.dy = (i / 2) % 2 == 0 ? 0 : -1
+        if i == 0 { s.w = 17; s.h = 13 }
         s.eyes = .happy
         s.mouth = .smile
         s.blush = 2
-        s.dx = [0, 0, 1, 1, 0, 0, -1, -1][i]
         c.body(s)
         c.note(23 + (i % 4 < 2 ? 0 : 1), 10 - i, Palette.note)
         c.note(6 - (i % 4 < 2 ? 0 : 1), 13 - ((i + 4) % 8), Palette.noteAlt)
@@ -178,10 +179,12 @@ extension SpriteFactory {
     /// side, flushed cheeks, panting and sweat.
     static func overheated(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         var s = BodyStyle(look: look)
-        s.eyes = i % 4 == 3 ? .blink : .half
-        s.mouth = i % 2 == 0 ? .open : .wobble
+        // Panting at half the rate it had (0.7 s a breath, not 2.8 a second): it can run hot for a long time.
+        let out = (i / 2) % 2 == 1
+        s.eyes = i == 7 ? .blink : .half
+        s.mouth = out ? .wobble : .open
         s.blush = 3
-        if i % 2 == 1 { s.w = 17; s.h = 13 }
+        if out { s.w = 17; s.h = 13 }
         let b = c.body(s)
         // Sweat: a drop running down each side.
         for (x, phase) in [(b.x0 + 1, 0), (b.x0 + s.w - 2, 2)] {
@@ -229,7 +232,8 @@ extension SpriteFactory {
         c.fill(4, 3, 5, 1, ink); c.set(3, 4, ink); c.set(9, 4, ink)
         c.fill(5, 5, 3, 1, ink); c.set(4, 6, ink); c.set(8, 6, ink)
         c.set(6, 7, ink)
-        if i % 4 < 3 { for k in 0..<6 { c.set(3 + k, 2 + k, Palette.rec) } }
+        // The slash stays: blinking it every second for as long as the network is down was too busy.
+        for k in 0..<6 { c.set(3 + k, 2 + k, Palette.rec) }
     }
 
     /// Charged to 100%: a battery fills up by the head, sparkles, and the pet hops.

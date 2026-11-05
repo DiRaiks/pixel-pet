@@ -201,7 +201,10 @@ extension SpriteFactory {
         s.cx = 16; s.by = 23 - (k.h - 14) / 2
         var ball = PixelCanvas()
         ball.body(s)
-        c.blit(ball.rotatedQuarter(k.turns), x: 0, y: k.dy)
+        let turned = ball.rotatedQuarter(k.turns)
+        // Not so high that a hat (or whatever is on top after turning) goes off the canvas.
+        let top = (0..<turned.height).first { y in (0..<turned.width).contains { turned.pixel($0, y) != nil } } ?? 0
+        c.blit(turned, x: 0, y: max(k.dy, -top))
         c.fill(13, 27, 6, 1, Palette.shadow)
         guard (2...6).contains(i) else { return }
         // Swoosh arcs trailing two opposite corners, turning with the ball.
@@ -245,7 +248,8 @@ extension SpriteFactory {
         guard i < 12 else { return }
         for n in 0..<3 {
             let t = (Double(i) / 6 + Double(n) / 3) * 2 * .pi
-            let x = b.cx + jsRound(cos(t) * 5), y = b.y0 - 3 + jsRound(sin(t) * 2)
+            // Orbiting a row clear of the outline, and above a hat.
+            let x = b.cx + jsRound(cos(t) * 5), y = max(3, b.y0 - 5 - s.headroom) + jsRound(sin(t) * 2)
             c.sparkle(x, y, n % 2 == 1 ? Palette.amber : Palette.amberLight, big: true)
         }
     }
@@ -258,24 +262,28 @@ extension SpriteFactory {
     static func hookah(_ i: Int, _ look: Look, _ c: inout PixelCanvas, cloud: Bool = false) {
         let drawing = (1...3).contains(i), holding = i == 4 || i == 5
         var s = BodyStyle(look: look)
-        s.cx = 12
+        // Sits over to the left of the hookah, stepping there and back on the first and last frame.
+        s.cx = i == 0 || i == 15 ? 14 : 12
         s.w = holding ? 17 : 16
         s.eyes = drawing || holding ? .closed : i >= 14 ? .happy : .half
         s.mouth = holding ? .pout : (6...9).contains(i) ? .open : i >= 14 ? .smile : .flat
         s.blush = holding ? 3 : 2
         let b = c.body(s)
         // Vase with water, stem, tray, clay bowl and its coal.
-        c.fill(21, 20, 5, 6, Palette.hookahGlass)
-        c.fill(22, 26, 3, 1, Palette.hookahGlass)
-        c.fill(21, 23, 5, 3, Palette.hookahWater)
-        if drawing { c.set(22 + i % 3, 22 - i % 2, Palette.white); c.set(23, 24, Palette.white) }
-        c.fill(23, 10, 1, 10, Palette.lamp)
-        c.fill(21, 12, 5, 1, Palette.lamp)
-        c.fill(22, 8, 3, 2, Palette.hookahClay)
-        c.set(23, 7, drawing ? Palette.amber : Palette.coal)
-        if drawing { c.set(22, 7, Palette.amberLight); c.set(24, 7, Palette.amberLight) }
+        // A pixel clear of the body's outline.
+        c.fill(22, 20, 5, 6, Palette.hookahGlass)
+        c.fill(23, 26, 3, 1, Palette.hookahGlass)
+        c.fill(22, 23, 5, 3, Palette.hookahWater)
+        if drawing { c.set(23 + i % 3, 22 - i % 2, Palette.white); c.set(24, 24, Palette.white) }
+        c.fill(24, 10, 1, 10, Palette.lamp)
+        c.fill(22, 12, 5, 1, Palette.lamp)
+        c.fill(23, 8, 3, 2, Palette.hookahClay)
+        c.set(24, 7, drawing ? Palette.amber : Palette.coal)
+        if drawing { c.set(23, 7, Palette.amberLight); c.set(25, 7, Palette.amberLight) }
         // Hose from the stem round to the mouth.
-        for (x, y) in [(21, 15), (20, 17), (20, 19), (19, 21), (18, 21)] { c.set(x, y, Palette.accessoryDark) }
+        for (x, y) in [(22, 15), (21, 16), (21, 17), (21, 18), (21, 19), (20, 20), (20, 21)] where c.pixel(x, y) == nil {
+            c.set(x, y, Palette.accessoryDark)
+        }
         if i < 12 { c.set(b.cx + 5, min(b.y0 + 8, 25), Palette.accessoryDark) }
         if cloud { bigCloud(&c, b, i) } else { smokeRings(&c, b, i) }
     }

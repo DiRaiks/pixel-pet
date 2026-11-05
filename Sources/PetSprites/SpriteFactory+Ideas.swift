@@ -67,7 +67,8 @@ extension SpriteFactory {
         c.fill(2, 1, 8, 1, ink); c.fill(2, 8, 8, 1, ink)
         c.fill(1, 2, 1, 6, ink); c.fill(10, 2, 1, 6, ink)
         c.fill(2, 2, 8, 6, Palette.white)
-        c.set(11, 9, ink); c.set(12, 10, ink)
+        // The tail only fills empty pixels: drawn after the pet, it used to cut into a cap, crown or flower.
+        c.setIfEmpty(11, 9, ink); c.setIfEmpty(12, 10, ink)
     }
 
     /// A terminal: a dark screen with a green prompt and a blinking cursor.
@@ -159,7 +160,9 @@ extension SpriteFactory {
     static func wave(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let dys = [0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, -1, 0, 0]
         var s = BodyStyle(look: look)
-        s.cx = 13; s.dy = dys[i]
+        // Steps over to the left (clear of the agent blocks on the right) and back, a pixel at a time.
+        s.cx = [15, 14][safe: i] ?? [14, 15][safe: i - 14] ?? 13
+        s.dy = dys[i]
         if i == 0 || i == 14 { s.w = 17; s.h = 13 }
         s.eyes = (2...9).contains(i) && i % 2 == 1 ? .happy : .wide
         s.mouth = .open
@@ -191,7 +194,9 @@ extension SpriteFactory {
     static func launch(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let hops = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -3, -2, 0, 0, 0]
         var s = BodyStyle(look: look)
-        s.cx = 19; s.dy = hops[i]
+        // Steps right first, and the rocket is set down where it stood; steps back once it's gone.
+        s.cx = i == 0 ? 17 : [18, 17][safe: i - 20] ?? 19
+        s.dy = hops[i]
         s.lookX = i < 17 ? -1 : 0
         s.lookY = (8...16).contains(i) ? -1 : 0
         s.eyes = i >= 17 ? .happy : (2...7).contains(i) ? .wide : .open
@@ -206,7 +211,7 @@ extension SpriteFactory {
             if i >= 8, i <= 13 { c.puff(6, 25, 1); c.puff(9, 25, 1) }
         }
         let lift = [0, 0, 0, 0, 0, 0, 0, 2, 5, 9, 14, 20, 27, 35]
-        if i < lift.count, i < 13 {
+        if (1..<13).contains(i) {
             let shake = (2...6).contains(i) ? (i % 2 == 0 ? -1 : 1) : 0
             let x = 6 + shake, y = 19 - lift[i]
             rocket(x, y, flame: i >= 6 ? 3 : (2...5).contains(i) ? 1 : 0, &c)
@@ -251,8 +256,11 @@ extension SpriteFactory {
         s.mouth = .smile
         s.blush = i == 0 ? 2 : 3
         c.body(s)
-        if (2...11).contains(i) { heart(22 + (i % 4 < 2 ? 0 : -1), 11 - (i - 2), faded: i >= 10, &c) }
-        if (5...13).contains(i) { heart(5 + (i % 4 < 2 ? 0 : 1), 10 - (i - 5), faded: i >= 12, &c) }
+        // Hearts rise beside the head with a row of air above the body (and above a hat), slower than a
+        // row a frame.
+        let start = 7 - min(BodyStyle(look: look).headroom, 4)
+        if (2...11).contains(i) { heart(22 + (i % 4 < 2 ? 0 : -1), start - (i - 2) * 2 / 3, faded: i >= 10, &c) }
+        if (5...13).contains(i) { heart(5 + (i % 4 < 2 ? 0 : 1), start - (i - 5) * 2 / 3, faded: i >= 12, &c) }
     }
 
     static func heart(_ x: Int, _ y: Int, faded: Bool, _ c: inout PixelCanvas) {
@@ -269,8 +277,8 @@ extension SpriteFactory {
     static func sneeze(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
         let keys: [(w: Int, h: Int, dx: Int, eyes: Eyes, mouth: Mouth, lookY: Int)] = [
             (16, 14, 0, .open, .flat, 0), (16, 14, 0, .half, .tiny, 0), (15, 15, 0, .half, .open, -1),
-            (15, 16, 0, .closed, .open, -1), (15, 16, 0, .closed, .open, -1), (18, 12, -1, .squeeze, .open, 0),
-            (17, 13, -1, .squeeze, .open, 0), (16, 14, 0, .squeeze, .flat, 0), (16, 14, -1, .squeeze, .flat, 0),
+            (15, 16, 0, .closed, .open, -1), (15, 16, 0, .closed, .open, -1), (17, 13, -3, .squeeze, .open, 0),
+            (17, 13, -3, .squeeze, .open, 0), (16, 14, -1, .squeeze, .flat, 0), (16, 14, -1, .squeeze, .flat, 0),
             (16, 14, 1, .squeeze, .flat, 0), (16, 14, 0, .blink, .flat, 0), (16, 14, 0, .half, .tiny, 0),
             (16, 14, 0, .open, .flat, 0), (16, 14, 0, .open, .smile, 0),
         ]
@@ -290,6 +298,7 @@ extension SpriteFactory {
             for (x, y) in drops[i] ?? [] { c.fill(x, y, 1, 2, Palette.water) }
         } else {
             switch i {
+            // The "choo" throws the body back, so the mist stays clear of its outline.
             case 5: c.puff(24, 20, 2)
             case 6: c.puff(24, 19, 2); c.puff(25, 23, 1)
             case 7: c.puff(25, 18, 1); c.set(26, 22, Palette.keyboardTop); c.set(24, 23, Palette.keyboardTop)

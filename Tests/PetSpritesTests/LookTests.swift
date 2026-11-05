@@ -60,8 +60,10 @@ import PetCore
     @Test func tumbleRollsAwayAndBack() {
         let frames = SpriteFactory.frames(for: .tumble, agentCubes: false)
         func leftmost(_ c: PixelCanvas) -> Int { (0..<32).first { x in (0..<27).contains { c.pixel(x, $0) == Palette.outline } } ?? -1 }
-        #expect(leftmost(frames[6]) > leftmost(frames[0]))
-        #expect(leftmost(frames[13]) == leftmost(frames[0]))
+        // Frames 0 and 15 step over from and back to the middle; the roll itself is 1...14.
+        #expect(leftmost(frames[7]) > leftmost(frames[1]))
+        #expect(leftmost(frames[14]) == leftmost(frames[1]))
+        #expect(leftmost(frames[15]) == leftmost(frames[0]))
     }
 
     @Test func sleepWearsANightcap() {

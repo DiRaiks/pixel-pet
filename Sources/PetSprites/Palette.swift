@@ -59,6 +59,17 @@ public enum Accessory: String, CaseIterable, Sendable {
     case none, glasses, headphones, cap
     case beanie, crown, bow, flower, propeller, sunglasses, scarf, mustache
 
+    /// Rows it rises above the top of the cube's body.
+    public var height: Int {
+        switch self {
+        case .beanie: 5
+        case .crown, .propeller: 4
+        case .flower: 3
+        case .headphones, .cap, .bow: 2
+        case .none, .glasses, .sunglasses, .scarf, .mustache: 0
+        }
+    }
+
     /// Worn on the head: the work headband stays off so the two don't pile up.
     public var isOnHead: Bool {
         switch self {

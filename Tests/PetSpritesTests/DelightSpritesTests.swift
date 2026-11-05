@@ -60,7 +60,8 @@ import PetCore
         let frames = SpriteFactory.frames(for: .wave, agentCubes: false)
         let outline = Look.standard.skin.outline
         #expect(has(frames[2], outline, x: 21..<27, y: 8..<16))
-        #expect(!has(frames[0], outline, x: 22..<27, y: 8..<16))
+        // Frame 0 is still stepping over from the middle, so its body reaches x 23; no arm beyond it yet.
+        #expect(!has(frames[0], outline, x: 24..<27, y: 8..<16))
     }
 
     /// The rocket starts on the floor and is gone up top by the time the pet cheers.
@@ -69,7 +70,9 @@ import PetCore
         func noseRow(_ f: PixelCanvas) -> Int? {
             (0..<32).first { y in (0..<10).contains { f.pixel($0, y) == Palette.rocketRed } }
         }
-        #expect(noseRow(frames[0]) == 19)
+        // Frame 0 the pet steps aside; the rocket stands there from frame 1.
+        #expect(noseRow(frames[0]) == nil)
+        #expect(noseRow(frames[1]) == 19)
         #expect(noseRow(frames[10])! < 10)
         #expect(noseRow(frames[18]) == nil)
     }

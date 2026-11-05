@@ -35,7 +35,10 @@ extension SpriteFactory {
         s.lookX = -1; s.lookY = -1
         let b = c.body(s)
         listenMic(b, s, out: 3, &c)
-        for d in 0..<(i % 4) { c.fill(b.x0 + s.w + 1 + d * 2, b.y0 - 1, 1, 1, Palette.keyboard) }
+        // The dots come one by one over the mic's head: the body sits too far right for room beside it,
+        // and over the head they'd meet a hat.
+        let head = micHead(b)
+        for d in 0..<(i % 4) { c.set(head.x + d * 2, head.y - 2, Palette.keyboard) }
     }
 
     /// Got it: two happy nods, the mic goes away, back to its spot.

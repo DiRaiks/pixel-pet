@@ -114,8 +114,10 @@ extension PixelCanvas {
             mouth(cx, min(ey + 4, m + h - 4), s.mouth, k)
         }
         if s.blush > 0 {
-            fill(cx - 6, ey + 3, s.blush, 1, k.blush)
-            fill(cx + 6 - s.blush, ey + 3, s.blush, 1, k.blush)
+            // Cheeks stay where they are when the eyes look aside; following the gaze put one on the outline.
+            let mid = m + w / 2
+            fill(mid - 6, ey + 3, s.blush, 1, k.blush)
+            fill(mid + 6 - s.blush, ey + 3, s.blush, 1, k.blush)
         }
         if face, s.brow == .angry {
             set(cx - 5, ey - 2, k.eye); set(cx - 4, ey - 1, k.eye)

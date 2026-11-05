@@ -422,12 +422,16 @@ public enum SpriteFactory {
         s.eyes = (3...12).contains(i) ? .happy : .open
         s.mouth = .smile
         s.blush = i >= 11 ? 3 : 2
-        c.body(s)
+        let b = c.body(s)
         guard (5...14).contains(i) else { return }
         let q = Double(i - 4)
         let offsets = [(-q - 2, -q / 2), (q + 2, -q / 2), (-q, q / 3 - 6), (q, q / 3 - 6)]
+        // They follow the body up and down, flanking the head with a pixel of air to the outline: anchored to
+        // the canvas they landed on the face while it was in the air.
+        let clear = s.w / 2 + 3
         for (k, (x, y)) in offsets.enumerated() {
-            c.sparkle(16 + jsRound(x), 12 + jsRound(y), k % 2 == 1 ? Palette.amber : Palette.teal, big: q < 6)
+            let dx = max(abs(jsRound(x)), clear) * (x < 0 ? -1 : 1)
+            c.sparkle(b.cx + dx, max(1, b.y0 + 2 + jsRound(y)), k % 2 == 1 ? Palette.amber : Palette.teal, big: q < 6)
         }
     }
 
@@ -629,12 +633,18 @@ public enum SpriteFactory {
     }
 
     /// Big task done: a somersault at the top of the jump and confetti raining down.
+    /// Somersault keys: width, height, lift and angle. While turning, the body is square and the jump peaks
+    /// lower, so the corners stay on the canvas. A faceless square looks the same every 90°, so only the
+    /// angle past the last quarter turn shows; these step it 20° at a time (20, 40, 60, 80) so the turn
+    /// reads as going forward.
+    static let flipKeys = [
+        (16, 14, 0, 0.0), (18, 12, 0, 0), (20, 10, 0, 0), (14, 17, -5, 0), (14, 14, -8, 20),
+        (14, 14, -9, 130), (14, 14, -9, 240), (14, 14, -8, 350), (14, 17, -5, 360), (20, 10, 0, 0),
+        (18, 12, 0, 0), (16, 15, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0),
+    ]
+
     static func flip(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
-        // While turning, the body is square and the jump peaks lower, so the corners stay on the canvas.
-        let keys = [(16, 14, 0, 0.0), (18, 12, 0, 0), (20, 10, 0, 0), (14, 17, -5, 0), (14, 14, -8, 60),
-                    (14, 14, -9, 150), (14, 14, -9, 240), (14, 14, -8, 320), (14, 17, -5, 360), (20, 10, 0, 0),
-                    (18, 12, 0, 0), (16, 15, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0), (16, 14, 0, 0)]
-        let (w, h, dy, angle) = keys[i]
+        let (w, h, dy, angle) = flipKeys[i]
         var s = BodyStyle(look: look)
         s.w = w; s.h = h; s.dy = dy
         s.rotation = angle.truncatingRemainder(dividingBy: 360)

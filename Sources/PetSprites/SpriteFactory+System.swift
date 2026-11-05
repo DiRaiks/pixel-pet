@@ -77,16 +77,18 @@ extension PixelCanvas {
     /// A microphone with a red recording dot, in the tool bubble.
     mutating func micBubble(rec: Bool) {
         SpriteFactory.toolBubble(&self)
-        let ink = Palette.keyboard
+        // A studio mic: a round capsule with a grille on a stand that stands on the bubble's edge; the old
+        // thin outline read as an envelope. The recording dot sits apart from it.
         pixelMap([
-            "..##..",
-            "..##..",
-            "#.##.#",
-            ".#..#.",
-            "..##..",
-            ".####.",
-        ], x: 2, y: 2, colors: ["#": ink])
-        if rec { fill(8, 3, 2, 2, Palette.rec) }
+            ".DDD.",
+            "DLDLD",
+            "DDLDD",
+            "DLDLD",
+            ".DDD.",
+            "..D..",
+        ], x: 2, y: 2, colors: ["L": Palette.steam, "D": Palette.keyboard])
+        // A pixel of air on both sides: from the mic and from the bubble's edge.
+        if rec { fill(8, 3, 1, 2, Palette.rec) }
     }
 
 
@@ -213,7 +215,7 @@ extension SpriteFactory {
         s.mouth = .flat
         if i % 4 >= 2 { s.h = 13; s.w = 17 }
         c.body(s)
-        c.battery(5, 6, level: 3, color: Palette.sun)
+        c.battery(SpriteFactory.batterySpot.x, SpriteFactory.batterySpot.y, level: 3, color: Palette.sun)
     }
 
     /// Offline: a bubble with Wi-Fi arcs struck through, the pet looking up at it, worried.

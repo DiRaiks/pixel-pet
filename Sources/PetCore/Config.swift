@@ -22,6 +22,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Translation: text in your language goes to `foreignLanguage`, anything else into `nativeLanguage`.
     public var nativeLanguage = "ru"
     public var foreignLanguage = "en"
+    /// Listen to the mic (press and hold the cube, ⌃⌥L). Off until turned on in Settings.
+    public var listening = false
     /// The language you speak to the cube in; empty means `nativeLanguage`.
     public var speechLanguage = ""
     /// Model for quick questions (⌃⌥K).
@@ -77,6 +79,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         uiLanguage = try c.decodeIfPresent(String.self, forKey: .uiLanguage) ?? "en"
         nativeLanguage = try c.decodeIfPresent(String.self, forKey: .nativeLanguage) ?? "ru"
         foreignLanguage = try c.decodeIfPresent(String.self, forKey: .foreignLanguage) ?? "en"
+        listening = try c.decodeIfPresent(Bool.self, forKey: .listening) ?? false
         speechLanguage = try c.decodeIfPresent(String.self, forKey: .speechLanguage) ?? ""
         askModel = try c.decodeIfPresent(String.self, forKey: .askModel) ?? "haiku"
         desktopReactions = try c.decodeIfPresent(Bool.self, forKey: .desktopReactions) ?? true

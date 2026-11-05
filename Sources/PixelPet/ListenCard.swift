@@ -190,7 +190,7 @@ final class Listener {
     @discardableResult
     func begin(handsFree: Bool) -> Bool {
         if model.isActive { return true }
-        guard !pet.config.isHome else { return false }
+        guard pet.config.listening, !pet.config.isHome else { return false }
         take += 1
         let current = take
         let speech = SpeechListener()

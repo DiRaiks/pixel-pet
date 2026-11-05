@@ -171,6 +171,8 @@ enum ReadmeExport {
                            Clip(state: .newspaper, seconds: PetState.newspaper.totalDuration)]),
             ("swallow", [Clip(state: .catchOpen, seconds: 1.3), Clip(state: .swallow), Clip(state: .idle, seconds: 0.6)]),
             ("shake-head", [Clip(state: .idle, seconds: 0.6), Clip(state: .shakeHead), Clip(state: .idle, seconds: 0.6)]),
+            ("listen", [Clip(state: .idle, seconds: 0.6), Clip(state: .listenIn), Clip(state: .listenQuiet, seconds: 1.3),
+                        Clip(state: .listening, seconds: 2.2), Clip(state: .listenOut), Clip(state: .idle, seconds: 0.6)]),
             ("hookah", [Clip(state: .idle, seconds: 0.6), Clip(state: .hookah), Clip(state: .idle, seconds: 0.6)]),
             ("refill", [Clip(state: .idle, seconds: 0.6, drain: 10), Clip(state: .refill), Clip(state: .idle, seconds: 0.6)]),
             ("exhausted", [Clip(state: .exhausted, seconds: 3.2)]),

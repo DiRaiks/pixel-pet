@@ -36,6 +36,11 @@ final class PetView: NSView {
 
     var onPress: (() -> Void)?
     var onClick: (() -> Void)?
+    /// Pressed and held still: listen until let go. Returns false when it won't, so the press stays a click.
+    var onHoldBegan: (() -> Bool)?
+    var onHoldEnded: (() -> Void)?
+    private var holdTimer: DispatchWorkItem?
+    private var holding = false
     var onDragBegan: (() -> Void)?
     /// Release velocity, and whether the pet was shaken on the way.
     var onDragEnded: ((PetPoint, Bool) -> Void)?
@@ -153,15 +158,31 @@ final class PetView: NSView {
         let mouse = NSEvent.mouseLocation
         grabOffset = NSPoint(x: mouse.x - window.frame.minX, y: mouse.y - window.frame.minY)
         tracker = DragTracker(start: PetPoint(mouse), time: event.timestamp)
+        holding = false
+        holdTimer?.cancel()
+        let hold = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, let tracker = self.tracker, !tracker.isDragging else { return }
+                self.holding = self.onHoldBegan?() ?? false
+            }
+        }
+        holdTimer = hold
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.holdDelay, execute: hold)
     }
+
+    /// Long enough not to catch a slow click.
+    static let holdDelay: TimeInterval = 0.35
 
     override func mouseDragged(with event: NSEvent) {
         guard var tracker, let window else { return }
         let mouse = NSEvent.mouseLocation
         let wasDragging = tracker.isDragging
+        // Listening keeps the pet where it is.
+        guard !holding else { return }
         tracker.move(to: PetPoint(mouse), time: event.timestamp)
         self.tracker = tracker
         guard tracker.isDragging else { return }
+        holdTimer?.cancel()
         if !wasDragging { onDragBegan?() }
         window.setFrameOrigin(NSPoint(x: mouse.x - grabOffset.x, y: mouse.y - grabOffset.y))
     }
@@ -169,6 +190,13 @@ final class PetView: NSView {
     override func mouseUp(with event: NSEvent) {
         guard let tracker else { return }
         self.tracker = nil
+        holdTimer?.cancel()
+        holdTimer = nil
+        if holding {
+            holding = false
+            onHoldEnded?()
+            return
+        }
         switch tracker.end(time: event.timestamp) {
         case .click: onClick?()
         case .drag(let velocity): onDragEnded?(velocity, tracker.isShaken)

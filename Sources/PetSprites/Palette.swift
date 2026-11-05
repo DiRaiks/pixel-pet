@@ -99,8 +99,15 @@ public struct Look: Equatable, Hashable, Sendable {
     /// The setting value meaning "a different one every day".
     public static let daily = "daily"
 
-    /// Marks drawn over the middle of the head ("!", the spent clock) step aside for LM's diamond.
-    var headMarkShift: Int { figure == .lidman ? 7 : 0 }
+    /// Marks drawn over the middle of the head ("!", the spent clock) step aside for whatever stands tall
+    /// there: LM's diamond, a propeller, crown or beanie, the party hat. Otherwise they merge into it.
+    var headMarkShift: Int {
+        if figure == .lidman || extras.contains(.partyHat) { return 7 }
+        switch accessory {
+        case .propeller, .crown, .beanie: return 7
+        default: return 0
+        }
+    }
 
     /// The look for the saved settings on a given day: fixed names as they are, `daily` picked from the
     /// date alone (the same all day, also after a restart; never the same as the day before; never bare).

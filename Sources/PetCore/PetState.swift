@@ -53,6 +53,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     case breakHint
     /// A file dragged over the pet (mouth open, looking up at it), swallowed when dropped, or refused.
     case catchOpen, swallow, shakeHead
+    /// Listening to the mic (press and hold, ⌃⌥L): perks up and holds a mic out to the side like an
+    /// interviewer; waves travel into it while there's sound, three dots while it's quiet; a nod at the end.
+    case listenIn, listening, listenQuiet, listenOut
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -131,6 +134,10 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .swallow: [100, 100, 100, 150, 150, 150, 150, 400, 500]
         case .shakeHead: [80, 80, 80, 80, 150, 200]
         case .newspaper: Self.repeating(6, 300) + [150, 600, 120, 120, 120, 900]
+        case .listenIn: [110, 90, 80, 80, 80]
+        case .listening: Self.repeating(10, 110)
+        case .listenQuiet: Self.repeating(8, 220)
+        case .listenOut: [110, 110, 110, 160, 80, 80, 300]
         }
     }
 
@@ -144,7 +151,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
-             .swallow, .shakeHead: false
+             .swallow, .shakeHead, .listenIn, .listenOut: false
         default: true
         }
     }

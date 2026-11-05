@@ -51,6 +51,9 @@ enum ClaudeProcess {
                 do {
                     try process.run()
                     Running.shared.add(box)
+                    // A cancel that came before the launch found nothing to stop; stop it now. One coming
+                    // after this check finds the process running and stops it in `onCancel`.
+                    if Task.isCancelled { box.stop(killAfter: killAfter) }
                 } catch {
                     continuation.resume(returning: false)
                     return

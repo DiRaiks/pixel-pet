@@ -160,10 +160,11 @@ public enum SpriteFactory {
         var lit: [Int] = []
         switch beat {
         case .down(let key):
-            // The lit key shows every stroke; the body only dips on the first and last of a burst, or the
-            // face would bob ten times a second for hours.
+            // The lit key shows every stroke; the body dips on every other one (and the first and last of a
+            // burst): a dip on every key bobbed the face six times a second for hours, none at all left
+            // only a blinking key to look at.
             lit = [9 + 2 * key]
-            if TypingScript.isAccent(i) { s.h = 13 }
+            if TypingScript.dips(i) { s.h = 13 }
         case .up, .hitch: break
         case .read: s.lookY = 0; s.eyes = .open
         case .blink: s.lookY = 0; s.eyes = .blink

@@ -18,6 +18,20 @@ public enum TypingScript {
 
     public static let keyCount = 7
 
+    /// Whether the body dips on beat `i`: every other key of a burst, and its first and last key, so the
+    /// typing keeps its rhythm at half the bobbing of a dip on every key.
+    public static func dips(_ i: Int) -> Bool { dipping.contains(i) }
+
+    private static let dipping: Set<Int> = {
+        var out = Set<Int>(), stroke = 0
+        for i in beats.indices {
+            guard case .down = beats[i].beat else { continue }
+            stroke = i > 0 && beats[i - 1].beat == .up ? stroke + 1 : 0
+            if stroke % 2 == 0 || isAccent(i) { out.insert(i) }
+        }
+        return out
+    }()
+
     /// Whether beat `i` is a key going down at the start or the end of a burst.
     public static func isAccent(_ i: Int) -> Bool {
         guard case .down = beats[i].beat else { return false }

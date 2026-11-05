@@ -29,13 +29,17 @@ import PetCore
         #expect(PetState.idle.loopStart == 0)
     }
 
-    /// While typing, the body dips on a few accents per burst, not on every key.
-    @Test func typingDipsOnlyOnAccents() {
+    /// While typing, the body dips on about every other key (and the ends of a burst), not on every key
+    /// and not only on the accents.
+    @Test func typingDipsOnEveryOtherKey() {
         let downs = TypingScript.beats.indices.filter { if case .down = TypingScript.beats[$0].beat { true } else { false } }
-        let accents = downs.filter(TypingScript.isAccent)
-        #expect(!accents.isEmpty)
-        #expect(accents.count * 3 < downs.count * 2)
-        #expect(accents.count <= TypingScript.bursts.count * 2)
+        let dips = downs.filter(TypingScript.dips)
+        #expect(downs.filter(TypingScript.isAccent).allSatisfy(TypingScript.dips))
+        #expect(dips.count * 10 >= downs.count * 4)
+        #expect(dips.count * 10 <= downs.count * 7)
+        // Never two dips in a row inside a burst, except at its end.
+        let middle = dips.filter { !TypingScript.isAccent($0) }
+        #expect(middle.allSatisfy { !TypingScript.dips($0 - 2) || TypingScript.isAccent($0 - 2) })
     }
 
     /// Idle breathes twice a loop, and the highlight stays off the eyes.

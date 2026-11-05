@@ -176,6 +176,29 @@ import PetCore
         #expect(hatted == plainBeanie)
     }
 
+    /// The spent clock and the "!" step aside for tall hats instead of merging into them.
+    @Test func headMarksStepAsideForTallHats() {
+        for accessory in Accessory.allCases {
+            let tall = [.propeller, .crown, .beanie].contains(accessory)
+            #expect(Look(skin: .lavender, accessory: accessory).headMarkShift == (tall ? 7 : 0))
+        }
+        var party = Look(skin: .lavender)
+        party.extras = [.partyHat]
+        #expect(party.headMarkShift == 7)
+    }
+
+    /// With the propeller on, no pixel of the clock ring touches the propeller blades.
+    @Test func spentClockClearsThePropeller() {
+        let look = Look(skin: .lavender, accessory: .propeller)
+        let ring = look.skin.shade
+        for i in 0..<8 {
+            let frame = SpriteFactory.frame(for: .exhausted, index: i, agentCubes: false, look: look)
+            for y in 0..<frame.width { for x in 0..<frame.width where frame.pixel(x, y) == Palette.crownGold {
+                for dy in -1...1 { for dx in -1...1 { #expect(frame.pixel(x + dx, y + dy) != ring) } }
+            } }
+        }
+    }
+
     /// The dark skin keeps a light outline and face, so it reads on dark wallpapers.
     @Test func nightSkinHasALightFace() {
         let frame = SpriteFactory.frame(for: .idle, index: 0, agentCubes: false, look: Look(skin: .night))

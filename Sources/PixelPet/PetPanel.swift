@@ -33,6 +33,18 @@ final class PetView: NSView {
     var canvas: PixelCanvas?
     var agentsCanvas: PixelCanvas?
     var scale: CGFloat = 4
+    /// Held down by the mouse: the sprite sits one art pixel lower, so a press is felt at once instead of
+    /// only when the click ends (whole pixels, so it stays crisp).
+    private var pressed = false {
+        didSet {
+            guard pressed != oldValue else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            sprite.frame = spriteFrame
+            CATransaction.commit()
+        }
+    }
+    private var spriteFrame: NSRect { pressed ? bounds.offsetBy(dx: 0, dy: -scale) : bounds }
 
     var onPress: (() -> Void)?
     var onClick: (() -> Void)?
@@ -102,7 +114,7 @@ final class PetView: NSView {
         super.layout()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        sprite.frame = bounds
+        sprite.frame = spriteFrame
         agentsLayer.frame = bounds
         CATransaction.commit()
     }
@@ -154,6 +166,7 @@ final class PetView: NSView {
             return
         }
         guard let window else { return }
+        pressed = true
         onPress?()
         let mouse = NSEvent.mouseLocation
         grabOffset = NSPoint(x: mouse.x - window.frame.minX, y: mouse.y - window.frame.minY)
@@ -164,6 +177,8 @@ final class PetView: NSView {
             MainActor.assumeIsolated {
                 guard let self, let tracker = self.tracker, !tracker.isDragging else { return }
                 self.holding = self.onHoldBegan?() ?? false
+                // Listening has its own pose; the press is over.
+                if self.holding { self.pressed = false }
             }
         }
         holdTimer = hold
@@ -182,12 +197,14 @@ final class PetView: NSView {
         tracker.move(to: PetPoint(mouse), time: event.timestamp)
         self.tracker = tracker
         guard tracker.isDragging else { return }
+        pressed = false
         holdTimer?.cancel()
         if !wasDragging { onDragBegan?() }
         window.setFrameOrigin(NSPoint(x: mouse.x - grabOffset.x, y: mouse.y - grabOffset.y))
     }
 
     override func mouseUp(with event: NSEvent) {
+        pressed = false
         guard let tracker else { return }
         self.tracker = nil
         holdTimer?.cancel()

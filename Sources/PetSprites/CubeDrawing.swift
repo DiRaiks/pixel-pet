@@ -105,6 +105,8 @@ extension PixelCanvas {
 
     private mutating func drawCube(_ s: BodyStyle, at m: Int, face: Bool) {
         let k = s.skin, w = s.w, h = s.h, hl = s.highlightShift
+        // The highlight's lower row stays above the eyes: breathing down onto the eye row smeared the left eye.
+        let eyeRow = max(3, jsRound(Double(h) * 0.3)) + s.lookY
         for y in 0..<h {
             for x in 0..<w {
                 let edgeX = x == 0 || x == w - 1, edgeY = y == 0 || y == h - 1
@@ -116,7 +118,7 @@ extension PixelCanvas {
                 else if y == h - 2 { color = k.shade2 }
                 else if y == h - 3 { color = k.shade }
                 else if x == w - 2 && y > 1 { color = k.rim }
-                else if (y == 2 + hl && (2...4).contains(x)) || ((x == 2 || x == 3) && y == 3 + hl) { color = k.highlight }
+                else if (y == 2 + hl && (2...4).contains(x)) || ((x == 2 || x == 3) && y == 3 + hl && y < eyeRow) { color = k.highlight }
                 else { color = k.fill }
                 set(m + x, m + y, color)
             }

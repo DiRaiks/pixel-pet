@@ -132,7 +132,9 @@ public enum SpriteFactory {
     /// Breathes with the highlight instead of the outline, blinks twice now and then, glances around.
     static func idle(_ i: Int, _ look: Look, _ gaze: Gaze?, _ c: inout PixelCanvas) {
         var s = BodyStyle(look: look)
-        s.highlightShift = i % 8 < 4 ? 0 : 1
+        // Two slow breaths a loop rather than a flip every half second: idle is seen all day. Not during the
+        // glance around (18-21), where the eyes move next to the highlight.
+        s.highlightShift = (4...9).contains(i) || (13...16).contains(i) ? 1 : 0
         s.eyes = i == 10 || i == 12 ? .half : i == 11 ? .blink : .open
         // Its own glance around (frames 18-21) gives way to whatever it's looking at.
         s.lookX = gaze?.x ?? ((18...21).contains(i) ? -1 : 0)
@@ -157,7 +159,11 @@ public enum SpriteFactory {
         var s = deskBody(look, props)
         var lit: [Int] = []
         switch beat {
-        case .down(let key): s.h = 13; lit = [9 + 2 * key]
+        case .down(let key):
+            // The lit key shows every stroke; the body only dips on the first and last of a burst, or the
+            // face would bob ten times a second for hours.
+            lit = [9 + 2 * key]
+            if TypingScript.isAccent(i) { s.h = 13 }
         case .up, .hitch: break
         case .read: s.lookY = 0; s.eyes = .open
         case .blink: s.lookY = 0; s.eyes = .blink

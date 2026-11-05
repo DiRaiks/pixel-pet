@@ -35,9 +35,22 @@ struct BodyStyle {
         figure = look.figure
         extras = look.extras
     }
+
+    /// Rows the cube's headwear rises above its top (LM's diamond is handled on its own).
+    var headroom: Int {
+        guard figure == .cube else { return 0 }
+        if nightcap { return 5 }
+        let party = extras.contains(.partyHat) && !accessory.isOnHead ? 9 : 0
+        return max(accessory.height, party, extras.contains(.headphones) ? 3 : 0, headset ? 2 : 0)
+    }
 }
 
 struct BodyFrame { let x0, y0, cx: Int }
+
+extension Array {
+    /// The element at `index`, or nil when it is out of range.
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}
 
 /// JavaScript's Math.round: halves round toward +infinity.
 func jsRound(_ v: Double) -> Int { Int((v + 0.5).rounded(.down)) }
@@ -49,7 +62,9 @@ extension PixelCanvas {
     mutating func body(_ s: BodyStyle) -> BodyFrame {
         // LM's diamond needs room above the body: at least 4 rows, so the top of a big jump comes a bit lower.
         let lid = s.figure == .lidman
-        let lift = lid && s.rotation == 0 && !s.inHole ? max(0, 4 - (s.by + s.dy - s.h)) : 0
+        // A hat gets the same: a jump that would carry it off the top of the canvas peaks lower instead.
+        let room = lid ? 4 : s.headroom
+        let lift = s.rotation == 0 && !s.inHole ? max(0, room - (s.by + s.dy - s.h)) : 0
         let cx = s.cx + s.dx, by = s.by + s.dy + lift, x0 = cx - s.w / 2, y0 = by - s.h
         if s.shadow {
             let sw = max(4, s.w - 2 - jsRound(Double(s.ground - 1 - by) / 1.5))

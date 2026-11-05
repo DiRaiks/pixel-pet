@@ -200,6 +200,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let raw = entry.representedObject as? String
             entry.isHidden = !lidMan && (raw == PetState.drip.rawValue || raw == PetState.melt.rawValue)
         }
+        listenItem.isHidden = !pet.config.listening
         logItem.state = pet.config.logEvents ? .on : .off
         openLogItem.isHidden = !FileManager.default.fileExists(atPath: EventLog.url.path)
         for entry in scaleMenu.items {

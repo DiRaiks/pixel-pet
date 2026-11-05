@@ -74,6 +74,14 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onMeetingAlerts: ((Bool) -> Void)?
+    var listening = false {
+        didSet {
+            guard !loading, listening != oldValue else { return }
+            update { $0.listening = listening }
+            onListening?(listening)
+        }
+    }
+    @ObservationIgnored var onListening: ((Bool) -> Void)?
     /// Calendar access and how many calendars are visible, for the settings row.
     var calendarAccess = MeetingMonitor.Access.notAsked
     var calendarCount = 0
@@ -156,6 +164,7 @@ final class SettingsModel {
         hookah = c.hookah
         macReactions = c.macReactions
         meetingAlerts = c.meetingAlerts
+        listening = c.listening
         onRefresh?()
         calendarAccess = MeetingMonitor.access
         calendarCount = calendarCountProvider?() ?? 0
@@ -399,13 +408,19 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section(L("Listening (⌃⌥L, or press and hold the cube)", "Слушать (⌃⌥L или зажать кубик)")) {
-                Picker(L("I speak", "Я говорю на"), selection: $model.speechLanguage) {
-                    Text(L("My language", "Моём языке")).tag("")
-                    ForEach(Choices.languages, id: \.code) { Text($0.name).tag($0.code) }
+            Section(L("Listening", "Слушать")) {
+                Toggle(L("Listen to the mic (⌃⌥L, or press and hold the cube)", "Слушать микрофон (⌃⌥L или зажать кубик)"),
+                       isOn: $model.listening)
+                    .help(L("Asks for the microphone the first time it listens",
+                             "Попросит доступ к микрофону, когда начнёт слушать в первый раз"))
+                if model.listening {
+                    Picker(L("I speak", "Я говорю на"), selection: $model.speechLanguage) {
+                        Text(L("My language", "Моём языке")).tag("")
+                        ForEach(Choices.languages, id: \.code) { Text($0.name).tag($0.code) }
+                    }
+                    .help(L("Recognized on this Mac; the language model is downloaded once. Nothing is recorded or sent anywhere",
+                             "Распознаётся на этом Mac, языковая модель скачивается один раз. Ничего не записывается и никуда не отправляется"))
                 }
-                .help(L("Recognized on this Mac; the language model is downloaded once. Nothing is recorded or sent anywhere",
-                         "Распознаётся на этом Mac, языковая модель скачивается один раз. Ничего не записывается и никуда не отправляется"))
             }
             if let message = model.message {
                 Text(message).font(.callout).foregroundStyle(.red)

@@ -68,4 +68,13 @@ import Testing
         #expect(decoded.speechLanguage == "en")
         #expect(try JSONDecoder().decode(PetConfig.self, from: Data("{}".utf8)).speechLanguage == "")
     }
+
+    /// Listening stays off until it's turned on, also for configs saved before the setting existed.
+    @Test func listeningIsOffUntilTurnedOn() throws {
+        #expect(!PetConfig().listening)
+        #expect(try !JSONDecoder().decode(PetConfig.self, from: Data("{}".utf8)).listening)
+        var config = PetConfig()
+        config.listening = true
+        #expect(try JSONDecoder().decode(PetConfig.self, from: JSONEncoder().encode(config)).listening)
+    }
 }

@@ -336,6 +336,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsModel?.refresh()
         }
         settingsModel.onRequestCalendar = { [weak self] in self?.meetings?.requestAccess() }
+        // Turning listening off ends a take in progress; begin() refuses new ones while it's off.
+        settingsModel.onListening = { [weak self] on in if !on { self?.listener?.stop() } }
         setMeetingAlerts(pet.config.meetingAlerts, askForAccess: false)
         setTouchHint(pet.config.touchHint)
         settingsModel.onTouchHint = { [weak self] on in self?.setTouchHint(on) }

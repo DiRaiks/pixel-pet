@@ -20,4 +20,22 @@ import Testing
         // Give the background writer time to hit the closed pipe.
         try await Task.sleep(for: .milliseconds(300))
     }
+    /// A cancel that lands before the process is launched (a card closed at once, a busy Mac) used to be
+    /// lost: the stop found nothing running yet, and the process then ran to the end.
+    @Test func cancellingBeforeLaunchStillStopsTheProcess() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pixelpet-cancel-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let script = dir.appendingPathComponent("claude")
+        try "#!/bin/sh\nsleep 20\n".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let start = Date()
+        let task = Task {
+            await ClaudeProcess.run(claude: script, arguments: [], stdin: nil, timeout: 30, killAfter: 1,
+                                    environment: [:], onLine: { _ in })
+        }
+        task.cancel()
+        _ = await task.value
+        #expect(Date().timeIntervalSince(start) < 5)
+    }
 }

@@ -185,12 +185,14 @@ extension SpriteFactory {
     /// Thrown hard: stretches off the hand, tucks into a ball and turns over in quarter turns (lossless, so
     /// the whole face goes round with it), with swoosh arcs at the corners, and opens up to land (`drop` or a
     /// `splat` follows).
+    /// Thrown keys: one full turn clockwise in quarter turns, then upright for the landing (never back).
+    static let thrownKeys: [(w: Int, h: Int, dy: Int, turns: Int, eyes: Eyes)] = [
+        (12, 16, -2, 0, .wide), (14, 14, -4, 0, .squeeze), (14, 14, -5, 1, .squeeze), (14, 14, -5, 2, .squeeze),
+        (14, 14, -5, 3, .squeeze), (14, 14, -5, 0, .squeeze), (14, 14, -4, 0, .squeeze), (14, 14, -3, 0, .wide),
+    ]
+
     static func thrown(_ i: Int, _ look: Look, _ c: inout PixelCanvas) {
-        let keys: [(w: Int, h: Int, dy: Int, turns: Int, eyes: Eyes)] = [
-            (12, 16, -2, 0, .wide), (14, 14, -4, 0, .squeeze), (14, 14, -5, 1, .squeeze), (14, 14, -5, 2, .squeeze),
-            (14, 14, -5, 3, .squeeze), (14, 14, -5, 0, .squeeze), (14, 14, -4, 1, .squeeze), (14, 14, -3, 0, .wide),
-        ]
-        let k = keys[i]
+        let k = thrownKeys[i]
         var s = BodyStyle(look: look)
         s.w = k.w; s.h = k.h; s.shadow = false
         s.eyes = k.eyes; s.mouth = k.eyes == .wide ? .open : .flat; s.blush = 0

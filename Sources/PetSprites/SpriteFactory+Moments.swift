@@ -163,7 +163,8 @@ extension SpriteFactory {
         s.mouth = .flat; s.blush = 0
         s.lookY = 1
         let b = c.body(s)
-        c.battery(batterySpot.x, batterySpot.y, level: i % 4 < 2 ? 1 : 0, color: Palette.batteryRed)
+        // The last bar blinks out once a loop (3.5 s), not twice a second.
+        c.battery(batterySpot.x, batterySpot.y, level: (12...13).contains(i) ? 0 : 1, color: Palette.batteryRed)
     }
 
     /// Plugged in: a lightning bolt, the battery filling up, a happy little bounce.
@@ -322,7 +323,8 @@ extension SpriteFactory {
         s.lookX = glancing ? 1 : 0; s.lookY = glancing ? -1 : 0
         s.eyes = i == 10 ? .blink : .open
         c.body(s)
-        alarmClock(&c, x: 18, y: 1, hand: i % 4, ringing: false)
+        // The hand ticks a quarter every 750 ms; a full turn a second was frantic for five minutes.
+        alarmClock(&c, x: 18, y: 1, hand: i / 3, ringing: false)
     }
 
     /// The last minute: the clock shakes and rings, the pet bounces, eyes wide.

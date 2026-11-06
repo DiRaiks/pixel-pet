@@ -59,6 +59,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        if let i = exportArgs.firstIndex(of: "--export-dmg-background"), i + 1 < exportArgs.count {
+            DMGBackground.run(to: URL(fileURLWithPath: exportArgs[i + 1]))
+            NSApp.terminate(nil)
+            return
+        }
         // One pet at a time: a second copy would fight over the socket and the screen.
         let me = NSRunningApplication.current
         if NSRunningApplication.runningApplications(withBundleIdentifier: me.bundleIdentifier ?? "")

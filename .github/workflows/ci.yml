@@ -40,15 +40,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # git describe for CFBundleVersion
-      - name: Bundle
-        # No "Pixel Pet Dev" certificate on the runner: the script signs ad-hoc.
-        run: ./scripts/bundle.sh
+      - name: Bundle and DMG
+        # A release dry run: no certificate or notary key on the runner, so the app is signed ad-hoc and
+        # the DMG (with its window layout from dmgbuild) is left unsigned.
+        run: ./scripts/release.sh 0.0.0-ci
       - name: Check the bundle
         run: |
           plutil -lint build/PixelPet.app/Contents/Info.plist
           codesign --verify --strict --verbose=2 build/PixelPet.app
           file build/PixelPet.app/Contents/MacOS/PixelPet
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' build/PixelPet.app/Contents/Info.plist)" = true
+          hdiutil verify build/PixelPet-0.0.0-ci.dmg
 
   shellcheck:
     name: ShellCheck

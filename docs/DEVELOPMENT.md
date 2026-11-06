@@ -91,6 +91,7 @@ Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is si
 |---|---|
 | `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: any of `Skin.all` by name, or `lidman` for LM. Accessories: any `Accessory` raw value, such as `none`, `glasses`, `headphones`, `cap` |
 | `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
+| `--export-dmg-background <dir>` | Writes the release DMG's window picture (`background.png` and `background@2x.png`), then quits |
 | `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
 | `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
 | `--show-recap` | Opens the weekly recap card 12 s after launch |
@@ -166,13 +167,21 @@ A self-signed code-signing certificate gives every build a stable identity. To c
 
 ## Releases
 
-`scripts/release.sh <version>` builds `build/PixelPet-<version>.dmg`: the app (with `SHORT_VERSION` from the version, numbers only) and a link to Applications. What else happens depends on what's available, so the same script is a dry run anywhere:
+`scripts/release.sh <version>` builds `build/PixelPet-<version>.dmg`: the app (with `SHORT_VERSION` from the version, numbers only) and a link to Applications, in a window with a picture behind them. What else happens depends on what's available, so the same script is a dry run anywhere:
 
 | Set | Result |
 |---|---|
 | nothing | App signed ad-hoc, DMG unsigned (a dry run; Gatekeeper blocks it on other Macs) |
 | `SIGN_IDENTITY="Developer ID Application: …"` | App signed with hardened runtime, `scripts/PixelPet.entitlements` and a secure timestamp; DMG signed |
-| plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | DMG notarized, stapled and checked with `spctl` |
+| plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | The app notarized and stapled before it goes into the DMG (so a copied-out app opens offline too), then the DMG notarized, stapled and checked with `spctl` |
+
+The window is laid out by [dmgbuild](https://github.com/dmgbuild/dmgbuild) from `scripts/dmg-settings.py`: it writes the window's `.DS_Store` directly, with no Finder scripting, so it works the same on CI. The script installs it on first use into `build/.dmgbuild`, from `scripts/dmg-requirements.txt` with pinned hashes. The picture in `Resources/DMG/` is drawn by the app's sprite code; after changing the cube or the layout, regenerate it and keep the icon spots in `dmg-settings.py` in line:
+
+```bash
+swift build && .build/debug/PixelPet --export-dmg-background Resources/DMG
+```
+
+Its tone is chosen so the icon names Finder draws over it (black or white, depending on the system) both read at 4.6:1.
 
 Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) runs the Release workflow on `macos-26`: it imports the certificate into a temporary keychain, runs `release.sh` and publishes a GitHub release with the DMG and generated notes. Each secret is passed only to the step that needs it (the certificate to the keychain import, the notary key to its own step), and the actions are pinned to commits (Dependabot keeps the pins current). It reads these repository secrets, set in Settings → Secrets and variables → Actions:
 

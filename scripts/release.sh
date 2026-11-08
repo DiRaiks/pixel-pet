@@ -19,6 +19,11 @@ cd "$(dirname "$0")/.." || exit 1
 VERSION="${1:-}"
 [ -n "$VERSION" ] || { echo "usage: scripts/release.sh <version>" >&2; exit 2; }
 VERSION="${VERSION#v}"
+# What a release tag may carry: it ends up in Info.plist, the DMG's name and the appcast.
+if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+    echo "error: '$VERSION' isn't a release version (0.3.0, 0.3.0-beta.1)" >&2
+    exit 2
+fi
 APP="build/PixelPet.app"
 DMG="build/PixelPet-$VERSION.dmg"
 BACKGROUND="build/dmg-background.tiff"
@@ -41,8 +46,24 @@ notarize() {
     fi
 }
 
-# The marketing version is numbers only (0.3.0); a prerelease suffix (-beta.1) stays in the DMG name.
-SHORT_VERSION="${VERSION%%-*}" ./scripts/bundle.sh
+# The marketing version is numbers only (0.3.0); a prerelease suffix (-beta.1) stays in the DMG name. The
+# build version is the same numbers, which Sparkle compares with the appcast's. With Sparkle's public key in
+# scripts/sparkle-public-key a release checks for updates at the GitHub feed (see scripts/bundle.sh); a
+# prerelease doesn't (it would carry the final version's numbers and never be offered it).
+SHORT="${VERSION%%-*}"
+UPDATE_PUBLIC_KEY=""
+case "$VERSION" in
+    *-*) ;;
+    *)
+        if [ -f scripts/sparkle-public-key ]; then
+            UPDATE_PUBLIC_KEY="$(tr -d '[:space:]' < scripts/sparkle-public-key)"
+        elif [ -n "${SIGN_IDENTITY:-}" ]; then
+            echo "warning: no scripts/sparkle-public-key: this release won't update itself" >&2
+        fi ;;
+esac
+# A release's feed is always the GitHub one: nothing in the environment redirects it.
+unset UPDATE_FEED
+SHORT_VERSION="$SHORT" BUNDLE_VERSION="$SHORT" UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY" ./scripts/bundle.sh
 
 # The app gets its own ticket before it goes into the DMG: the DMG's ticket stays with the DMG, and a
 # copied-out app without one needs Apple's servers on first launch.

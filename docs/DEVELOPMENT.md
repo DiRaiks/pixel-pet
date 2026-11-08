@@ -196,8 +196,21 @@ Pull requests from forks: their workflows wait for an approval ("Approve and run
 |---|---|
 | `DEVELOPER_ID_P12` | The Developer ID Application certificate with its private key, exported as .p12, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
 | `DEVELOPER_ID_P12_PASSWORD` | The .p12 export password |
+| `SPARKLE_PRIVATE_KEY` | Sparkle's private EdDSA key, as `generate_keys -x` exports it (see Updates below); without it releases ship no appcast |
 | `APPLE_API_KEY` | An App Store Connect API key (.p8, "Developer" role), base64-encoded |
 | `APPLE_API_KEY_ID` / `APPLE_API_ISSUER_ID` | Its key id and issuer id |
+
+### Updates (Sparkle)
+
+The downloaded app updates itself with [Sparkle](https://sparkle-project.org) 2, from SwiftPM (`Package.swift` pins the version). `bundle.sh` copies `Sparkle.framework` into `Contents/Frameworks` without its XPC services (they're for sandboxed apps), signs it inside out and, only when it's given `UPDATE_PUBLIC_KEY`, writes the feed and the key into Info.plist; a build without it never checks. `release.sh` passes the key from `scripts/sparkle-public-key` and makes the build version the marketing version, which Sparkle compares with the appcast.
+
+The feed is `appcast.xml` on the latest GitHub release. For a signed, notarized, non-prerelease tag the Release workflow runs `scripts/appcast.sh`, which signs the stapled DMG with the private EdDSA key (the `SPARKLE_PRIVATE_KEY` secret of the `release` environment, piped to Sparkle's `sign_update`, never written to disk), checks that signature against the public key in `scripts/sparkle-public-key` (with OpenSSL 3; a mismatched pair would ship an update no installed app accepts), writes the appcast (`scripts/make-appcast.py`: version, minimum macOS, the DMG's URL, length and signature) and signs the appcast too; `Publish` attaches it. The app requires the signed feed and checks the archive before unpacking it (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`). The EdDSA key is the trust root: whoever has the private key can ship an update, so it lives only in the `release` environment and the keychain it was made in; Sparkle's code-signing comparison is a further check, not a second key. Prereleases don't update themselves (they'd carry the final version's numbers) and get no appcast. What's new isn't in the feed: the update card links to the release page.
+
+A known limit: Sparkle's feed has no expiry or version floor. Someone who can edit releases (a stolen token with `contents: write`) can't ship code without the private key, but can delete the newest release so apps behind it are offered an older, validly signed one. The release environment, the tag rulesets and signed tags keep that to the maintainer's account.
+
+The key pair is made once with Sparkle's `generate_keys` (in `.build/artifacts/sparkle/Sparkle/bin` after a build), which keeps the private key in the login keychain and prints the public one for `scripts/sparkle-public-key`. The secret gets the private key straight from the keychain, without a file: `generate_keys -x /dev/stdout | gh secret set SPARKLE_PRIVATE_KEY --env release`.
+
+To try a whole update without a release, quit the pet and run `scripts/update-test.sh` (it removes its builds when stopped): it builds 0.2.1 and 0.2.2 with a throwaway key and a feed on 127.0.0.1 (a local feed gets an App Transport Security exception; releases never do), serves the newer DMG and a signed appcast, and starts the older build with `--update-check-now`, the daily background check right away. The box floats down, a click on the cube opens the card, Update and Restart relaunch into 0.2.2, which pops out of its box. Afterwards clear what Sparkle wrote into the app's defaults (`defaults read dev.pixelpet.PixelPet`), or a version skipped while testing stays skipped.
 
 Without the certificate secrets the workflow still runs, as a dry run published as a draft prerelease. The entitlements file grants only calendar access, which the hardened runtime needs for call reminders; reading the selection (Accessibility) needs no entitlement.
 

@@ -11,6 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: StatusMenu?
     private var panel: StatusPanel?
     private var recap: RecapPanel?
+    private var updates: UpdateCenter?
+    /// The update card; kept here, the closures only hold it weakly.
+    private var updateCard: UpdatePanel?
+    /// After a restart into a new version: the pop out of the box, run once the pet has started.
+    private var welcomeUpdate: (() -> Void)?
     private var stats: StatsKeeper?
     private var recapClock: Timer?
     private var hotKeys: [HotKey] = []
@@ -233,6 +238,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.isCardOpen = { [weak recap] in cardOpen() || (recap?.isShown ?? false) }
         self.recap = recap
         self.stats = stats
+        setUpUpdates(pet: pet, menu: menu, closeOthers: { [weak panel, weak translator, weak asker, weak recap] in
+            panel?.close(); translator?.panel.close(); asker?.panel.close(); recap?.close()
+        })
         pet.onDragStart = { [weak translator, weak asker, weak recap, weak listener] in
             listener?.stop()
             panel.close()
@@ -290,6 +298,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.agents = agents
         self.menu = menu
         pet.start()
+        // Just updated: the first thing on screen is the box the new version pops out of.
+        welcomeUpdate?()
+        welcomeUpdate = nil
         agents.start()
         let settingsModel = SettingsModel(pet: pet, hooks: hooks)
         self.settingsModel = settingsModel
@@ -364,6 +375,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !on { pet?.setNews(false) }
         }
         settingsModel.onClearStats = { [weak self] in self?.stats?.clear() }
+        if let updates, updates.isAvailable {
+            settingsModel.updatesAvailable = true
+            settingsModel.installUpdates = updates.installsAutomatically
+            settingsModel.onCheckUpdates = { updates.checksAutomatically = $0 }
+            settingsModel.onInstallUpdates = { updates.installsAutomatically = $0 }
+        }
         settingsModel.onBreakMinutes = { [weak pet] in pet?.setBreakMinutes($0) }
         // Monday's newspaper: looked for at launch and every few minutes after.
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in self?.checkRecap() }
@@ -394,6 +411,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             meetings?.stop()
             meetings = nil
             pet.onDismissMeeting = nil
+        }
+    }
+
+    /// Updates, in the signed release build: Sparkle finds and installs them, the pet shows a box and the
+    /// card holds the choices. After a restart into the version chosen before, the pet pops out of the box
+    /// and the card says what's new.
+    private func setUpUpdates(pet: PetController, menu: StatusMenu, closeOthers: @escaping () -> Void) {
+        let updates = UpdateCenter()
+        let card = UpdatePanel(content: UpdateView(model: updates.model))
+        updateCard = card
+        self.updates = updates
+        // Hidden or not, the card shows by where the pet is: Sparkle waits on its buttons.
+        let open = { [weak pet, weak card, weak updates] in
+            guard let pet, let card, let updates else { return }
+            updates.model.look = pet.look
+            if card.isShown { card.refit() } else { closeOthers(); card.show(from: pet.anchorView) }
+        }
+        // Every way the card closes (its buttons, a click elsewhere, Esc, another card) ends up here.
+        card.onClose = { [weak updates] in updates?.cardClosed() }
+        updates.model.onPhaseChange = { [weak card] in DispatchQueue.main.async { card?.refit() } }
+        updates.onCard = { [weak card] show in show ? open() : card?.close() }
+        updates.onParcel = { [weak pet, weak menu, weak updates] parcel in
+            pet?.setParcel(parcel)
+            menu?.setPendingUpdate(parcel == nil ? nil : updates?.model.version)
+        }
+        pet.onOpenUpdate = { open() }
+        menu.onOpenUpdate = { open() }
+        let cardOpen = pet.isCardOpen
+        pet.isCardOpen = { [weak card] in cardOpen() || (card?.isShown ?? false) }
+        updates.start(checks: pet.config.checkUpdates)
+        guard updates.isAvailable else { return }
+        menu.onCheckUpdates = { [weak updates] in updates?.checkNow() }
+        // Trying updates out (scripts/update-test.sh): the daily check, right away.
+        if CommandLine.arguments.contains("--update-check-now") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak updates] in updates?.checkInBackground() }
+        }
+        if updates.welcome(after: pet.config.lastVersion) {
+            // Played by `welcomeUpdate` right after `pet.start()`: started any earlier, the pet's first
+            // resting state would replace it.
+            welcomeUpdate = { [weak pet] in
+                pet?.celebrateUpdate()
+                DispatchQueue.main.asyncAfter(deadline: .now() + PetState.updateDone.totalDuration + 0.3) { open() }
+            }
+        }
+        if pet.config.lastVersion != updates.model.current {
+            pet.updateConfig { $0.lastVersion = updates.model.current }
         }
     }
 

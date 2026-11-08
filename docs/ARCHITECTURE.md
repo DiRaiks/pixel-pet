@@ -291,6 +291,16 @@ How the pet moves between the desk and home:
 - **The pet.** `PetController.setListening` puts `.listening` (waves fly into the mic) or `.listenQuiet` (dots) above every rest but a key touch and a file being caught; starting plays `.listenIn`, a take with text ends with `.listenOut` (a nod), one without with `.shakeHead`.
 - **The card.** `Listener` drives `ListenView`: getting ready, downloading, the live text, then an editable field with Ask Claude (`Asker.ask`), Translate (`Translator.translate`) and Copy. Each take has a number and its own `SpeechListener`, so a take closed while its mic is still starting can't reach the next one's; `Listener.stop` (closing the card, another card opening, a drag) cancels the take and the mic. Finishing waits up to 5 s for the last words, then uses the text so far. A hold that doesn't start a take (at home) stays a click. Nothing is written anywhere. While the question card is open, the take runs without a card of its own (a keyboard card would take the key window, and the question card closes when it loses it, stopping an answer): the text streams into `AskModel.draft` after whatever was typed there, closing the question card ends the take, and the text goes out through `Asker.ask`, which leaves it in the field if an answer is still streaming. A failure still shows the card, since its reason needs one.
 
+## Updates
+
+Only the downloaded app updates (`UpdateCenter`, Sparkle 2): `bundle.sh` writes `SUFeedURL` and `SUPublicEDKey` into a release build's Info.plist, and without them `UpdateCenter.isConfigured` is false, Sparkle never starts and Settings and the menu show nothing about updates. Sparkle's own windows are replaced: `UpdateCenter` is its `SPUUserDriver` and turns each step into the update card (`UpdateModel.Phase`: checking, available, downloading, preparing, ready, up to date, failed, updated) and the box by the pet (`PetController.Parcel`).
+
+- **A scheduled check** that finds a version sets the parcel to `.waiting`: while the pet rests idle the box floats down on a balloon (`updateArrive`) and waits (`updateWait`), like the Monday newspaper. A click on the box opens the card, and so does the first click after it arrived even with the pet busy (no box in sight); after that a busy pet's click is its own again, and the menu's "Update to …" item at the top opens it. A check from "Check for Updates…" opens the card at once, even with "Check for updates" off (asked for, so not a background request), and shows nothing new while a background check is still running.
+- **Every way the card closes** (its buttons, a click elsewhere, Esc, another card opening) goes through `CardPanel.onClose` to `UpdateCenter.cardClosed()`: a check in progress is called off, a result is acknowledged, an offer stays as the box. Each of Sparkle's reply, cancel and acknowledgement closures is called once and dropped. The card opens by the pet even while it's hidden, since Sparkle waits on its buttons. A version in the feed that isn't one (`AppVersion.isValid`) is dismissed, not shown.
+- **The card** offers Update, Later (the box goes; Sparkle asks again at the next check) and Skip this version, and "update automatically from now on" (Sparkle's `automaticallyDownloadsUpdates`). Downloading and installing it shows a pixel progress bar and the pet unpacking the box (`updateUnpack`); ready, it offers Restart or On quit.
+- **After the restart** the config's `lastVersion` (the version that ran last) is older than the running one, however it was installed (Restart, on quit, automatically): right after `pet.start()` the pet pops out of a big box (`updateDone`, started any earlier the first resting state would replace it), then the card says "Updated to …" and links to the release page. The first run with updates only records the version.
+- **Settings:** "Check for updates" is Sparkle's `automaticallyChecksForUpdates` (off: no requests at all; `checkUpdates` in the config), "Install updates automatically" its `automaticallyDownloadsUpdates`. Sparkle keeps its own state (last check, skipped version) in the app's defaults.
+
 ## Cards, menus and settings
 
 - **Cards.** The status, translation and quick-question cards are borderless panels rather than `NSPopover`: glass popovers tint with the wallpaper and lose contrast.
@@ -326,6 +336,8 @@ How the pet moves between the desk and home:
 | `figure` | `cube` | `cube`, `lidman` (LM) or `clip` (the paperclip); LM ignores `skin` and `accessory`, the paperclip only `accessory` |
 | `watchCodex` | true | Follow Codex sessions and limits |
 | `touchHint` | true | Show when a YubiKey waits for a touch |
+| `checkUpdates` | true | Look for a new version once a day (downloaded app only) |
+| `lastVersion` | none | The version that ran last (downloaded app), to greet a newer one |
 | `touchNotification` | true | With `touchHint`, also a silent system notification while the key waits, whatever `notifications` says and under do-not-disturb |
 | `approveFromPet` | true | Answer Claude Code's permission requests from a card by the pet |
 | `hookah` | true | Hookah breaks |

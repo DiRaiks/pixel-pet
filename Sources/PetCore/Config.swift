@@ -49,6 +49,11 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// With the touch hint on, also a system notification while the key waits, whether or not the pet can be
     /// seen; off leaves only the pet's animation.
     public var touchNotification = true
+    /// Look for a new version once a day (the signed release build only); off makes no requests at all.
+    public var checkUpdates = true
+    /// The version that ran last (the downloaded app): a newer one starting greets with the update, however it
+    /// was installed (Restart, on quit, automatically).
+    public var lastVersion: String?
     /// Silent system notifications for agents while the pet can't be seen, always, or never.
     public var notifications = NotificationMode.whenHidden
     /// Keep day sums for the weekly recap (`~/.pixelpet/stats.json`) and bring the newspaper on Mondays.
@@ -95,6 +100,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
         approveFromPet = try c.decodeIfPresent(Bool.self, forKey: .approveFromPet) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
         touchNotification = try c.decodeIfPresent(Bool.self, forKey: .touchNotification) ?? true
+        lastVersion = try? c.decodeIfPresent(String.self, forKey: .lastVersion)
+        checkUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkUpdates) ?? true
         notifications = (try? c.decodeIfPresent(NotificationMode.self, forKey: .notifications)) ?? .whenHidden
         weeklyRecap = try c.decodeIfPresent(Bool.self, forKey: .weeklyRecap) ?? true
         breakMinutes = try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 60

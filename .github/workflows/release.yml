@@ -113,12 +113,26 @@ jobs:
           NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: ./scripts/release.sh "$GITHUB_REF_NAME"
 
+      # The update for apps already installed: the DMG signed with Sparkle's EdDSA key and a signed appcast
+      # pointing at it. Only for signed, notarized releases; the latest one's appcast is the feed
+      # (releases/latest/download/appcast.xml), so prereleases don't get one.
+      - name: Sign the update for Sparkle
+        if: env.HAS_P12 == 'true' && env.HAS_API_KEY == 'true' && !contains(github.ref_name, '-')
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then echo "no SPARKLE_PRIVATE_KEY: no appcast, apps won't see this release"; exit 0; fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./scripts/appcast.sh "$VERSION" "build/PixelPet-$VERSION.dmg" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/PixelPet-$VERSION.dmg"
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           set -- "$GITHUB_REF_NAME" "build/PixelPet-$VERSION.dmg" --title "Pixel Pet $VERSION" --generate-notes
+          if [ -f build/appcast.xml ]; then set -- "$@" build/appcast.xml; fi
           case "$VERSION" in *-*) set -- "$@" --prerelease ;; esac
           if [ -z "${SIGN_IDENTITY:-}" ]; then
             set -- "$@" --draft --prerelease --notes "Dry run: signed ad-hoc and not notarized; macOS will block it."

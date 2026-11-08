@@ -119,6 +119,23 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onWeeklyRecap: ((Bool) -> Void)?
+    /// Updates: shown only in a build that can update (`updatesAvailable`).
+    var updatesAvailable = false
+    var checkUpdates = true {
+        didSet {
+            guard !loading, checkUpdates != oldValue else { return }
+            update { $0.checkUpdates = checkUpdates }
+            onCheckUpdates?(checkUpdates)
+        }
+    }
+    @ObservationIgnored var onCheckUpdates: ((Bool) -> Void)?
+    var installUpdates = false {
+        didSet {
+            guard !loading, installUpdates != oldValue else { return }
+            onInstallUpdates?(installUpdates)
+        }
+    }
+    @ObservationIgnored var onInstallUpdates: ((Bool) -> Void)?
     var breakMinutes = 60 {
         didSet {
             guard !loading, breakMinutes != oldValue else { return }
@@ -165,6 +182,7 @@ final class SettingsModel {
         approveFromPet = c.approveFromPet
         touchHint = c.touchHint
         touchNotification = c.touchNotification
+        checkUpdates = c.checkUpdates
         notifications = c.notifications
         weeklyRecap = c.weeklyRecap
         breakMinutes = c.breakMinutes
@@ -383,6 +401,17 @@ struct SettingsView: View {
                 }
                 .help(L("After this long at the Mac without 5 minutes away, the cube yawns and holds up a mug. A click puts it off for 15 minutes. Any keyboard or mouse input counts as work; what you do isn't looked at",
                          "Если столько проработать без 5 минут вдали от Mac, кубик зевает и показывает кружку. Клик откладывает на 15 минут. Работой считается любой ввод с клавиатуры и мыши; что именно ты делаешь, не смотрится"))
+            }
+            if model.updatesAvailable {
+                Section(L("Updates", "Обновления")) {
+                    Toggle(L("Check for updates", "Проверять обновления"), isOn: $model.checkUpdates)
+                        .help(L("Once a day asks GitHub whether there's a newer version. Nothing about you or your agents is sent. Off: no requests at all",
+                                 "Раз в день спрашивает у GitHub, нет ли новой версии. Ничего о вас и агентах не отправляется. Выключено: никаких запросов"))
+                    Toggle(L("Install updates automatically", "Устанавливать обновления автоматически"), isOn: $model.installUpdates)
+                        .disabled(!model.checkUpdates)
+                        .help(L("Downloads a new version in the background and installs it when Pixel Pet quits",
+                                 "Скачивает новую версию в фоне и ставит её, когда Pixel Pet закрывается"))
+                }
             }
             Section(L("Weekly recap", "Итоги недели")) {
                 Toggle(L("Keep a weekly recap", "Собирать итоги недели"), isOn: $model.weeklyRecap)

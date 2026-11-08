@@ -59,6 +59,14 @@ final class PetController {
     /// Work without a break, from the system idle time: the mug comes out after `breakMinutes`.
     private var breakClock: BreakClock
     private var breakCheck: Timer?
+    /// A new version: the box waits by the pet while calm until clicked, and is unpacked while it downloads.
+    enum Parcel { case waiting, unpacking }
+    private(set) var parcel: Parcel?
+    /// The first click after a box arrives opens it even with the pet busy (then there's no box to see);
+    /// after that a busy pet's click is its own again, and the menu has the update.
+    private var parcelSeen = false
+    /// A click on the box: open the update card.
+    var onOpenUpdate: (() -> Void)?
     /// The weekly recap is in: reads the newspaper while calm, until clicked.
     private(set) var hasNews = false
     /// A click on the newspaper: open the recap.
@@ -207,6 +215,8 @@ final class PetController {
     // MARK: Commands (menu)
 
     var isHidden: Bool { config.isHidden }
+    /// How the pet looks right now, for pictures of it elsewhere (the update card).
+    var look: Look { currentLook() }
 
     func setHidden(_ hidden: Bool) {
         config.isHidden = hidden
@@ -317,10 +327,14 @@ final class PetController {
         if breakClock.showing, !dimmed, !config.doNotDisturb, mood != .error, mood != .alert, mood != .question {
             return .breakHint
         }
+        // Unpacking an update the user asked for: over work and rest, not over an agent that needs them.
+        if parcel == .unpacking, mood != .error, mood != .alert, mood != .question { return .updateUnpack }
         let idle = mood == .idle && sleepAfter > 0 ? userIdleProvider() : 0
         let rest = PetBrain.restState(mood: mood, userIdle: idle, sleepAfter: sleepAfter)
         // The recap waits behind anything going on: only while idle and awake.
         if hasNews, rest == .idle, !config.doNotDisturb { return .newspaper }
+        // So does a new version.
+        if parcel == .waiting, rest == .idle, !config.doNotDisturb { return .updateWait }
         // Idle on a nearly flat battery: droopy instead. Otherwise the Mac may give it something to do.
         return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest, skipping: macDismissed.states)
     }
@@ -499,6 +513,22 @@ final class PetController {
 
     /// How long this stretch of work has gone, once the reminder is near (for the status card).
     func breakWorked(now: Date) -> TimeInterval? { breakClock.workedNearReminder(now: now) }
+
+    /// A new version arrived (the box floats down when it can be seen), is being unpacked, or is gone.
+    func setParcel(_ next: Parcel?) {
+        guard next != parcel else { return }
+        let arriving = parcel == nil && next == .waiting
+        if arriving { parcelSeen = false }
+        parcel = next
+        applyRest()
+        if arriving, restingState == .updateWait { react(.updateArrive) }
+    }
+
+    /// The new version is running: the pet pops out of the box it came in.
+    func celebrateUpdate() {
+        guard !config.isHome else { return }
+        react(.updateDone)
+    }
 
     /// The recap came in (unfolds the paper when it can be seen), or was read elsewhere (menu, setting off).
     func setNews(_ on: Bool) {
@@ -1026,6 +1056,14 @@ final class PetController {
                 // "Later": the mug goes away for 15 minutes.
                 if breakClock.snooze(now: Date()) != nil { applyRest() }
                 react(.hop)
+                return
+            }
+            // A new version waiting: a click on the box opens it, and so does the first click after it came
+            // even with the pet busy and no box in sight.
+            if parcel != nil, !config.isHome,
+               restingState == .updateWait || restingState == .updateUnpack || !parcelSeen {
+                parcelSeen = true
+                onOpenUpdate?()
                 return
             }
             if restingState == .newspaper, !config.isHome {

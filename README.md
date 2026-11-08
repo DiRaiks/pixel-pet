@@ -96,7 +96,7 @@
 </tr>
 </table>
 
-The app runs entirely on your Mac. It never talks to the network itself; the only network access is through the Claude Code CLI you already use.
+The app runs entirely on your Mac. Its only network access is through the Claude Code CLI you already use, and, in the downloaded app, a daily check for a new version (Settings → Updates turns it off; then it never goes online itself).
 
 > The interface is in English by default; Settings → Language switches it to Russian.
 
@@ -107,7 +107,7 @@ You need:
 - macOS 26 or later, on Apple silicon or Intel.
 - [Claude Code](https://docs.claude.com/en/docs/claude-code), either as the `claude` CLI on your `PATH` or bundled with the Claude desktop app. Questions, Claude translation and limit checks use your Claude subscription.
 
-**Download:** get `PixelPet-<version>.dmg` from the [latest release](https://github.com/DiRaiks/pixel-pet/releases/latest), open it and drag Pixel Pet into Applications. It is signed with a Developer ID and notarized by Apple, so it opens without warnings, offline too.
+**Download:** get `PixelPet-<version>.dmg` from the [latest release](https://github.com/DiRaiks/pixel-pet/releases/latest), open it and drag Pixel Pet into Applications. It is signed with a Developer ID and notarized by Apple, so it opens without warnings, offline too. From then on it updates itself: a new version arrives as a box by the cube; click the cube to see what's new and update.
 
 **Or build from source**, with Swift 6.2 or later (the Command Line Tools are enough; Xcode is not required):
 
@@ -119,7 +119,7 @@ git clone https://github.com/DiRaiks/pixel-pet.git
 cd pixel-pet && ./scripts/install.sh
 ```
 
-`install.sh` builds a release app bundle, copies it to `~/Applications/PixelPet.app` and launches it. Running it again updates the app in place. A failed build leaves the running copy alone.
+`install.sh` builds a release app bundle, copies it to `~/Applications/PixelPet.app` and launches it. Running it again updates the app in place. A failed build leaves the running copy alone. A build from source doesn't check for updates: pull and run `install.sh` again.
 
 On first launch, a welcome window walks you through two steps and lists the hotkeys:
 
@@ -425,6 +425,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | **Your day** | |
 | Notifications | For agents: off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
 | Breaks | Remind about a break after 45, 60 (default) or 90 minutes of work, or never |
+| Updates | Downloaded app only. Check for a new version once a day (on by default; off makes no requests at all) and install updates automatically (off by default). The menu has "Check for Updates…" |
 | Weekly recap | Keep day sums for the recap and the Monday newspaper (on by default); clear the statistics |
 | Calls | Remind about calls from the Mac's calendars (off by default); shows the access status and how many calendars it sees |
 | YubiKey | Show when the key waits for a touch (on by default), and also send a notification then, even with the cube in sight (on by default; off leaves only the cube) |
@@ -476,6 +477,7 @@ Missing keys fall back to defaults; the full list is in [ARCHITECTURE.md](docs/A
 | `~/.codex/sessions` | Read only: Codex session files are followed for agent status and limits. Nothing in `~/.codex` is changed |
 | `$TMPDIR/pixelpet-claude` | Empty working folder for the pet's own `claude -p` runs |
 | Notifications | Asked for the first time one is sent (banners only, no sound or badge). Notification Center keeps them in its history, so they carry only the project and what happened |
+| Updates | Downloaded app only, unless turned off: once a day a request for `appcast.xml` from the latest GitHub release, with nothing about you in it. An update is checked against Sparkle's EdDSA key built into the app and the same Developer ID before it replaces the app. Sparkle keeps its own settings (when it last checked, a skipped version) in the app's defaults |
 
 Disconnecting (menu: "Disconnect from Claude Code") removes the pet's hook entries, its statusline and both scripts.
 

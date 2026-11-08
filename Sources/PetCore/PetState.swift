@@ -56,6 +56,9 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// Listening to the mic (press and hold, ⌃⌥L): perks up and holds a mic out to the side like an
     /// interviewer; waves travel into it while there's sound, three dots while it's quiet; a nod at the end.
     case listenIn, listening, listenQuiet, listenOut
+    /// A new version: a box with the update arrow floats down on a balloon, waits by the pet until clicked,
+    /// is unpacked while the update downloads and installs, and after the restart the pet pops out of one.
+    case updateArrive, updateWait, updateUnpack, updateDone
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -138,6 +141,10 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .listening: Self.repeating(10, 110)
         case .listenQuiet: Self.repeating(8, 220)
         case .listenOut: [110, 110, 110, 160, 80, 80, 300]
+        case .updateArrive: Self.repeating(11, 130) + [400, 160, 160, 160, 160, 160, 400]
+        case .updateWait: Self.repeating(16, 250)
+        case .updateUnpack: Self.repeating(12, 120)
+        case .updateDone: [220, 220, 220, 300, 110, 110, 110, 110, 110, 110, 160, 150, 150, 120, 120, 200, 400, 900]
         }
     }
 
@@ -161,7 +168,7 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
-             .swallow, .shakeHead, .listenIn, .listenOut: false
+             .swallow, .shakeHead, .listenIn, .listenOut, .updateArrive, .updateDone: false
         default: true
         }
     }

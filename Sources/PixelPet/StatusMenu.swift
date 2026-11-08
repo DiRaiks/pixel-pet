@@ -26,6 +26,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let scalesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let settingsItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
     private let welcomeItem = NSMenuItem(title: "", action: #selector(openWelcome), keyEquivalent: "")
+    private let updatesItem = NSMenuItem(title: "", action: #selector(checkUpdates), keyEquivalent: "")
+    /// At the top while a new version waits: opens the update card.
+    private let pendingUpdateItem = NSMenuItem(title: "", action: #selector(openUpdate), keyEquivalent: "")
+    private var pendingVersion: String?
+    var onOpenUpdate: (() -> Void)?
+
+    /// A new version is waiting (or not any more).
+    func setPendingUpdate(_ version: String?) {
+        pendingVersion = version
+        pendingUpdateItem.isHidden = version == nil
+        applyTitles()
+    }
+    /// "Check for Updates…"; the item shows only in a build that can update.
+    var onCheckUpdates: (() -> Void)? {
+        didSet { updatesItem.isHidden = onCheckUpdates == nil }
+    }
     private let quitItem = NSMenuItem(title: "", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     /// The last limits passed to `update`, so the limits line can be retitled when the language changes.
     private var lastLimits: (claude: UsageLimits?, codex: UsageLimits?) = (nil, nil)
@@ -62,6 +78,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             .touchKey: L("Waits for a key touch", "Ждёт касания ключа"), .touchDone: L("Key touched", "Ключ коснулись"),
             .touchKeyHome: L("Waits for a touch (home)", "Ждёт касания (дома)"),
             .newspaperOpen: L("Opens the newspaper", "Разворачивает газету"), .newspaper: L("Reads the recap", "Читает итоги"),
+            .updateArrive: L("An update arrives", "Прилетает обновление"), .updateWait: L("An update waits", "Обновление ждёт"),
+            .updateUnpack: L("Unpacks the update", "Распаковывает обновление"), .updateDone: L("Updated", "Обновился"),
             .breakHint: L("Time for a break", "Пора на перерыв"),
             .catchOpen: L("Catches a file", "Ловит файл"), .swallow: L("Swallows a file", "Глотает файл"),
             .shakeHead: L("Shakes its head", "Мотает головой"),
@@ -95,6 +113,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func build() {
+        pendingUpdateItem.target = self
+        pendingUpdateItem.isHidden = true
+        menu.addItem(pendingUpdateItem)
         limitsItem.isEnabled = false
         menu.addItem(limitsItem)
         panelItem.target = self
@@ -155,6 +176,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(settingsItem)
         welcomeItem.target = self
         menu.addItem(welcomeItem)
+        updatesItem.target = self
+        updatesItem.isHidden = true
+        menu.addItem(updatesItem)
         menu.addItem(.separator())
         menu.addItem(quitItem)
         applyTitles()
@@ -175,6 +199,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         scalesItem.title = L("Size", "Размер")
         settingsItem.title = L("Settings…", "Настройки…")
         welcomeItem.title = L("Welcome…", "Добро пожаловать…")
+        updatesItem.title = L("Check for Updates…", "Проверить обновления…")
+        let version = pendingVersion ?? ""
+        pendingUpdateItem.title = L("Update to \(version)…", "Обновление \(version)…")
         quitItem.title = L("Quit Pixel Pet", "Выйти")
         let titles = Self.stateTitles
         for entry in stateMenu.items {
@@ -238,6 +265,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func showPanel() { onShowPanel?() }
     @objc private func showRecap() { onShowRecap?() }
+    @objc private func checkUpdates() { onCheckUpdates?() }
+    @objc private func openUpdate() { onOpenUpdate?() }
 
     @objc private func toggleHome() { pet.toggleHome() }
 

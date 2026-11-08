@@ -31,6 +31,40 @@ jobs:
         with:
           fetch-depth: 0 # git describe for CFBundleVersion
 
+      # A release needs a tag signed by the maintainer's YubiKey: a stolen token can push tags but can't
+      # sign them. GitHub checks the signature against the account's keys; the fingerprint has to be one of
+      # the two signing subkeys below (one per YubiKey), so a key added to the account later doesn't pass.
+      # "Signed main" keeps this file from being changed without a signed commit.
+      - name: Check the tag is signed by the maintainer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOWED: 1F85AEBC13649251888F56BE755181A1350D84EE 9AA713432AED3152389A9D5B77E8A5FD032568A4
+        run: |
+          git fetch --force --no-tags origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          object="$(git rev-parse "refs/tags/$GITHUB_REF_NAME")"
+          if [ "$(git cat-file -t "$object")" != tag ]; then
+            echo "::error::$GITHUB_REF_NAME is a lightweight tag; sign it: git tag -s $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          verification="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object" --jq .verification)"
+          if [ "$(echo "$verification" | jq -r .verified)" != true ]; then
+            echo "::error::GitHub doesn't verify the signature on $GITHUB_REF_NAME ($(echo "$verification" | jq -r .reason))" >&2
+            exit 1
+          fi
+          # The issuer fingerprint subpacket (type 33, v4) of the armored signature.
+          fpr="$(echo "$verification" | jq -r .signature | python3 -I -c '
+          import base64, sys
+          lines = [l.strip() for l in sys.stdin.read().splitlines()]
+          body = [l for l in lines if l and not l.startswith("-----") and ":" not in l and not l.startswith("=")]
+          data = base64.b64decode("".join(body))
+          i = data.find(b"\x16\x21\x04")
+          print(data[i + 3:i + 23].hex().upper() if i >= 0 else "")
+          ')"
+          case " $ALLOWED " in
+            *" $fpr "*) [ -n "$fpr" ] && echo "$GITHUB_REF_NAME is signed by subkey $fpr" ;;
+            *) echo "::error::$GITHUB_REF_NAME is signed by '$fpr', not by one of the maintainer's YubiKeys" >&2; exit 1 ;;
+          esac
+
       # Only reviewed code gets signed: the tagged commit must already be on main (which takes a pull
       # request with green checks). This catches a tag put on a branch by mistake; a commit that edits this
       # file could drop the check, which is why only admins may push v* tags (the "Release tags" ruleset).

@@ -182,8 +182,8 @@ extension SpriteFactory {
             }
         }
         if (2...10).contains(i), i % 4 < 3 {
-            // The arm takes the right side; LM's "!" goes left of his diamond.
-            let x = look.figure == .lidman ? b.cx - 8 : b.cx - 1
+            // The arm takes the right side; LM's "!" goes left of his diamond, the paperclip's left of its loop.
+            let x = look.figure.isTall ? b.cx - 8 : b.cx - 1
             c.fill(x, b.y0 - 7, 2, 3, Palette.amber)
             c.fill(x, b.y0 - 3, 2, 1, Palette.amber)
         }

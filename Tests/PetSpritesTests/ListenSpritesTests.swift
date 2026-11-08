@@ -9,7 +9,7 @@ import PetCore
 
     /// While listening the mic is out on the left, and waves come in only while there's sound.
     @Test func micOutWavesOnlyWithSound() {
-        for look in [Look.standard, Look(figure: .lidman)] {
+        for look in [Look.standard, Look(figure: .lidman), Look(figure: .clip)] {
             for i in 0..<PetState.listening.frameCount {
                 let f = SpriteFactory.frame(for: .listening, index: i, agentCubes: false, look: look)
                 #expect(has(f, Palette.keyboardTop, x: 0..<12), "\(look.figure) mic \(i)")

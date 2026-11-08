@@ -3,14 +3,15 @@ import PetCore
 /// The Mac around the pet (under review): headphones, music, the mic or camera in use, heat, low power,
 /// the network, a full battery, screenshots and the system theme.
 extension PixelCanvas {
-    /// Over-ear headphones: a dark band over the head (over LM's diamond) and a cup on each side.
+    /// Over-ear headphones: a dark band over the head (over LM's diamond or the paperclip's loop) and a cup on
+    /// each side.
     /// `dy` lifts them (putting them on and taking them off).
     mutating func headphones(x0: Int, y0: Int, w: Int, h: Int, figure: Figure, skin: Skin, dy: Int = 0) {
         let band = Palette.accessoryDark
         let left = x0 - 1, right = x0 + w
         let cupTop = y0 + h / 3 + dy
-        if figure == .lidman {
-            // The band arcs high enough to clear the diamond.
+        if figure.isTall {
+            // The band arcs high enough to clear the diamond or the loop.
             let top = y0 - 9 + dy
             for y in (top + 4)...(cupTop - 1) { set(left, y, band); set(right, y, band) }
             for k in 0..<4 { set(left + k + 1, top + 3 - k, band); set(right - k - 1, top + 3 - k, band) }
@@ -115,6 +116,11 @@ extension SpriteFactory {
         if s.figure == .lidman {
             let ey = y0 + PixelCanvas.lidEyeRow(s.h) + s.lookY
             return (ey, min(ey + 5, by - 3))
+        }
+        if s.figure == .clip {
+            // The pupils' row, two below the top of the eye rings.
+            let rows = PixelCanvas.clipFaceRows(h: s.h, top: y0, headroom: y0)
+            return (rows.eyes + 2, rows.mouth)
         }
         let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
         return (ey, min(ey + 4, by - 4))
@@ -248,8 +254,13 @@ extension SpriteFactory {
         s.lookY = i < 5 ? -1 : 0
         s.blush = i >= 5 ? 2 : 0
         let b = c.body(s)
-        // LM's diamond takes the middle and the right is the Claude column: his battery goes on the left.
-        let x = look.figure == .lidman ? 5 : b.cx + 4, y = b.y0 - 5
+        // LM's diamond takes the middle and the right is the Claude column: his battery goes on the left. The
+        // paperclip's loop leans left, so its battery stays right, over the right eye.
+        let (x, y) = switch look.figure {
+        case .lidman: (5, b.y0 - 5)
+        case .clip: (b.cx + 4, PixelCanvas.clipFaceRows(h: s.h, top: b.y0, headroom: b.y0).eyes - 4)
+        case .cube: (b.cx + 4, b.y0 - 5)
+        }
         c.battery(x, y, level: min(4, i + 1), color: Palette.batteryGreen)
         if i >= 5, i % 2 == 1 {
             c.sparkle(x + 1, y - 2, Palette.amberLight, big: false)

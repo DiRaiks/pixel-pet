@@ -60,20 +60,31 @@ extension PixelCanvas {
     /// rotated when asked, so face, blush and accessories turn with it.
     @discardableResult
     mutating func body(_ s: BodyStyle) -> BodyFrame {
-        // LM's diamond needs room above the body: at least 4 rows, so the top of a big jump comes a bit lower.
-        let lid = s.figure == .lidman
+        // LM's diamond needs room above the body, at least 4 rows, and the paperclip's loop 5 (4 and a row of
+        // air), so the top of a big jump comes a bit lower.
+        let lid = s.figure == .lidman, tall = s.figure.isTall
         // A hat gets the same: a jump that would carry it off the top of the canvas peaks lower instead.
-        let room = lid ? 4 : s.headroom
+        let room = switch s.figure {
+        case .lidman: 4
+        case .clip: 5
+        case .cube: s.headroom
+        }
         let lift = s.rotation == 0 && !s.inHole ? max(0, room - (s.by + s.dy - s.h)) : 0
         let cx = s.cx + s.dx, by = s.by + s.dy + lift, x0 = cx - s.w / 2, y0 = by - s.h
         if s.shadow {
             let sw = max(4, s.w - 2 - jsRound(Double(s.ground - 1 - by) / 1.5))
             fill(s.cx + s.dx - sw / 2, s.ground, sw, 1, Palette.shadow)
         }
-        let m = lid ? 12 : 5
+        let m = tall ? 12 : 5
         var local = PixelCanvas(width: s.w + 2 * m, height: s.h + 2 * m)
-        // Upright, LM's diamond gets only the rows above the body, so jumps squash it instead of cutting it off.
-        if lid { local.drawLidMan(s, at: m, face: s.rotation == 0, headroom: s.rotation == 0 ? y0 : m) } else { local.drawCube(s, at: m, face: s.rotation == 0) }
+        // Upright, LM's diamond and the clip's loop get only the rows above the body, so jumps squash them
+        // instead of cutting them off.
+        let above = s.rotation == 0 ? y0 : m
+        switch s.figure {
+        case .lidman: local.drawLidMan(s, at: m, face: s.rotation == 0, headroom: above)
+        case .clip: local.drawClip(s, at: m, face: s.rotation == 0, headroom: above)
+        case .cube: local.drawCube(s, at: m, face: s.rotation == 0)
+        }
         if s.rotation == 0 {
             blit(local, x: x0 - m, y: y0 - m)
         } else {
@@ -84,6 +95,8 @@ extension PixelCanvas {
             // on the same rows as without rotation (props and blush turn with the body).
             if lid {
                 lidManFace(s, cx: cx + s.lookX, ey: y0 + Self.lidEyeRow(s.h) + s.lookY, bottom: by)
+            } else if s.figure == .clip {
+                clipFace(s, cx: cx, top: y0, headroom: m)
             } else {
                 let ey = y0 + max(3, jsRound(Double(s.h) * 0.3)) + s.lookY
                 eyes(cx + s.lookX, ey, s.eyes, s.skin)
@@ -96,8 +109,14 @@ extension PixelCanvas {
             if s.extras.contains(.headphones) { headphones(x0: x0, y0: y0, w: s.w, h: s.h, figure: s.figure, skin: s.skin) }
             if s.extras.contains(.partyHat), !s.accessory.isOnHead, !s.nightcap {
                 // On LM it sits a little down the diamond, over its thin tip, so no sliver of the tip shows under it.
-                partyHat(cx: cx, top: lid ? y0 - Int(min(Double(s.h) * 0.6, Double(max(y0, 4))).rounded(.down)) + 3 : y0,
-                         small: lid)
+                // On the paperclip it sits half down the top bend, right over the eyes, and on the bend's middle
+                // (left of the box's): the loop is too tall for a hat and its pompom above it.
+                let top = switch s.figure {
+                case .lidman: y0 - Int(min(Double(s.h) * 0.6, Double(max(y0, 4))).rounded(.down)) + 3
+                case .clip: y0 - Self.clipRise(h: s.h, headroom: y0) + 4
+                case .cube: y0
+                }
+                partyHat(cx: s.figure == .clip ? cx - 1 : cx, top: top, small: tall)
             }
         }
         return BodyFrame(x0: x0, y0: y0, cx: cx)

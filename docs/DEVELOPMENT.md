@@ -89,7 +89,7 @@ Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is si
 
 | Flag | Effect |
 |---|---|
-| `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: any of `Skin.all` by name, or `lidman` for LM. Accessories: any `Accessory` raw value, such as `none`, `glasses`, `headphones`, `cap` |
+| `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: any of `Skin.all` by name, `lidman` for LM, or `clip` for the paperclip (`clip:mint` for another color). Accessories: any `Accessory` raw value, such as `none`, `glasses`, `headphones`, `cap` |
 | `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
 | `--export-dmg-background <dir>` | Writes the release DMG's window picture (`background.png` and `background@2x.png`), then quits |
 | `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |

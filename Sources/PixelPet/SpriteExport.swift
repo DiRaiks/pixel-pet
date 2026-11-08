@@ -215,6 +215,13 @@ enum ReadmeExport {
         write(render([Clip(state: .idle, seconds: 1.2, look: lm), Clip(state: .working, seconds: 1.6, look: lm),
                       Clip(state: .hop, look: lm), Clip(state: .idle, seconds: 0.6, look: lm)], scale: 6),
               to: directory.appendingPathComponent("lm.png"))
+        // The paperclip: idle, typing, a hop; and its colors.
+        let clip = Look(figure: .clip)
+        write(render([Clip(state: .idle, seconds: 1.2, look: clip), Clip(state: .working, seconds: 1.6, look: clip),
+                      Clip(state: .hop, look: clip), Clip(state: .idle, seconds: 0.6, look: clip)], scale: 6),
+              to: directory.appendingPathComponent("clip.png"))
+        write(lineup(Skin.all.map { Look(skin: $0, figure: .clip) }, scale: 3),
+              to: directory.appendingPathComponent("clip-looks.png"))
         // Waving after a long wait, the push rocket, petting, a sneeze.
         let still = Clip(state: .idle, seconds: 0.7)
         write(render([Clip(state: .alert, seconds: 1.0), Clip(state: .wave), Clip(state: .alert, seconds: 1.0)], scale: 6),

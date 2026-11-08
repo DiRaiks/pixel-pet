@@ -26,9 +26,13 @@ extension SpriteFactory {
         paper(&c, from: b.cx - 9, to: b.cx + 8, top: paperTop(b, look), print: true, flip: flip, look: look)
     }
 
-    /// Just under the eyes: LM's sit two rows lower in his drop than the cube's.
+    /// Just under the eyes: LM's sit two rows lower in his drop than the cube's, the paperclip's above its box.
     private static func paperTop(_ b: BodyFrame, _ look: Look) -> Int {
-        b.y0 + (look.figure == .lidman ? 9 : 7)
+        switch look.figure {
+        case .lidman: b.y0 + 9
+        case .clip: b.y0 + 3
+        case .cube: b.y0 + 7
+        }
     }
 
     /// Open paper from column `a` to `b` (outline included), 10 rows from `top`, held by a hand on each side.

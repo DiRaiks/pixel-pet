@@ -26,6 +26,12 @@
   <img src="docs/images/lm-melt.png" width="120" alt="LM melts into a puddle and gathers back up">
 </p>
 
+<p align="center">
+  <img src="docs/images/clip.png" width="120" alt="The paperclip, a bent wire with two round eyes, typing and hopping"><br>
+  Or the <b>paperclip</b>: a bent wire with two round eyes, in any of the colors:<br>
+  <img src="docs/images/clip-looks.png" width="600" alt="The paperclip in lavender, mint, peach, graphite, sky, sakura, vanilla and night">
+</p>
+
 ## Contents
 
 - [What it does](#what-it-does)
@@ -388,7 +394,7 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | **Look** | |
 | Language | English (default) or Russian; switches the whole interface at once |
 | Size | ×2 to ×6 |
-| Character | The cube, or LM (a drop under a diamond). LM keeps his own aqua colors and wears no accessory, so Color and Accessory are greyed out for him |
+| Character | The cube, LM (a drop under a diamond) or the paperclip. LM keeps his own aqua colors and wears no accessory, so Color and Accessory are greyed out for him; the paperclip takes the color but no accessory |
 | Color | Lavender, mint, peach, graphite, sky, sakura, vanilla or night (dark, for dark wallpapers), or "every day new" |
 | Accessory | None, glasses, sunglasses, headphones, cap, beanie, crown, bow, flower, propeller hat, scarf or mustache, or "every day new" |
 | **Behavior** | |

@@ -218,7 +218,8 @@ enum Choices {
     ]
     static let models = ["haiku", "sonnet", "opus"]
     @MainActor static var figures: [(name: String, title: String)] {
-        [(Figure.cube.rawValue, L("Cube", "Кубик")), (Figure.lidman.rawValue, "LM")]
+        [(Figure.cube.rawValue, L("Cube", "Кубик")), (Figure.lidman.rawValue, "LM"),
+         (Figure.clip.rawValue, L("Paperclip", "Скрепка"))]
     }
     @MainActor static var skins: [(name: String, title: String)] {
         [
@@ -262,16 +263,15 @@ struct SettingsView: View {
                 Picker(L("Character", "Персонаж"), selection: $model.figure) {
                     ForEach(Choices.figures, id: \.name) { Text($0.title).tag($0.name) }
                 }
-                // LM keeps his own colors and wears nothing on his diamond.
-                Group {
-                    Picker(L("Color", "Цвет"), selection: $model.skin) {
-                        ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
-                    }
-                    Picker(L("Accessory", "Аксессуар"), selection: $model.accessory) {
-                        ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
-                    }
+                // LM keeps his own colors; neither he nor the paperclip wears anything on top.
+                Picker(L("Color", "Цвет"), selection: $model.skin) {
+                    ForEach(Choices.skins, id: \.name) { Text($0.title).tag($0.name) }
                 }
                 .disabled(model.figure == Figure.lidman.rawValue)
+                Picker(L("Accessory", "Аксессуар"), selection: $model.accessory) {
+                    ForEach(Choices.accessories, id: \.name) { Text($0.title).tag($0.name) }
+                }
+                .disabled(model.figure != Figure.cube.rawValue)
                 Toggle(L("Do not disturb (⌃⌥P)", "Не беспокоить (⌃⌥P)"), isOn: $model.doNotDisturb)
                 Toggle(L("Desktop reactions", "Реагировать на рабочий стол"), isOn: $model.desktopReactions)
                     .help(L("Eyes follow the cursor, glances at the window you switch to, fades over fullscreen apps",

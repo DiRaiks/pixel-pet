@@ -37,7 +37,8 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// Look: color skin and an optional accessory (see PetSprites `Skin` / `Accessory`).
     public var skin = "lavender"
     public var accessory = "none"
-    /// The character: "cube", or "lidman" (LM, which keeps its own colors and wears no accessory).
+    /// The character: "cube", "lidman" (LM, which keeps its own colors and wears no accessory) or "clip" (the
+    /// paperclip, in the chosen color, with no accessory).
     public var figure = "cube"
     /// Follow Codex sessions (~/.codex/sessions) next to Claude Code's.
     public var watchCodex = true

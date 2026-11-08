@@ -544,11 +544,19 @@ public enum SpriteFactory {
 
     /// LM comes out of the hole 2 rows less than the cube: just his eyes and the round bottom of the drop.
     static let lidManPeekRaise = 2
+    /// The paperclip's eyes sit 6 rows higher than the cube's, up on its loop: it hangs out 6 rows further
+    /// so they clear the hole.
+    static let clipPeekDrop = 6
 
     static func home(_ c: inout PixelCanvas, look: Look, by: Int, w: Int = 16, h: Int = 14, lookX: Int,
                              eyes: Eyes, props: Bool, glow: Eyes) {
         var s = BodyStyle(look: look)
-        s.by = by - (look.figure == .lidman ? lidManPeekRaise : 0); s.w = w; s.h = h; s.shadow = false
+        s.by = switch look.figure {
+        case .lidman: by - lidManPeekRaise
+        case .clip: by + clipPeekDrop
+        case .cube: by
+        }
+        s.w = w; s.h = h; s.shadow = false
         s.inHole = true
         s.lookX = lookX
         s.eyes = eyes

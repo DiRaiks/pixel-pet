@@ -79,9 +79,12 @@ public enum Accessory: String, CaseIterable, Sendable {
     }
 }
 
-/// The character itself: the cube, or LM.
+/// The character itself: the cube, LM, or the paperclip.
 public enum Figure: String, CaseIterable, Sendable {
-    case cube, lidman
+    case cube, lidman, clip
+
+    /// LM and the paperclip rise above the body box (his diamond, its top loop): marks and hats step aside.
+    var isTall: Bool { self != .cube }
 }
 
 /// Everything about how the pet looks, besides the animation itself.
@@ -99,11 +102,12 @@ public struct Look: Equatable, Hashable, Sendable {
     public var accessory: Accessory
     public var figure: Figure
     public var extras: LookExtras = []
-    /// LM always wears his own colors and none of the accessories (his diamond takes the top).
+    /// LM always wears his own colors; neither he nor the paperclip wears an accessory (his diamond and its
+    /// top loop take the top). The paperclip takes the color setting like the cube.
     public init(skin: Skin = .lavender, accessory: Accessory = .none, figure: Figure = .cube) {
         self.figure = figure
         self.skin = figure == .lidman ? .lidman : skin
-        self.accessory = figure == .lidman ? .none : accessory
+        self.accessory = figure == .cube ? accessory : .none
     }
     public static let standard = Look()
 
@@ -111,9 +115,10 @@ public struct Look: Equatable, Hashable, Sendable {
     public static let daily = "daily"
 
     /// Marks drawn over the middle of the head ("!", the spent clock) step aside for whatever stands tall
-    /// there: LM's diamond, a propeller, crown or beanie, the party hat. Otherwise they merge into it.
+    /// there: LM's diamond, the paperclip's loop, a propeller, crown or beanie, the party hat. Otherwise they
+    /// merge into it.
     var headMarkShift: Int {
-        if figure == .lidman || extras.contains(.partyHat) { return 7 }
+        if figure.isTall || extras.contains(.partyHat) { return 7 }
         switch accessory {
         case .propeller, .crown, .beanie: return 7
         default: return 0

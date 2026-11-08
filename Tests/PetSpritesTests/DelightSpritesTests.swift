@@ -12,7 +12,7 @@ import PetCore
         let plain = SpriteFactory.frame(for: .working, index: 0, agentCubes: false)
         #expect(!has(plain, Palette.white, x: 0..<12, y: 0..<10))
         for tool in [WorkProps.toolRun, .toolSearch, .toolRead, .toolEdit] {
-            for look in [Look.standard, Look(figure: .lidman)] {
+            for look in [Look.standard, Look(figure: .lidman), Look(figure: .clip)] {
                 let f = SpriteFactory.frame(for: .working, index: 0, agentCubes: false, look: look, props: tool)
                 #expect(has(f, Palette.white, x: 0..<12, y: 0..<10), "\(tool)")
                 #expect(f != SpriteFactory.frame(for: .working, index: 0, agentCubes: false, look: look), "\(tool)")
@@ -36,7 +36,7 @@ import PetCore
     /// Columns 0-4 and 27-31 belong to the agent blocks: the new art stays out of them.
     @Test func newArtKeepsClearOfTheAgentColumns() {
         let blank = PixelCanvas()
-        for look in [Look.standard, Look(figure: .lidman)] {
+        for look in [Look.standard, Look(figure: .lidman), Look(figure: .clip)] {
             for state in [PetState.wave, .launch, .purr, .sneeze] {
                 for (i, f) in SpriteFactory.frames(for: state, agentCubes: false, look: look).enumerated() {
                     // Rows 0-7 above the blocks are free (the launch firework, the tool bubble).

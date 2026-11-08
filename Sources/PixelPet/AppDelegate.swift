@@ -42,9 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.appearance = NSAppearance(named: exportArgs[i + 1] == "dark" ? .darkAqua : .aqua)
         }
         if let i = exportArgs.firstIndex(of: "--export-sprites"), i + 1 < exportArgs.count {
-            let skin = i + 2 < exportArgs.count ? Skin.named(exportArgs[i + 2]) : .lavender
+            // The skin may name a character instead ("lidman", "clip"), or both: "clip:mint".
+            let named = i + 2 < exportArgs.count ? exportArgs[i + 2].split(separator: ":").map(String.init) : []
+            let figure = named.first.flatMap(Figure.init(rawValue:)) ?? .cube
+            let skin = Skin.named(named.last ?? "lavender")
             let accessory = i + 3 < exportArgs.count ? Accessory(rawValue: exportArgs[i + 3]) ?? .none : .none
-            let figure: Figure = i + 2 < exportArgs.count && exportArgs[i + 2] == Figure.lidman.rawValue ? .lidman : .cube
             SpriteExport.run(to: URL(fileURLWithPath: exportArgs[i + 1]), look: Look(skin: skin, accessory: accessory, figure: figure))
             NSApp.terminate(nil)
             return

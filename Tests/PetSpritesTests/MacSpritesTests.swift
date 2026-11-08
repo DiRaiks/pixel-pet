@@ -8,10 +8,11 @@ import PetCore
     }
 
     func looks(_ extras: LookExtras) -> [Look] {
-        var cube = Look.standard, lm = Look(figure: .lidman)
-        cube.extras = extras
-        lm.extras = extras
-        return [cube, lm]
+        [Look.standard, Look(figure: .lidman), Look(figure: .clip)].map { look in
+            var look = look
+            look.extras = extras
+            return look
+        }
     }
 
     /// Worn headphones follow the body in every upright pose: idle, typing, mid-hop.

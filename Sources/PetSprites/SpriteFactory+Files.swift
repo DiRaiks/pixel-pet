@@ -26,7 +26,11 @@ extension SpriteFactory {
             s.eyes = .open; s.lookY = -1; s.mouth = .smile
         }
         let b = c.body(s)
-        let mouthY = b.y0 + (look.figure == .lidman ? 11 : 8)
+        let mouthY = switch look.figure {
+        case .lidman: b.y0 + 11
+        case .clip: PixelCanvas.clipFaceRows(h: s.h, top: b.y0, headroom: b.y0).mouth
+        case .cube: b.y0 + 8
+        }
         switch i {
         // Over the head, then already small in the mouth: the eyes stay in sight.
         // Above a hat rather than over it, as far as the canvas allows.

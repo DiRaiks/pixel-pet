@@ -25,8 +25,11 @@ if [ -z "$PUBLIC" ] && [ -f scripts/sparkle-public-key ]; then PUBLIC="$(tr -d '
 SIGN=.build/artifacts/sparkle/Sparkle/bin/sign_update
 [ -x "$SIGN" ] || { echo "error: $SIGN not found; run swift build first" >&2; exit 1; }
 
-SIGNATURE="$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN" --ed-key-file - -p "$DMG")"
-[ -n "$SIGNATURE" ] || { echo "error: sign_update gave no signature" >&2; exit 1; }
+# sign_update fails without a word when the key isn't one (a secret holding something else).
+if ! SIGNATURE="$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN" --ed-key-file - -p "$DMG")" || [ -z "$SIGNATURE" ]; then
+    echo "error: sign_update couldn't sign $DMG: is SPARKLE_PRIVATE_KEY Sparkle's private key? (docs/DEVELOPMENT.md, Updates)" >&2
+    exit 1
+fi
 
 # Ed25519 check with the raw 32-byte public key wrapped as SubjectPublicKeyInfo. It takes OpenSSL 3 (macOS's
 # own openssl is LibreSSL, without -rawin): Homebrew's when there is one.

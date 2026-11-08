@@ -565,6 +565,7 @@ final class PetController {
         case .mug: props = [.mug]
         case .headband: props = [.mug, .headband]
         }
+        props.formUnion(.strain(PetBrain.strain(agents + codexAgents)))
         let now = Date()
         if NightDesk.isLate(at: now) {
             props.insert(.tea)
@@ -971,9 +972,12 @@ final class PetController {
         let side: PetState? = !noticing ? nil
             : WorkMoments.noticeable(old: codexAgents, new: codex) ? .glanceLeft
             : WorkMoments.noticeable(old: agents, new: cubes) ? .glanceRight : nil
+        let strain = PetBrain.strain(agents + codexAgents)
         agents = cubes
         codexAgents = codex
         if let side { glanceAtAgents(side) }
+        // More or fewer agents at work: the pet at the desk works harder or eases off.
+        if PetBrain.strain(cubes + codex) != strain, player.state.isAtDesk { render() }
         renderAgents()
         updateClock()
     }

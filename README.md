@@ -235,6 +235,10 @@ The longer the agents keep at it, the more piles up on the desk: a coffee mug af
 
 <img src="docs/images/work-props.png" width="300" alt="Typing with nothing on the desk, with a mug, and with a mug and a headband">
 
+The more agents work at once (Claude Code and Codex together), the harder it types: with 2–3 two keys go down at a time and a drop of sweat runs down; with 4–5 three keys, red cheeks, sweat on both sides and out of breath; with 6 or more steam puffs off the top, sparks fly off the keys and it shakes on the strokes.
+
+<img src="docs/images/work-strain.png" width="400" alt="Typing with 1, 3, 5 and 7 agents at work: more keys, sweat, then steam and sparks">
+
 Moments and looks follow the "Desktop reactions" setting and Reduce Motion; the props always show.
 
 ## Your day

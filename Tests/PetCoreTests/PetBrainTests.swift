@@ -48,6 +48,17 @@ import Testing
         #expect(PetBrain.nextChange(for: [session("w", .working)], now: now) == nil)
     }
 
+    /// One working block is ordinary typing; 2-3, 4-5 and 6+ are the three steps up. Waiting, idle and
+    /// failed blocks don't count.
+    @Test func strainCountsWorkingBlocks() {
+        func cubes(_ working: Int, others: Int = 0) -> [AgentCube] {
+            Array(repeating: AgentCube(status: .working, subagents: 0), count: working)
+                + Array(repeating: AgentCube(status: .waiting, subagents: 2), count: others)
+        }
+        #expect([0, 1, 2, 3, 4, 5, 6, 9].map { PetBrain.strain(cubes($0)) } == [0, 0, 1, 1, 2, 2, 3, 3])
+        #expect(PetBrain.strain(cubes(1, others: 5)) == 0)
+    }
+
     @Test func activeCountIgnoresIdleSessions() {
         #expect(PetBrain.activeCount([session("a", .working), session("b", .waiting), session("c", .idle)]) == 2)
     }

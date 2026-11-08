@@ -84,6 +84,17 @@ public enum PetBrain {
         sessions.filter { $0.status == .working || $0.status == .waiting }.count
     }
 
+    /// How hard the pet works at the keyboard, from the blocks working right now (Claude Code and Codex
+    /// together): 0 for one, 1 for 2–3, 2 for 4–5, 3 for 6 or more.
+    public static func strain(_ cubes: [AgentCube]) -> Int {
+        switch cubes.filter({ $0.status == .working }).count {
+        case ...1: 0
+        case 2...3: 1
+        case 4...5: 2
+        default: 3
+        }
+    }
+
     private static func isFreshFailure(_ s: AgentSession, _ now: Date) -> Bool {
         s.status == .failed && (s.failedAt.map { now.timeIntervalSince($0) < errorWindow } ?? false)
     }

@@ -156,28 +156,68 @@ public enum SpriteFactory {
     /// No smile here: seen every second for hours it got old; smiles come with the moments.
     static func working(_ i: Int, _ cubes: Bool, _ look: Look, _ props: WorkProps = [], _ c: inout PixelCanvas) {
         let beat = TypingScript.beats[i].beat
+        let strain = props.strain
         var s = deskBody(look, props)
         var lit: [Int] = []
         switch beat {
         case .down(let key):
             // The lit key shows every stroke; the body dips on every other one (and the first and last of a
             // burst): a dip on every key bobbed the face six times a second for hours, none at all left
-            // only a blinking key to look at.
+            // only a blinking key to look at. With more agents more keys go down at once.
             lit = [9 + 2 * key]
-            if TypingScript.dips(i) { s.h = 13 }
+            if strain >= 1 { lit.append(9 + 2 * ((key + 3) % 7)) }
+            if strain >= 2 { lit.append(9 + 2 * ((key + 5) % 7)) }
+            if TypingScript.dips(i) {
+                s.h = 13
+                // At the top it shakes a pixel aside on the dips, never between them.
+                if strain >= 3 { s.dx = i % 2 == 0 ? 1 : -1 }
+            }
         case .up, .hitch: break
         case .read: s.lookY = 0; s.eyes = .open
-        case .blink: s.lookY = 0; s.eyes = .blink
+        case .blink: s.lookY = 0; s.eyes = strain >= 3 ? .squeeze : .blink
         }
         if beat != .read, beat != .blink { s.eyes = .down }
-        s.mouth = .flat
-        c.body(s)
+        // Out of breath from 4 agents on: a held wobble, not a mouth that moves every beat.
+        s.mouth = strain >= 2 ? .wobble : .flat
+        if strain >= 2 { s.blush = 3 }
+        let b = c.body(s)
         // Beats run 50–650 ms, so steam and spinning blocks follow the clock (100 ms steps), not the beat.
         let tick = Int(TypingScript.starts[i] / 100)
+        let top = figureTop(c, b, s)
         desk(&c, props, lit: lit, steam: tick % 6 < 3 ? tick % 3 : 0)
+        strainMarks(&c, b, s, top: top, strain: strain, tick: tick)
         guard cubes else { return }
         c.agentCube(25, 24, Palette.teal, spin: tick)
         c.agentCube(25, 20, Palette.teal, spin: tick + 4)
+    }
+
+    /// The first row the figure reaches (LM's diamond, the paperclip's loop, a hat), read off the canvas.
+    static func figureTop(_ c: PixelCanvas, _ b: BodyFrame, _ s: BodyStyle) -> Int {
+        (0...b.y0).first { y in (b.x0...(b.x0 + s.w - 1)).contains { c.pixel($0, y) != nil } } ?? b.y0
+    }
+
+    /// Working with more agents (`WorkProps.strain`): a drop of sweat from 2, on both sides from 4; from 6
+    /// steam puffs off the top and sparks fly off the keys. All of it follows the clock in slow steps.
+    static func strainMarks(_ c: inout PixelCanvas, _ b: BodyFrame, _ s: BodyStyle, top: Int, strain: Int, tick: Int) {
+        guard strain >= 1 else { return }
+        let step = tick / 3
+        for (x, phase) in [(b.x0 + 1, 0), (b.x0 + s.w - 2, 2)].prefix(strain >= 2 ? 2 : 1) {
+            let y = b.y0 + 3 + ((step + phase) % 4) * 2
+            c.set(x, y, Palette.sweat); c.set(x, y + 1, Palette.sweatDark)
+        }
+        guard strain >= 3 else { return }
+        for (k, x) in [b.cx - 4, b.cx + 3].enumerated() {
+            let rise = (step + k * 2) % 4
+            let y = top - 2 - rise
+            guard y >= 1 else { continue }
+            c.set(x, y, Palette.steam)
+            c.set(x + (rise % 2 == 0 ? 1 : -1), y - 1, Palette.steam)
+            if rise < 2 { c.set(x, y + 1, Palette.mug) }
+        }
+        if step % 3 != 2 {
+            let (x, y) = [(9, 20), (22, 20), (12, 19), (19, 19)][step % 4]
+            c.set(x, y, Palette.amberLight); c.set(x, y - 1, Palette.amber)
+        }
     }
 
     /// The body at the desk: lower, eyes on the keys, the headband once work has gone on long.

@@ -59,6 +59,17 @@ enum ReadmeExport {
         }
     }
 
+    /// Typing with 1, 3, 5 and 7 agents at work, each with its column of blocks.
+    static func strainLineup(scale: Int) -> [(CGImage, Double)] {
+        let levels = (0...3).map { level in
+            (SpriteFactory.frames(for: .working, agentCubes: false, props: [.mug, .strain(level)]),
+             (0..<[1, 3, 5, 7][level]).map { _ in AgentCube(status: .working, subagents: 0) })
+        }
+        return PetState.working.durations.enumerated().compactMap { i, delay in
+            tile(levels.map { ($0.0[i], AgentStack.canvas(for: $0.1, tick: i)) }, scale: scale).map { ($0, delay) }
+        }
+    }
+
     /// `--export-work <dir>`: the moments at the keyboard, each between stretches of ordinary typing, and the
     /// props by how long work has gone on. For choosing which ones the pet gets.
     static func work(to directory: URL) {
@@ -271,6 +282,7 @@ enum ReadmeExport {
         write(lineup(wearable.dropFirst(6).map { Look(skin: .lavender, accessory: $0) }, scale: 3),
               to: directory.appendingPathComponent("accessories-2.png"))
         write(propsLineup(scale: 3), to: directory.appendingPathComponent("work-props.png"))
+        write(strainLineup(scale: 3), to: directory.appendingPathComponent("work-strain.png"))
     }
 
     /// Frames with their delays. Boundaries are the state's own frame ends, plus the agent stack's 10 Hz beat

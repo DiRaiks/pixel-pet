@@ -301,4 +301,14 @@ public struct WorkProps: OptionSet, Hashable, Sendable {
 
     /// 0 (fresh) ... 3 (a stub in a pool of wax).
     var candleMelt: Int { (rawValue & Self.meltBits.rawValue) >> 11 }
+
+    /// How hard it works with more agents at once, 0...3 (`PetBrain.strain`): more keys at a time, sweat,
+    /// then steam off the top.
+    static let strainBits = WorkProps(rawValue: 8192 | 16384)
+
+    public static func strain(_ level: Int) -> WorkProps {
+        WorkProps(rawValue: (max(0, min(3, level)) << 13) & strainBits.rawValue)
+    }
+
+    var strain: Int { (rawValue & Self.strainBits.rawValue) >> 13 }
 }

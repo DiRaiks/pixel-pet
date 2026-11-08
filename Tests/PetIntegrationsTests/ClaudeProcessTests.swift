@@ -36,6 +36,8 @@ import Testing
         }
         task.cancel()
         _ = await task.value
-        #expect(Date().timeIntervalSince(start) < 5)
+        // A lost cancel runs the full `sleep 20`; 10 s leaves room for a busy CI runner (5 s once failed at
+        // 5.4 s there) and still tells the two apart.
+        #expect(Date().timeIntervalSince(start) < 10)
     }
 }

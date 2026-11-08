@@ -4,7 +4,14 @@
 
 <h1 align="center">Pixel Pet</h1>
 
-<p align="center"><a href="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml"><img src="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
+<p align="center">
+  <a href="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml"><img src="https://github.com/DiRaiks/pixel-pet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/DiRaiks/pixel-pet/actions/workflows/release.yml"><img src="https://github.com/DiRaiks/pixel-pet/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="https://github.com/DiRaiks/pixel-pet/releases/latest"><img src="https://img.shields.io/github/v/release/DiRaiks/pixel-pet?label=download" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-26%2B-blue?logo=apple" alt="macOS 26 or later">
+  <img src="https://img.shields.io/badge/Swift-6.2-orange?logo=swift&logoColor=white" alt="Swift 6.2">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/DiRaiks/pixel-pet" alt="MIT License"></a>
+</p>
 
 <p align="center">
   A pixel-art cube for your macOS desktop that keeps an eye on your Claude Code and Codex agents<br>
@@ -98,10 +105,11 @@ The app runs entirely on your Mac. It never talks to the network itself; the onl
 You need:
 
 - macOS 26 or later, on Apple silicon or Intel.
-- Swift 6.2 or later. The Command Line Tools are enough; Xcode is not required.
 - [Claude Code](https://docs.claude.com/en/docs/claude-code), either as the `claude` CLI on your `PATH` or bundled with the Claude desktop app. Questions, Claude translation and limit checks use your Claude subscription.
 
-There is no signed download yet, so the app is built from source:
+**Download:** get `PixelPet-<version>.dmg` from the [latest release](https://github.com/DiRaiks/pixel-pet/releases/latest), open it and drag Pixel Pet into Applications. It is signed with a Developer ID and notarized by Apple, so it opens without warnings, offline too.
+
+**Or build from source**, with Swift 6.2 or later (the Command Line Tools are enough; Xcode is not required):
 
 ```bash
 git clone https://github.com/DiRaiks/pixel-pet.git
@@ -478,10 +486,10 @@ Disconnecting (menu: "Disconnect from Claude Code") removes the pet's hook entri
 1. Disconnect Claude Code from the menu.
 2. If it is on, turn off "Launch at login" in Settings, so no stale entry is left under Login Items.
 3. Quit the app.
-4. Remove the app and its data:
+4. Remove the app and its data (the DMG installs to `/Applications`, `install.sh` to `~/Applications`):
 
 ```bash
-rm -rf ~/Applications/PixelPet.app ~/.pixelpet
+rm -rf /Applications/PixelPet.app ~/Applications/PixelPet.app ~/.pixelpet
 ```
 
 Two things stay behind until you remove them yourself:

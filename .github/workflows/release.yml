@@ -18,6 +18,9 @@ jobs:
     name: Build and publish
     runs-on: macos-26
     timeout-minutes: 60
+    # The signing and notary secrets live in the "release" environment, which only v* tags may use:
+    # no branch, pull request or other workflow can read them.
+    environment: release
     # Secrets go only to the steps that use them, not to the build of the repository's code. Whether
     # signing is set up at all is known from these two flags.
     env:
@@ -27,6 +30,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # git describe for CFBundleVersion
+
+      # Only reviewed code gets signed: the tagged commit must already be on main (which takes a pull
+      # request with green checks). This catches a tag put on a branch by mistake; a commit that edits this
+      # file could drop the check, which is why only admins may push v* tags (the "Release tags" ruleset).
+      - name: Check the tag is on main
+        run: |
+          git fetch --no-tags origin main
+          commit="$(git rev-parse "$GITHUB_SHA^{commit}")"
+          if ! git merge-base --is-ancestor "$commit" origin/main; then
+            echo "::error::$GITHUB_REF_NAME points at $commit, which is not on main; merge it first, then tag" >&2
+            exit 1
+          fi
 
       - name: Import the Developer ID certificate
         if: env.HAS_P12 == 'true'

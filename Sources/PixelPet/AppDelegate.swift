@@ -112,9 +112,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                               body: NoticeText.body(notice, session: session, codex: codex), host: codex ? nil : session.host?.bundleID)
             }
         }
+        // The key waits on the user right now: its notification goes out whether or not the pet can be seen
+        // and under do-not-disturb too, unless it's turned off (then only the pet shows it).
         pet.onTouching = { [weak pet] waiting in
             guard let pet else { return }
-            if waiting, pet.mayNotify {
+            if waiting, pet.config.touchNotification {
                 notifier.post("key-touch", title: NoticeText.touchTitle(), body: NoticeText.touchBody(), host: nil)
             } else {
                 notifier.clear("key-touch")

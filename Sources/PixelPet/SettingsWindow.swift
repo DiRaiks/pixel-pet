@@ -97,6 +97,12 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onTouchHint: ((Bool) -> Void)?
+    var touchNotification = true {
+        didSet {
+            guard !loading, touchNotification != oldValue else { return }
+            update { $0.touchNotification = touchNotification }
+        }
+    }
     var notifications = NotificationMode.whenHidden {
         didSet {
             guard !loading, notifications != oldValue else { return }
@@ -158,6 +164,7 @@ final class SettingsModel {
         watchCodex = c.watchCodex
         approveFromPet = c.approveFromPet
         touchHint = c.touchHint
+        touchNotification = c.touchNotification
         notifications = c.notifications
         weeklyRecap = c.weeklyRecap
         breakMinutes = c.breakMinutes
@@ -357,8 +364,8 @@ struct SettingsView: View {
                     Text(L("When the cube can't be seen", "Когда кубика не видно")).tag(NotificationMode.whenHidden)
                     Text(L("Always", "Всегда")).tag(NotificationMode.always)
                 }
-                .help(L("Silent banners when an agent needs permission or an answer, finishes a long turn or fails, and when the YubiKey waits for a touch. Only the project and what happened, never commands or files",
-                         "Баннеры без звука, когда агент ждёт разрешения или ответа, закончил долгий ход или упал, и когда YubiKey ждёт касания. Только проект и что случилось, без команд и файлов"))
+                .help(L("Silent banners when an agent needs permission or an answer, finishes a long turn or fails. Only the project and what happened, never commands or files. The YubiKey has its own switch below",
+                         "Баннеры без звука, когда агент ждёт разрешения или ответа, закончил долгий ход или упал. Только проект и что случилось, без команд и файлов. У YubiKey свой переключатель ниже"))
                 if model.notifications != .off, model.notificationsAllowed == false {
                     HStack {
                         Text(L("Notifications are off for Pixel Pet in System Settings", "Уведомления для Pixel Pet выключены в Системных настройках"))
@@ -387,6 +394,10 @@ struct SettingsView: View {
                 Toggle(L("Show when the key waits for a touch", "Подсказывать касание ключа"), isOn: $model.touchHint)
                     .help(L("When the key waits for a touch to sign with GPG, the cube takes it out and shows it. Reads only that system log message",
                              "Когда ключ ждёт касания для GPG-подписи, кубик достаёт его и показывает. Читает только это сообщение системного журнала"))
+                Toggle(L("Also send a notification", "Ещё и уведомлением"), isOn: $model.touchNotification)
+                    .disabled(!model.touchHint)
+                    .help(L("A silent banner while the key waits, even when the cube is in sight. Off: only the cube shows it",
+                             "Баннер без звука, пока ключ ждёт касания, даже когда кубик на виду. Выключено: показывает только кубик"))
             }
             Section("Codex") {
                 Toggle(L("Follow Codex agents", "Следить за агентами Codex"), isOn: $model.watchCodex)

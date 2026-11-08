@@ -423,11 +423,11 @@ Open settings from the menu (menu: "Settings…", ⌘,):
 | Codex | Follow Codex agents and limits (on by default). Needs nothing installed |
 | Event log | Writes to `~/.pixelpet/events.log` |
 | **Your day** | |
-| Notifications | Off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
+| Notifications | For agents: off, when the cube can't be seen (default), or always; points to System Settings if macOS has them turned off |
 | Breaks | Remind about a break after 45, 60 (default) or 90 minutes of work, or never |
 | Weekly recap | Keep day sums for the recap and the Monday newspaper (on by default); clear the statistics |
 | Calls | Remind about calls from the Mac's calendars (off by default); shows the access status and how many calendars it sees |
-| YubiKey | Show when the key waits for a touch (on by default) |
+| YubiKey | Show when the key waits for a touch (on by default), and also send a notification then, even with the cube in sight (on by default; off leaves only the cube) |
 | **Text** | |
 | Translation | Your language and the language to translate it into. Text in any other language is translated into yours |
 | Listening | Off by default. When on: press and hold the cube or ⌃⌥L to listen, and the language you speak in (by default, your language from Translation) |

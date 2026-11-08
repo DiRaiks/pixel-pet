@@ -46,7 +46,10 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var approveFromPet = true
     /// Show when a hardware key (YubiKey) waits for a touch, read from the system log.
     public var touchHint = true
-    /// Silent system notifications for agents (and the key) while the pet can't be seen, always, or never.
+    /// With the touch hint on, also a system notification while the key waits, whether or not the pet can be
+    /// seen; off leaves only the pet's animation.
+    public var touchNotification = true
+    /// Silent system notifications for agents while the pet can't be seen, always, or never.
     public var notifications = NotificationMode.whenHidden
     /// Keep day sums for the weekly recap (`~/.pixelpet/stats.json`) and bring the newspaper on Mondays.
     public var weeklyRecap = true
@@ -91,6 +94,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         watchCodex = try c.decodeIfPresent(Bool.self, forKey: .watchCodex) ?? true
         approveFromPet = try c.decodeIfPresent(Bool.self, forKey: .approveFromPet) ?? true
         touchHint = try c.decodeIfPresent(Bool.self, forKey: .touchHint) ?? true
+        touchNotification = try c.decodeIfPresent(Bool.self, forKey: .touchNotification) ?? true
         notifications = (try? c.decodeIfPresent(NotificationMode.self, forKey: .notifications)) ?? .whenHidden
         weeklyRecap = try c.decodeIfPresent(Bool.self, forKey: .weeklyRecap) ?? true
         breakMinutes = try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 60

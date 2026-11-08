@@ -56,6 +56,18 @@ import Testing
         #expect(store.load().figure == "lidman")
     }
 
+    /// The key's notification is on by default, also in a config saved before the setting existed.
+    @Test func touchNotificationDefaultsOnAndRoundTrips() throws {
+        #expect(PetConfig().touchNotification)
+        let store = ConfigStore(url: url)
+        var config = PetConfig()
+        config.touchNotification = false
+        try store.save(config)
+        #expect(!store.load().touchNotification)
+        let old = try JSONSerialization.data(withJSONObject: ["touchHint": true])
+        #expect(try JSONDecoder().decode(PetConfig.self, from: old).touchNotification)
+    }
+
     @Test func scaleIsClampedToSupportedRange() throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data(#"{"scale":40}"#.utf8).write(to: url)

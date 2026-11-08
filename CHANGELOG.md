@@ -5,6 +5,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **A notification for the YubiKey too.** While the key waits for a touch, a banner says so as well as the cube, even with the cube in sight and in either language. Settings → YubiKey → "Also send a notification" turns it off and leaves only the cube.
 - **Harder work with more agents.** With 2–3 agents working at once the pet types with both hands and breaks a sweat; with 4–5 it's red-cheeked and out of breath; with 6 or more steam puffs off its top and sparks fly off the keys. Claude Code and Codex count together.
 - **A paperclip.** Settings → Character now offers a third pet: a bent wire with two round eyes, in any of the colors. It plays every state the cube does, wears the headband, nightcap, headphones and party hat on its loop, and hangs a little further out of its home so its eyes show.
 - **A friendlier installer window.** The DMG opens on a lavender window with the cube asking, a pixel arrow from Pixel Pet to Applications and a one-line hint. The picture is drawn by the app's own sprite code. The app icon is new too: the cube large on a lavender tile, so it no longer gets lost in the Dock. The app inside is now notarized and stapled on its own too, so it opens without a network check even after being copied out of the DMG.

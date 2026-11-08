@@ -188,7 +188,9 @@ Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) r
 - The "Signed release tags" ruleset (Settings → Rules) accepts only `v*` tags with a signature GitHub verifies, with no bypass, and "Release tags" lets only admins create, move or delete them. Tag with `git tag -s v0.3.0 -m v0.3.0`.
 - The job's first step checks the tag's signature through the GitHub API and that it comes from one of the two signing subkeys listed in `release.yml` (one per YubiKey): a key added to the account later doesn't pass. After renewing or replacing a subkey, update that list.
 - The next step fails unless the tagged commit is already on `main`, which catches a tag put on a branch by mistake. Tag only after merging.
-- The "Signed main" ruleset accepts only signed commits on `main`, with no bypass, and no force-push or deletion, so neither check can be edited out without a signed commit. It reads these environment secrets, set there or with `gh secret set <NAME> --env release`:
+- The "Signed main" ruleset accepts only signed commits on `main`, with no bypass, and no force-push or deletion, so neither check can be edited out without a signed commit.
+
+Pull requests from forks: their workflows wait for an approval ("Approve and run") from every outside contributor, not only first-timers, and run with a read-only token and no secrets (the repository has none, and the `release` environment only takes `v*` tags; no workflow uses `pull_request_target`). Their commits are usually unsigned, so merge them with **Squash and merge** or a merge commit, which GitHub signs; rebase merging is turned off, and a fast-forward of unsigned commits is refused by "Signed main". What lands on `main` ships only with the maintainer's signed tag. It reads these environment secrets, set there or with `gh secret set <NAME> --env release`:
 
 | Secret | Value |
 |---|---|

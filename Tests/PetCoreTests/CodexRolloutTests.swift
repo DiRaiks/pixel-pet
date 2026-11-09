@@ -127,11 +127,84 @@ import Testing
         #expect(r.read(event("token_count", ["info": ["x": 1]])).isEmpty)
     }
 
-    /// Subagent threads write their own rollouts; they belong to their parent, not to the stack.
-    @Test func subagentThreadsAreSkipped() {
+    static let parent = "01a192d3-2519-7183-83b7-2850390b7a1d"
+
+    func spawnedMeta(threadSource: String? = "subagent") -> String {
+        var p: [String: Any] = [
+            "id": Self.id, "cwd": "/w/app/worker", "parent_thread_id": Self.parent,
+            "source": ["subagent": ["thread_spawn": ["parent_thread_id": Self.parent, "depth": 1, "agent_nickname": "Ada"]]],
+        ]
+        if let threadSource { p["thread_source"] = threadSource }
+        return line("session_meta", p)
+    }
+
+    func parentEvents(_ outputs: [CodexRollout.Output]) -> [(String, String?, AgentEvent.Kind)] {
+        outputs.compactMap { if case .event(let e, _) = $0 { (e.sessionID, e.cwd, e.kind) } else { nil } }
+    }
+
+    /// A spawned agent's turns are its parent's subagent at work: every sign of life says so, its turn's end
+    /// takes it off. Its folder isn't passed to the parent.
+    @Test func spawnedAgentTurnsBelongToTheParent() {
         var r = CodexRollout(fileName: Self.file)
-        #expect(r.read(meta(threadSource: "subagent")).isEmpty)
-        #expect(r.read(event("task_started", ["turn_id": "t1"])).isEmpty)
+        #expect(r.read(spawnedMeta()).isEmpty)
+        #expect(r.parentID == Self.parent)
+        #expect(r.read(line("turn_context", ["turn_id": "t1", "cwd": "/w/app/worker", "model": "gpt-5.5"])).isEmpty)
+        let started = parentEvents(r.read(event("task_started", ["turn_id": "t1"])))
+        #expect(started.count == 1)
+        #expect(started.first?.0 == Self.parent)
+        #expect(started.first?.1 == nil)
+        #expect(started.first?.2 == .subagentStarted(id: Self.id))
+        #expect(events(r.read(event("item_completed", ["turn_id": "t1"]))) == [.subagentStarted(id: Self.id)])
+        #expect(events(r.read(event("task_complete", ["turn_id": "t1"]))) == [.subagentStopped(id: Self.id)])
+        // Lines of the finished turn don't bring it back; the parent asking again does.
+        #expect(events(r.read(event("item_completed", ["turn_id": "t1"]))).isEmpty)
+        #expect(events(r.read(event("task_started", ["turn_id": "t2"]))) == [.subagentStarted(id: Self.id)])
+        #expect(events(r.read(event("turn_aborted", ["turn_id": "t2"]))) == [.subagentStopped(id: Self.id)])
+        #expect(events(r.read(line("compacted", [:]))).isEmpty)
+    }
+
+    /// The parent's turn may end before the agent it spawned: it keeps working until the agent is done, as
+    /// with Claude Code's background subagents.
+    @Test func parentWorksUntilItsSpawnedAgentIsDone() {
+        var registry = SessionRegistry(silentWorkTimeout: nil)
+        func feed(_ outputs: [CodexRollout.Output]) {
+            for case .event(let e, let at) in outputs { registry.apply(e, at: at) }
+        }
+        let parentFile = "rollout-2026-10-16T15-30-00-\(Self.parent).jsonl"
+        var parent = CodexRollout(fileName: parentFile), child = CodexRollout(fileName: Self.file)
+        feed(parent.read(line("session_meta", ["id": Self.parent, "cwd": "/w/app", "thread_source": "user"])))
+        feed(parent.read(event("task_started", ["turn_id": "p1"], at: "2026-10-16T12:38:00Z")))
+        feed(child.read(spawnedMeta()))
+        feed(child.read(event("task_started", ["turn_id": "c1"], at: "2026-10-16T12:38:05Z")))
+        feed(parent.read(event("task_complete", ["turn_id": "p1"], at: "2026-10-16T12:38:10Z")))
+        #expect(registry.ordered.map(\.id) == [Self.parent])
+        #expect(registry.ordered[0].status == .working)
+        #expect(registry.ordered[0].subagents == [Self.id])
+        #expect(registry.ordered[0].cwd == "/w/app")
+        feed(child.read(event("task_complete", ["turn_id": "c1"], at: "2026-10-16T12:38:30Z")))
+        #expect(registry.ordered[0].status == .idle)
+        #expect(registry.ordered[0].subagents.isEmpty)
+    }
+
+    /// Older Codex writes no `thread_source`: the `source` tells a spawned agent.
+    @Test func spawnedAgentWithoutThreadSource() {
+        var r = CodexRollout(fileName: Self.file)
+        #expect(r.read(spawnedMeta(threadSource: nil)).isEmpty)
+        #expect(events(r.read(event("task_started", ["turn_id": "t1"]))) == [.subagentStarted(id: Self.id)])
+    }
+
+    /// Codex's own helper threads (an approval review, compaction, memory) are neither agents nor subagents,
+    /// even with a parent; so is a subagent thread that doesn't say whose.
+    @Test func helperThreadsAreSkipped() {
+        let guardian = line("session_meta", ["id": Self.id, "thread_source": "guardian_review", "parent_thread_id": Self.parent,
+                                             "source": ["subagent": ["other": "guardian"]]])
+        let compact = line("session_meta", ["id": Self.id, "source": ["subagent": "compact"]])
+        for meta in [guardian, compact, meta(threadSource: "subagent"), meta(threadSource: "memory_consolidation")] {
+            var r = CodexRollout(fileName: Self.file)
+            #expect(r.read(meta).isEmpty)
+            #expect(r.isHidden)
+            #expect(r.read(event("task_started", ["turn_id": "t1"])).isEmpty)
+        }
     }
 
     @Test func brokenLinesAreIgnored() {

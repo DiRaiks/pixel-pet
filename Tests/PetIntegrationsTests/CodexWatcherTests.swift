@@ -7,15 +7,22 @@ import PetCore
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("pixelpet-codex-\(UUID().uuidString)")
     static let id = "01a144b6-fc33-7231-a0da-63a9a29ce005"
 
-    func line(_ type: String, _ payload: [String: Any]) -> String {
+    func line(_ type: String, _ payload: [String: Any], at time: Date = Date()) -> String {
         let data = try! JSONSerialization.data(withJSONObject: [
-            "timestamp": ISO8601DateFormatter().string(from: Date()), "type": type, "payload": payload,
+            "timestamp": ISO8601DateFormatter().string(from: time), "type": type, "payload": payload,
         ])
         return String(decoding: data, as: UTF8.self) + "\n"
     }
 
     var meta: String { line("session_meta", ["id": Self.id, "cwd": "/w/app", "thread_source": "user"]) }
-    func task(_ type: String) -> String { line("event_msg", ["type": type, "turn_id": "t1"]) }
+    func task(_ type: String, at time: Date = Date()) -> String { line("event_msg", ["type": type, "turn_id": "t1"], at: time) }
+    func spawned(_ id: String, by parent: String) -> String {
+        line("session_meta", ["id": id, "cwd": "/w/app", "thread_source": "subagent",
+                              "source": ["subagent": ["thread_spawn": ["parent_thread_id": parent, "depth": 1]]]])
+    }
+    func events(_ inbox: Inbox) -> [AgentEvent] {
+        inbox.all.flatMap(\.outputs).compactMap { if case .event(let e, _) = $0 { e } else { nil } }
+    }
 
     func file(_ id: String = id) throws -> URL {
         let dir = root.appendingPathComponent("2026/10/19")
@@ -125,9 +132,10 @@ import PetCore
         #expect(!kinds.contains(.stopped), "the old turn's end is outside the tail")
     }
 
-    @Test func subagentFilesStaySilent() async throws {
+    @Test func helperFilesStaySilent() async throws {
         let url = try file()
-        try append(line("session_meta", ["id": Self.id, "cwd": "/w/app", "thread_source": "subagent"]), to: url)
+        try append(line("session_meta", ["id": Self.id, "cwd": "/w/app", "thread_source": "guardian_review",
+                                         "source": ["subagent": ["other": "guardian"]]]), to: url)
         let inbox = Inbox()
         let watcher = CodexWatcher(root: root) { inbox.add($0) }
         watcher.start()
@@ -138,6 +146,102 @@ import PetCore
             try await Task.sleep(for: .milliseconds(400))
         }
         #expect(inbox.all.isEmpty)
+    }
+
+    /// A spawned agent's file is followed like any other; what it does goes to its parent's session.
+    @Test func spawnedAgentFilesReportToTheParent() async throws {
+        let child = "01a19300-0000-7000-8000-000000000001"
+        try append(meta, to: try file())
+        let url = try file(child)
+        try append(spawned(child, by: Self.id), to: url)
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        try await Task.sleep(for: .milliseconds(400))
+        try append(task("task_started"), to: url)
+        await inbox.wait { !inbox.kinds(replay: false).isEmpty }
+        try append(task("task_complete"), to: url)
+        await inbox.wait { inbox.kinds(replay: false).count >= 2 }
+        #expect(inbox.kinds(replay: false) == [.subagentStarted(id: child), .subagentStopped(id: child)])
+        #expect(Set(events(inbox).map(\.sessionID)) == [Self.id])
+    }
+
+    /// An agent spawned by a spawned agent counts for the session at the top, whichever file is read first.
+    @Test func nestedAgentsReportToTheTopSession() async throws {
+        let child = "01a19300-0000-7000-8000-000000000001", grandchild = "01a19300-0000-7000-8000-000000000002"
+        let grandURL = try file(grandchild)
+        try append(spawned(grandchild, by: child) + task("task_started"), to: grandURL)
+        try append(spawned(child, by: Self.id) + task("task_started"), to: try file(child))
+        try append(meta, to: try file())
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        await inbox.wait { inbox.kinds(replay: true).count >= 3 }
+        try append(task("task_complete"), to: grandURL)
+        await inbox.wait { !inbox.kinds(replay: false).isEmpty }
+        #expect(Set(events(inbox).map(\.sessionID)) == [Self.id])
+        let replay = inbox.kinds(replay: true).filter(\.isSubagentChange)
+        #expect(replay.count == 2)
+        #expect(replay.contains(.subagentStarted(id: child)))
+        #expect(replay.contains(.subagentStarted(id: grandchild)))
+        #expect(inbox.kinds(replay: false) == [.subagentStopped(id: grandchild)])
+    }
+
+    /// An agent whose parent has no file (or a helper thread for a parent) shows nothing: no session is made up.
+    @Test func agentWithoutAParentFileShowsNothing() async throws {
+        let child = "01a19300-0000-7000-8000-000000000001"
+        let url = try file(child)
+        try append(spawned(child, by: "01a19300-0000-7000-8000-0000000000ff"), to: url)
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        try await Task.sleep(for: .milliseconds(400))
+        try append(task("task_started"), to: url)
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(inbox.all.flatMap(\.outputs).isEmpty)
+    }
+
+    /// A parent waiting on its agent may write nothing for longer than the catch-up window: the agent's
+    /// first line opens the parent's file, so it shows with its folder.
+    @Test func quietParentIsOpenedForItsAgent() async throws {
+        let child = "01a19300-0000-7000-8000-000000000001"
+        let parentURL = try file()
+        try append(meta, to: parentURL)
+        let old = Date().addingTimeInterval(-3 * 60 * 60)
+        try FileManager.default.setAttributes([.modificationDate: old], ofItemAtPath: parentURL.path)
+        let url = try file(child)
+        try append(spawned(child, by: Self.id), to: url)
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        try await Task.sleep(for: .milliseconds(400))
+        try append(task("task_started"), to: url)
+        await inbox.wait { inbox.kinds(replay: false).contains(.subagentStarted(id: child)) }
+        let live = events(inbox)
+        #expect(live.map(\.kind) == [.sessionStart(model: nil), .subagentStarted(id: child)])
+        #expect(Set(live.map(\.sessionID)) == [Self.id])
+        #expect(live.first?.cwd == "/w/app")
+    }
+
+    /// At start, files are read one after another; the batch goes out in time order, so a parent whose turn
+    /// ended after its agent started isn't left idle with the agent counted, whichever file came first.
+    @Test func catchUpIsInTimeOrder() async throws {
+        let child = "01a19300-0000-7000-8000-000000000001"
+        let t0 = Date().addingTimeInterval(-60)
+        try append(meta + task("task_started", at: t0) + task("task_complete", at: t0.addingTimeInterval(10)), to: try file())
+        try append(spawned(child, by: Self.id) + task("task_started", at: t0.addingTimeInterval(5))
+                   + task("task_complete", at: t0.addingTimeInterval(20)), to: try file(child))
+        let inbox = Inbox()
+        let watcher = CodexWatcher(root: root) { inbox.add($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        await inbox.wait { inbox.kinds(replay: true).count >= 5 }
+        let kinds = inbox.kinds(replay: true).filter { $0 != .sessionStart(model: nil) }
+        #expect(kinds == [.promptSubmitted, .subagentStarted(id: child), .stopped, .subagentStopped(id: child)])
     }
 
     /// Without Codex there is no ~/.codex: the watcher must not create it.

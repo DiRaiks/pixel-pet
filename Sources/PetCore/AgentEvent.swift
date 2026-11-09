@@ -144,6 +144,14 @@ extension AgentEvent.Kind {
     }
 
     /// Only a session starting again or a new prompt brings an ended session back; its late stragglers don't.
+    /// A subagent starting or stopping.
+    public var isSubagentChange: Bool {
+        switch self {
+        case .subagentStarted, .subagentStopped: true
+        default: false
+        }
+    }
+
     var resumesSession: Bool {
         switch self {
         case .sessionStart, .promptSubmitted: true

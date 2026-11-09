@@ -37,13 +37,15 @@ public final class CodexWatcher: @unchecked Sendable {
     /// A file left alone this long is let go; a still-open Codex file would no longer be noticed by FSEvents,
     /// so this is long.
     static let forgetAfter: TimeInterval = 24 * 60 * 60
+    /// Spawned agents remembered with their parent, and parents looked for in vain.
+    static let maxParents = 256
 
     private struct Tracked {
         var rollout: CodexRollout
         var offset: UInt64
         var pending = Data()
         var touched: Date
-        /// kqueue watch on the file; nil for skipped (subagent) files.
+        /// kqueue watch on the file; nil for skipped (Codex helper) files.
         var source: DispatchSourceFileSystemObject?
     }
 
@@ -57,6 +59,10 @@ public final class CodexWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
     private var retry: DispatchSourceTimer?
     private var files: [String: Tracked] = [:]
+    /// Spawned agent → the session that spawned it. Kept apart from `files`, which lets old files go.
+    private var parents: [String: String] = [:]
+    /// Parents whose file wasn't found: not looked for again.
+    private var missing: Set<String> = []
 
     public init(root: URL = CodexWatcher.defaultRoot, recentWindow: TimeInterval = SessionRegistry.staleAfter,
                 handler: @escaping @Sendable (Batch) -> Void) {
@@ -131,7 +137,7 @@ public final class CodexWatcher: @unchecked Sendable {
             guard let modified = modificationDate(url), modified >= cutoff else { continue }
             outputs += openFile(url)
         }
-        if !outputs.isEmpty { handler(Batch(outputs: outputs, isReplay: true)) }
+        if !outputs.isEmpty { handler(Batch(outputs: settled(outputs), isReplay: true)) }
     }
 
     private func changed(_ paths: [String]) {
@@ -149,7 +155,7 @@ public final class CodexWatcher: @unchecked Sendable {
             }
         }
         forgetQuietFiles()
-        if !outputs.isEmpty { handler(Batch(outputs: outputs, isReplay: false)) }
+        if !outputs.isEmpty { handler(Batch(outputs: settled(outputs), isReplay: false)) }
     }
 
     private func openFile(_ url: URL) -> [CodexRollout.Output] {
@@ -168,17 +174,18 @@ public final class CodexWatcher: @unchecked Sendable {
             if let newline = head.firstIndex(of: 0x0A) {
                 outputs += tracked.rollout.read(String(decoding: head[..<newline], as: UTF8.self))
             }
-            if !tracked.rollout.isSubagent {
+            if !tracked.rollout.isHidden {
                 try? handle.seek(toOffset: size - UInt64(Self.tailBytes))
                 outputs += consume(Self.fromFirstFullLine((try? handle.read(upToCount: Self.tailBytes)) ?? Data()),
                                    into: &tracked)
             }
         }
-        // Subagent files are remembered too, so their appends are skipped instead of reopening them each time.
+        remember(tracked.rollout)
+        // Helper files are remembered too, so their appends are skipped instead of reopening them each time.
         files[url.path]?.source?.cancel()
-        if !tracked.rollout.isSubagent { tracked.source = follow(url.path) }
+        if !tracked.rollout.isHidden { tracked.source = follow(url.path) }
         files[url.path] = tracked
-        return tracked.rollout.isSubagent ? [] : outputs
+        return tracked.rollout.isHidden ? [] : outputs
     }
 
     private func readNew(_ path: String) -> [CodexRollout.Output] {
@@ -194,7 +201,7 @@ public final class CodexWatcher: @unchecked Sendable {
             tracked.offset = 0
             tracked.pending.removeAll()
         }
-        guard size > tracked.offset, !tracked.rollout.isSubagent else {
+        guard size > tracked.offset, !tracked.rollout.isHidden else {
             tracked.offset = size
             files[path] = tracked
             return []
@@ -213,6 +220,83 @@ public final class CodexWatcher: @unchecked Sendable {
         let outputs = consume(data, into: &tracked)
         files[path] = tracked
         return outputs
+    }
+
+    private func remember(_ rollout: CodexRollout) {
+        guard let parent = rollout.parentID, let id = rollout.sessionID else { return }
+        if parents.count >= Self.maxParents { parents.removeAll() }
+        parents[id] = parent
+    }
+
+    /// A batch as it goes out. A spawned agent's events go to the session at the top of its chain (an agent
+    /// spawned by an agent reports to that agent), which must be one the user started: a link not followed
+    /// (a parent quiet for longer than the catch-up window, or let go) is looked up by its id and opened, and
+    /// events whose chain ends nowhere are dropped rather than show a session that isn't one. Sorted by
+    /// time, since one batch can hold several files.
+    private func settled(_ outputs: [CodexRollout.Output]) -> [CodexRollout.Output] {
+        // Parents opened now go first: what they said came before their agents' news.
+        var linked: [CodexRollout.Output] = []
+        for case .event(let event, _) in outputs where event.kind.isSubagentChange {
+            linked += link(event.sessionID)
+        }
+        let kept = (linked + outputs).compactMap { output -> CodexRollout.Output? in
+            guard case .event(let event, let at) = output, event.kind.isSubagentChange else { return output }
+            guard let top = top(of: event.sessionID) else { return nil }
+            return top == event.sessionID ? output : .event(AgentEvent(sessionID: top, cwd: nil, kind: event.kind), at: at)
+        }
+        return kept.enumerated().sorted { a, b in
+            let (ta, tb) = (Self.time(a.element), Self.time(b.element))
+            return ta != tb ? ta < tb : a.offset < b.offset
+        }.map(\.element)
+    }
+
+    /// Opens the files up a chain that aren't followed yet; returns what they said.
+    private func link(_ start: String) -> [CodexRollout.Output] {
+        var outputs: [CodexRollout.Output] = []
+        var id = start
+        for _ in 0..<8 {
+            if let up = parents[id] {
+                id = up
+                continue
+            }
+            if let tracked = files.values.first(where: { $0.rollout.sessionID == id }) {
+                // Followed, but its link may have been forgotten.
+                remember(tracked.rollout)
+                guard let up = parents[id] else { break }
+                id = up
+                continue
+            }
+            guard !missing.contains(id), !isCancelled else { break }
+            guard let url = rolloutFile(for: id) else {
+                if missing.count >= Self.maxParents { missing.removeAll() }
+                missing.insert(id)
+                break
+            }
+            outputs += openFile(url)
+            guard let up = parents[id] else { break }
+            id = up
+        }
+        return outputs
+    }
+
+    /// The session the user started at the top of a chain, if it's followed.
+    private func top(of start: String) -> String? {
+        var id = start
+        for _ in 0..<8 {
+            guard let up = parents[id] else { break }
+            id = up
+        }
+        let isUser = files.values.contains {
+            $0.rollout.sessionID == id && $0.rollout.parentID == nil && !$0.rollout.isHidden
+        }
+        return isUser ? id : nil
+    }
+
+    private static func time(_ output: CodexRollout.Output) -> Date {
+        switch output {
+        case .event(_, let at): at
+        case .limits(let limits): limits.observedAt
+        }
     }
 
     /// A chunk read from the middle of a file starts inside a line: drop up to the first newline (all of it
@@ -268,7 +352,7 @@ public final class CodexWatcher: @unchecked Sendable {
                 return
             }
             let outputs = readNew(path)
-            if !outputs.isEmpty { handler(Batch(outputs: outputs, isReplay: false)) }
+            if !outputs.isEmpty { handler(Batch(outputs: settled(outputs), isReplay: false)) }
         }
         source.setCancelHandler { close(fd) }
         source.resume()
@@ -283,6 +367,16 @@ public final class CodexWatcher: @unchecked Sendable {
             if Self.isRollout(url.path) { found.append(url) }
         }
         return found
+    }
+
+    /// The session file named after this id (`rollout-<time>-<id>.jsonl`).
+    private func rolloutFile(for id: String) -> URL? {
+        let suffix = "-\(id).jsonl"
+        let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        while let url = walker?.nextObject() as? URL {
+            if url.lastPathComponent.hasSuffix(suffix), Self.isRollout(url.path) { return url }
+        }
+        return nil
     }
 
     private func modificationDate(_ url: URL) -> Date? {

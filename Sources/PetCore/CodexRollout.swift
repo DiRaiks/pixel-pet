@@ -7,6 +7,10 @@ import Foundation
 /// a turn starts (`task_started`), runs (any line carrying a `turn_id`), ends (`task_complete`), is cut short
 /// (`turn_aborted`) or fails (`error`). Waiting for an approval isn't written to the file, so Codex agents
 /// never show as waiting.
+///
+/// An agent Codex spawned (`spawn_agent`) writes a file of its own. Its turns are its parent at work through a
+/// subagent: they come out as the parent session's `subagentStarted` / `subagentStopped`. Codex's own helper
+/// threads (approval review, compaction, memory) are left out.
 public struct CodexRollout: Sendable {
     public enum Output: Sendable {
         case event(AgentEvent, at: Date)
@@ -17,8 +21,10 @@ public struct CodexRollout: Sendable {
     public let sessionIDFromFileName: String?
     public private(set) var sessionID: String?
     private var cwd: String?
-    /// Subagent threads write their own files; they are part of their parent's work, not separate agents.
-    public private(set) var isSubagent = false
+    /// The session that spawned this one, when this is a spawned agent's file.
+    public private(set) var parentID: String?
+    /// One of Codex's own helper threads: nothing in it is shown.
+    public private(set) var isHidden = false
     /// The turn running now, if any; every line inside it is a sign of life.
     private var openTurn: String?
     /// Turns already finished or aborted: their late lines must not bring them back.
@@ -37,7 +43,7 @@ public struct CodexRollout: Sendable {
     }
 
     public mutating func read(_ line: String, now: Date = Date()) -> [Output] {
-        guard !isSubagent, let data = line.data(using: .utf8),
+        guard !isHidden, let data = line.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String
         else { return [] }
@@ -46,11 +52,14 @@ public struct CodexRollout: Sendable {
 
         switch type {
         case "session_meta":
-            if let source = payload["thread_source"] as? String, source != "user" {
-                isSubagent = true
+            switch Self.thread(payload) {
+            case .user: break
+            case .spawned(let parent): parentID = parent
+            case .helper:
+                isHidden = true
                 return []
             }
-            if let id = payload["id"] as? String, !id.isEmpty { sessionID = id }
+            if let id = payload["id"] as? String, !id.isEmpty { sessionID = id.lowercased() }
             if let dir = payload["cwd"] as? String { cwd = dir }
             return event(.sessionStart(model: nil), at)
         case "compacted":
@@ -102,7 +111,35 @@ public struct CodexRollout: Sendable {
 
     private func event(_ kind: AgentEvent.Kind, _ at: Date) -> [Output] {
         guard let sessionID else { return [] }
-        return [.event(AgentEvent(sessionID: sessionID, cwd: cwd, kind: kind), at: at)]
+        guard let parentID else { return [.event(AgentEvent(sessionID: sessionID, cwd: cwd, kind: kind), at: at)] }
+        // A spawned agent: its turn running or over is all the parent needs. Every sign of life is sent, so a
+        // parent waiting on it quietly isn't taken for gone. Its folder isn't the parent's to take.
+        let sub: AgentEvent.Kind
+        switch kind {
+        case .promptSubmitted, .stillWorking: sub = .subagentStarted(id: sessionID)
+        case .stopped, .interrupted, .failed: sub = .subagentStopped(id: sessionID)
+        default: return []
+        }
+        return [.event(AgentEvent(sessionID: parentID, cwd: nil, kind: sub), at: at)]
+    }
+
+    private enum Thread: Equatable {
+        case user
+        case spawned(parent: String)
+        case helper
+    }
+
+    /// Who started the thread, from its `session_meta`: `thread_source` (newer Codex) or `source`, which
+    /// for a thread Codex started is `{"subagent": …}`, with `thread_spawn` and the parent for a spawned agent.
+    private static func thread(_ meta: [String: Any]) -> Thread {
+        let threadSource = meta["thread_source"] as? String
+        let subagent = (meta["source"] as? [String: Any])?["subagent"]
+        if threadSource == "user" || (threadSource == nil && subagent == nil) { return .user }
+        let spawn = (subagent as? [String: Any])?["thread_spawn"] as? [String: Any]
+        let isSpawned = spawn != nil || (threadSource == "subagent" && subagent == nil)
+        let parent = (spawn?["parent_thread_id"] as? String) ?? (meta["parent_thread_id"] as? String)
+        guard isSpawned, let parent, !parent.isEmpty else { return .helper }
+        return .spawned(parent: parent.lowercased())
     }
 
     /// The answer to an app-server `account/rateLimits/read` request with this `id`, as limits.

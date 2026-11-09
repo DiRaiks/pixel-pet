@@ -5,6 +5,7 @@ The project was built in milestones; each was merged into `main` once it had bee
 ## Unreleased
 
 ### Added
+- **Codex subagents.** Agents a Codex session spawns now count as its subagents, as Claude Code's do: the dot on its block, "+N sub." in the status card, copies popping out and coming back. Codex's own helper threads (approval review, compaction) still don't show.
 - **Updates.** The downloaded app looks for a new version once a day. One arrives as a box with an update arrow, floating down on a balloon by the cube; a click on the cube opens a card with a link to what's new, and Update downloads it with the cube unpacking the box. After the restart the cube pops out of a big box. Sparkle checks the download's signature and the Developer ID before installing. Settings → Updates turns the check off (then the app never goes online itself) or makes updates install automatically; the menu has "Check for Updates…". A build from source doesn't check.
 - **A notification for the YubiKey too.** While the key waits for a touch, a banner says so as well as the cube, even with the cube in sight and in either language. Settings → YubiKey → "Also send a notification" turns it off and leaves only the cube.
 - **Harder work with more agents.** With 2–3 agents working at once the pet types with both hands and breaks a sweat; with 4–5 it's red-cheeked and out of breath; with 6 or more steam puffs off its top and sparks fly off the keys. Claude Code and Codex count together.

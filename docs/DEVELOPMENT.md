@@ -2,10 +2,10 @@
 
 ## Toolchain
 
-- **macOS 26 or later.** The package targets `.macOS(.v26)`, which requires `swift-tools-version:6.2`.
-- **Swift 6.2 or later**, in Swift 6 language mode with strict concurrency. The project is developed with Swift 6.4 from the Command Line Tools. **Xcode is not needed.** Two consequences of building without it:
-  - The SwiftUI `@State` macro plugin is not available, so view state lives in `@Observable` models.
-  - The Swift Testing macro plugin is flaky with the CLT; see [Tests](#tests).
+- **macOS 26 or later.** The package targets `.macOS(.v26)`. This requires `swift-tools-version:6.2`.
+- **Swift 6.2 or later**, in Swift 6 language mode with strict concurrency. The project is developed with Swift 6.4 from the Command Line Tools. **Xcode is not needed.** Building without Xcode has two effects:
+  - The SwiftUI `@State` macro plugin is not available. View state lives in `@Observable` models instead.
+  - The Swift Testing macro plugin does not always load with the Command Line Tools. See [Tests](#tests).
 - **Claude Code**, only for the features that call the CLI. Tests never run it.
 
 ## Layout
@@ -19,7 +19,8 @@ Sources/
   PixelPet/          the app (AppKit + SwiftUI)
 Tests/
   PetCoreTests/ PetSpritesTests/ PetIntegrationsTests/
-scripts/             bundle, run, install, test
+Resources/           app icon, DMG background picture
+scripts/             bundle, run, install, test, release, appcast, update test
 docs/                architecture, this file, README pictures, animation prototype
 spikes/m0/           throwaway spike code from the first milestone (panel, layer renderer, translation)
 ```
@@ -31,13 +32,19 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the parts fit together.
 | Command | What it does |
 |---|---|
 | `swift build` | Debug build of all targets |
-| `./scripts/bundle.sh` | Release build, packaged as `build/PixelPet.app` with `Info.plist` (`LSUIElement`, bundle id `dev.pixelpet.PixelPet`) and the icon `Resources/AppIcon.icns` (drawn from the idle sprite by `scripts/make-icon.swift`), and signed. Set `CONFIG=debug` for a debug bundle |
+| `./scripts/bundle.sh` | Release build, packaged and signed as `build/PixelPet.app`. Adds `Info.plist` (`LSUIElement`, bundle id `dev.pixelpet.PixelPet`), the icon `Resources/AppIcon.icns` and `Sparkle.framework`. Set `CONFIG=debug` for a debug bundle |
 | `./scripts/run.sh` | Quits a running copy, bundles, and opens `build/PixelPet.app` |
-| `./scripts/install.sh` | Bundles first (a failed build leaves the running pet alone), then replaces `~/Applications/PixelPet.app` and launches it. Use this for the copy you live with: login items work best from `~/Applications` |
+| `./scripts/install.sh` | Bundles first, then replaces `~/Applications/PixelPet.app` and launches it. If the build fails, the running pet stays. Use this for your everyday copy: login items work best from `~/Applications` |
 
-Only one instance runs at a time: a second launch quits immediately. So `run.sh` and `install.sh` stop the running copy first.
+`scripts/make-icon.swift` draws the icon from the idle sprite.
 
-The `CFBundleVersion` comes from `git describe --tags --always --dirty`. `CFBundleShortVersionString` is fixed at `0.1.0` in `bundle.sh`.
+Only one instance runs at a time. A second launch quits at once. This is why `run.sh` and `install.sh` stop the running copy first.
+
+Versions in `Info.plist`:
+
+- `CFBundleShortVersionString` is `$SHORT_VERSION`, default `0.1.0`.
+- `CFBundleVersion` is `$BUNDLE_VERSION`, default `git describe --tags --always --dirty`.
+- `release.sh` sets both to the release version.
 
 ## Tests
 
@@ -45,39 +52,39 @@ The `CFBundleVersion` comes from `git describe --tags --always --dirty`. `CFBund
 ./scripts/test.sh
 ```
 
-The tests use Swift Testing. There are about 440 tests in three targets, covering `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests: it is kept thin on purpose.
+The tests use Swift Testing. There are about 600 tests in three targets: `PetCore`, `PetSprites` and `PetIntegrations`. The app target has no tests. It is kept thin on purpose.
 
-Always run tests through `scripts/test.sh` rather than plain `swift test`. With only the Command Line Tools installed, `swift test` often fails to load the Swift Testing macro plugin (`TestingMacros`) when it reuses the build description that a plain `swift build` left in `.build`. The script works around it:
+Always run tests with `scripts/test.sh`, not plain `swift test`. With only the Command Line Tools, `swift test` often fails to load the Swift Testing macro plugin (`TestingMacros`). This happens when it reuses the build description that a plain `swift build` left in `.build`. The script works around it:
 
 1. It deletes `.build/manifest.pif` and runs the tests.
-2. If the plugin is still missing, it wipes `.build` and retries, up to twice.
-3. It does not retry when the log also contains real compile errors.
+2. If the plugin is still missing, it deletes `.build` and tries again, up to two times.
+3. It does not try again when the log also has real compile errors.
 
-Arguments are passed through:
+Arguments go through to `swift test`:
 
 ```bash
 ./scripts/test.sh --filter SessionRegistryTests
 ```
 
-What gets covered:
+What the tests cover:
 
-- **New logic goes in `PetCore` with tests first.** This includes priorities, timeouts, geometry, privacy rules and settings merging. Bug fixes come with a regression test.
-- **Sprites are tested by their pixels.** Tests check that frame counts match `PetState`, that frames are not empty and are deterministic, and that key pixels and geometry are right. Examples are "nothing drawn above the body while dragged" and "the face stays upright while rotating".
-- **Integrations are tested with real processes.** The hook and statusline scripts run under `sh` against a real socket. `EventServer` is exercised over a real unix socket. The CLI argument builders and stream parsing are tested without running `claude`.
+- **New logic goes in `PetCore`, with tests first.** This includes priorities, timeouts, geometry, privacy rules and settings merging. Every bug fix comes with a regression test.
+- **Sprites are tested by their pixels.** Tests check that frame counts match `PetState`, that frames are not empty and are deterministic, and that key pixels and geometry are right. Examples: "nothing drawn above the body while dragged" and "the face stays upright while rotating".
+- **Integrations are tested with real processes.** The hook and statusline scripts run under `sh` against a real socket. `EventServer` is tested over a real unix socket. The CLI argument builders and the stream parsing are tested without running `claude`.
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and on pull requests:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request. It can also be started by hand.
 
 | Job | Runner | What it checks |
 |---|---|---|
 | Build and test | `macos-26` (Apple Silicon, Xcode 26) | `swift build`, then `scripts/test.sh` |
-| Release bundle | `macos-26` | `scripts/bundle.sh` (signed ad-hoc there), then the Info.plist and the signature |
+| Release bundle | `macos-26` | `scripts/release.sh 0.0.0-ci` as a dry run (app signed ad-hoc, DMG unsigned). Then it checks the Info.plist, the app signature, the binary and the DMG |
 | ShellCheck | `ubuntu-latest` | `scripts/*.sh` |
 
-A version tag runs `.github/workflows/release.yml`; see [Releases](#releases).
+A version tag runs `.github/workflows/release.yml`. See [Releases](#releases).
 
-Dependabot (`.github/dependabot.yml`) keeps the workflow's actions up to date once a month. Runners are free for this public repository.
+Dependabot (`.github/dependabot.yml`) updates the workflow actions once a month. Runners are free for this public repository.
 
 ## Debugging
 
@@ -85,28 +92,29 @@ Dependabot (`.github/dependabot.yml`) keeps the workflow's actions up to date on
 
 Pass flags with `open build/PixelPet.app --args <flags>`, or run the binary inside the bundle directly.
 
-Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app is single-instance: a second copy quits at launch, and `open` on an already running app only activates it, ignoring the flags. The one exception is `--export-sprites`, which is handled before the instance check.
+Quit the running pet first (menu: "Quit", or `pkill -x PixelPet`). The app runs only one instance. A second copy quits at launch. `open` on an app that is already running only brings it to the front and ignores the flags. The `--export-…` flags are the exception: the app handles them before the instance check.
 
 | Flag | Effect |
 |---|---|
 | `--export-sprites <dir> [skin] [accessory]` | Writes PNG strips of every state in the given look, then quits. Skins: any of `Skin.all` by name, `lidman` for LM, or `clip` for the paperclip (`clip:mint` for another color). Accessories: any `Accessory` raw value, such as `none`, `glasses`, `headphones`, `cap` |
 | `--export-readme <dir>` | Writes the README pictures (animated PNGs of the states, the looks lineup and the showreel), then quits |
-| `--export-dmg-background <dir>` | Writes the release DMG's window picture (`background.png` and `background@2x.png`), then quits |
-| `--export-work <dir>` | Writes previews of the keyboard moments (each between stretches of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
-| `--show-panel` | Opens the status panel 12 s after launch, once the limits have had time to load |
+| `--export-dmg-background <dir>` | Writes the picture for the release DMG window (`background.png` and `background@2x.png`), then quits |
+| `--export-work <dir>` | Writes previews of the keyboard moments (each between periods of typing, with agent blocks), the desk props and the YubiKey touch, then quits |
+| `--show-panel` | Opens the status panel 12 s after launch, when the limits have loaded |
 | `--show-recap` | Opens the weekly recap card 12 s after launch |
-| `--appearance light\|dark` | The pet's cards in light or dark, whatever the system uses (for screenshots) |
-| `--drop-file <path>` | Drops that file on the pet 1 s after launch, as if dragged there; with `--ask`, the question follows 2 s later |
-| `--ask-delay <seconds>` | With `--ask`: send the question this long after launch instead |
+| `--appearance light\|dark` | Shows the pet's cards in light or dark mode, whatever the system uses (for screenshots) |
+| `--drop-file <path>` | Drops that file on the pet 1 s after launch, as if dragged there. With `--ask`, the question follows 2 s later |
+| `--ask-delay <seconds>` | With `--ask`: sends the question this long after launch instead |
 | `--translate-text "<text>"` | Translates the text 1 s after launch |
-| `--with-claude` | Used with `--translate-text`: also runs "via Claude" |
-| `--translate-again "<text>"` | Used with `--translate-text`: translates a second text 5 s later, in the same languages |
+| `--with-claude` | With `--translate-text`: also translates "via Claude" |
+| `--translate-again "<text>"` | With `--translate-text`: translates a second text 5 s later, in the same languages |
 | `--ask "<question>"` | Asks a quick question 1 s after launch |
-| `--ask-followup "<question>"` | Used with `--ask`: sends a follow-up once the first answer is done |
+| `--ask-followup "<question>"` | With `--ask`: sends a follow-up when the first answer is done |
 | `--keep-cards` | Clicks elsewhere do not close the cards (for scripted checks with screenshots) |
 | `--show-settings` | Opens the settings window at launch |
+| `--update-check-now` | Runs the daily update check 4 s after launch. Only works in a build that has an update feed (see [Updates](#updates-sparkle)) |
 
-Exporting sprites runs without a window, so it works alongside the running pet:
+Sprite export runs without a window, so it works while the pet is running:
 
 ```bash
 build/PixelPet.app/Contents/MacOS/PixelPet --export-sprites /tmp/sprites mint headphones
@@ -114,13 +122,19 @@ build/PixelPet.app/Contents/MacOS/PixelPet --export-sprites /tmp/sprites mint he
 
 ### README pictures
 
-The animations in the README are drawn by the app's own sprite code, so regenerate them after changing the art:
+The app's own sprite code draws the README animations. Regenerate them after you change the art:
 
 ```bash
 swift build && .build/debug/PixelPet --export-readme docs/images
 ```
 
-They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alpha, and GitHub plays them. The card screenshots are taken by hand, in light mode and English: quit the pet, launch it with `--appearance light --keep-cards` and one of the flags below, and capture the card window with `screencapture -o -l <window id>`.
+They are animated PNGs (APNG) on a light rounded tile. APNG keeps the alpha of the soft shadow, and GitHub plays them.
+
+The card screenshots are made by hand, in light mode and in English:
+
+1. Quit the pet.
+2. Launch it with `--appearance light --keep-cards` and one of the flags below.
+3. Capture the card window with `screencapture -o -l <window id>`.
 
 | Image | How |
 |---|---|
@@ -128,12 +142,12 @@ They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alp
 | `translate-card.png` | `--translate-text "<text>"` |
 | `status-card.png` | `--show-panel`, with a few demo sessions sent through `~/.pixelpet/bin/pixelpet-hook` (prompt, tool starts and finishes, a `permission_prompt` notification) |
 | `permission-card.png` | A `PermissionRequest` sent through the hook script with a command, a description and a `permission_suggestions` rule |
-| `recap-card.png` | `--show-recap`, with demo day sums in `~/.pixelpet/stats.json` (keep a copy of the real file and put it back) |
+| `recap-card.png` | `--show-recap`, with demo day sums in `~/.pixelpet/stats.json` (save a copy of the real file and put it back after) |
 
 ### Other aids
 
-- **State picker.** The menu item "State" plays any state, so you can check an animation without staging it. Mood states follow the same home and do-not-disturb rules as real agent activity.
-- **Event log.** Turn on "Log events" in the menu or settings. Then watch the log while an agent runs:
+- **State picker.** The menu item "State" plays any state. Use it to check an animation without setting up the real situation. Mood states follow the same home and do-not-disturb rules as real agent activity.
+- **Event log.** Turn on "Log events" in the menu or in settings. Then watch the log while an agent runs:
 
   ```bash
   tail -f ~/.pixelpet/events.log
@@ -147,7 +161,7 @@ They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alp
   ```
 
 - **Animation prototype.** [`prototype/sprites.html`](prototype/sprites.html) is the original browser prototype. Open it locally to compare motion ideas quickly.
-- **Logs.** Errors go to the unified log under the `PixelPet:` prefix:
+- **Logs.** Errors go to the unified log with the `PixelPet:` prefix:
 
   ```bash
   log stream --predicate 'process == "PixelPet"'
@@ -155,106 +169,185 @@ They are animated PNGs on a light rounded tile: APNG keeps the soft shadow's alp
 
 ## Code signing
 
-`bundle.sh` signs with the identity **"Pixel Pet Dev"** when the keychain has it, and ad-hoc otherwise.
+`bundle.sh` chooses the signing identity in this order:
 
-With ad-hoc signing, macOS treats every rebuild as a new app. As a result, the Accessibility permission (needed for ⌃⌥T) silently stops working after each build. The toggle in System Settings still shows "on". The fix is to remove the app with "−" and allow it again.
+1. `$SIGN_IDENTITY`, when set (a Developer ID, for releases).
+2. The **"Pixel Pet Dev"** certificate, when the keychain has it.
+3. Ad-hoc signing.
 
-A self-signed code-signing certificate gives every build a stable identity. To create one (this changes your keychain, so do it yourself):
+With ad-hoc signing, macOS treats every rebuild as a new app. The Accessibility permission (needed for ⌃⌥T) then stops working after each build, with no message. The toggle in System Settings still shows "on". To fix it, remove the app with "−" and allow it again.
 
-1. Open Keychain Access, then Keychain Access → Certificate Assistant → Create a Certificate…
+A self-signed code-signing certificate gives every build the same identity. To create one (this changes your keychain, so do it yourself):
+
+1. Open Keychain Access, then choose Keychain Access → Certificate Assistant → Create a Certificate…
 2. Set the name to `Pixel Pet Dev`, the identity type to *Self-Signed Root*, and the certificate type to *Code Signing*.
 3. Rebuild with `./scripts/install.sh`, then grant Accessibility one last time.
 
 ## Releases
 
-`scripts/release.sh <version>` builds `build/PixelPet-<version>.dmg`: the app (with `SHORT_VERSION` from the version, numbers only) and a link to Applications, in a window with a picture behind them. What else happens depends on what's available, so the same script is a dry run anywhere:
+`scripts/release.sh <version>` builds `build/PixelPet-<version>.dmg`. The DMG has the app and a link to Applications, in a window with a background picture. The app's `SHORT_VERSION` is the version without a prerelease suffix (numbers only).
+
+What else the script does depends on what you set. So the same script is a dry run on any Mac:
 
 | Set | Result |
 |---|---|
-| nothing | App signed ad-hoc, DMG unsigned (a dry run; Gatekeeper blocks it on other Macs) |
-| `SIGN_IDENTITY="Developer ID Application: …"` | App signed with hardened runtime, `scripts/PixelPet.entitlements` and a secure timestamp; DMG signed |
-| plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | The app notarized and stapled before it goes into the DMG (so a copied-out app opens offline too), then the DMG notarized, stapled and checked with `spctl` |
+| nothing | App signed ad-hoc, DMG unsigned. This is a dry run: Gatekeeper blocks the app on other Macs |
+| `SIGN_IDENTITY="Developer ID Application: …"` | App signed with hardened runtime, `scripts/PixelPet.entitlements` and a secure timestamp. DMG signed |
+| plus `NOTARY_PROFILE` (from `xcrun notarytool store-credentials`), or `NOTARY_KEY` + `NOTARY_KEY_ID` + `NOTARY_ISSUER` (an App Store Connect API key) | The app is notarized and stapled before it goes into the DMG, so a copied-out app also opens offline. Then the DMG is notarized, stapled and checked with `spctl` |
 
-The window is laid out by [dmgbuild](https://github.com/dmgbuild/dmgbuild) from `scripts/dmg-settings.py`: it writes the window's `.DS_Store` directly, with no Finder scripting, so it works the same on CI. The script installs it on first use into `build/.dmgbuild`, from `scripts/dmg-requirements.txt` with pinned hashes. The picture in `Resources/DMG/` is drawn by the app's sprite code; after changing the cube or the layout, regenerate it and keep the icon spots in `dmg-settings.py` in line:
+[dmgbuild](https://github.com/dmgbuild/dmgbuild) lays out the window from `scripts/dmg-settings.py`. It writes the window's `.DS_Store` directly, without Finder scripting, so it works the same on CI. The script installs dmgbuild on first use into `build/.dmgbuild`, from `scripts/dmg-requirements.txt` with pinned hashes.
+
+The app's sprite code draws the picture in `Resources/DMG/`. After you change the cube or the layout, regenerate the picture and update the icon positions in `dmg-settings.py` to match:
 
 ```bash
 swift build && .build/debug/PixelPet --export-dmg-background Resources/DMG
 ```
 
-Its tone is chosen so the icon names Finder draws over it (black or white, depending on the system) both read at 4.6:1.
+The picture's tone is chosen so that the icon names Finder draws on it (black or white, depending on the system) both have a contrast of 4.6:1.
 
-Pushing a tag such as `v0.2.0` (or `v0.3.0-beta.1`, published as a prerelease) runs the Release workflow on `macos-26`: it imports the certificate into a temporary keychain, runs `release.sh` and publishes a GitHub release with the DMG and generated notes. Each secret is passed only to the step that needs it (the certificate to the keychain import, the notary key to its own step), and the actions are pinned to commits (Dependabot keeps the pins current). The job runs in the `release` environment (Settings → Environments), which only tags matching `v*` may use and admins can't bypass, so no branch, pull request or other workflow can read its secrets. Tags aren't protected like branches, and a stolen token acts as the admin, so a release takes the maintainer's YubiKey:
+### Release workflow
 
-- The "Signed release tags" ruleset (Settings → Rules) accepts only `v*` tags with a signature GitHub verifies, with no bypass, and "Release tags" lets only admins create, move or delete them. Tag with `git tag -s v0.3.0 -m v0.3.0`.
-- The job's first step checks the tag's signature through the GitHub API and that it comes from one of the two signing subkeys listed in `release.yml` (one per YubiKey): a key added to the account later doesn't pass. After renewing or replacing a subkey, update that list.
-- The next step fails unless the tagged commit is already on `main`, which catches a tag put on a branch by mistake. Tag only after merging.
-- The "Signed main" ruleset accepts only signed commits on `main`, with no bypass, and no force-push or deletion, so neither check can be edited out without a signed commit.
+Push a tag such as `v0.2.0` to run the Release workflow on `macos-26`. A tag with a suffix, such as `v0.3.0-beta.1`, is published as a prerelease. The workflow:
 
-Pull requests from forks: their workflows wait for an approval ("Approve and run") from every outside contributor, not only first-timers, and run with a read-only token and no secrets (the repository has none, and the `release` environment only takes `v*` tags; no workflow uses `pull_request_target`). Their commits are usually unsigned, so merge them with **Squash and merge** or a merge commit, which GitHub signs; rebase merging is turned off, and a fast-forward of unsigned commits is refused by "Signed main". What lands on `main` ships only with the maintainer's signed tag. It reads these environment secrets, set there or with `gh secret set <NAME> --env release`:
+1. Checks the tag (see the rules below).
+2. Imports the certificate into a temporary keychain.
+3. Runs `release.sh`.
+4. Signs the update for Sparkle (see [Updates](#updates-sparkle)).
+5. Publishes a GitHub release with the DMG and generated notes.
+
+Each secret goes only to the step that needs it: the certificate to the keychain import, the notary key to its own step. The actions are pinned to commits, and Dependabot keeps the pins current.
+
+The job runs in the `release` environment (Settings → Environments). Only tags that match `v*` may use it, and admins can't bypass this. So no branch, pull request or other workflow can read its secrets.
+
+Tags are not protected like branches, and a stolen token acts as the admin. So every release needs the maintainer's YubiKey:
+
+- The "Signed release tags" ruleset (Settings → Rules) accepts only `v*` tags with a signature that GitHub verifies, with no bypass. The "Release tags" ruleset lets only admins create, move or delete them. Create the tag with:
+
+  ```bash
+  git tag -s v0.3.0 -m v0.3.0
+  ```
+
+- Before it builds anything, the job checks the tag's signature through the GitHub API. It rejects lightweight tags. The signature must come from one of the two signing subkeys listed in `release.yml` (one per YubiKey). A key added to the account later does not pass. After you renew or replace a subkey, update that list.
+- The next step fails unless the tagged commit is already on `main`. This catches a tag put on a branch by mistake. Tag only after merging.
+- The "Signed main" ruleset accepts only signed commits on `main`, with no bypass, no force-push and no deletion. So nobody can remove these checks without a signed commit.
+
+Pull requests from forks:
+
+- Their workflows wait for approval ("Approve and run") for every outside contributor, not only first-time contributors.
+- They run with a read-only token and no secrets. The repository has no secrets, the `release` environment only accepts `v*` tags, and no workflow uses `pull_request_target`.
+- Their commits are usually unsigned. Merge them with **Squash and merge** or a merge commit, which GitHub signs. Rebase merging is turned off, and "Signed main" refuses a fast-forward of unsigned commits.
+
+Code on `main` ships only with the maintainer's signed tag.
+
+The workflow reads these secrets from the `release` environment. Set them there, or with `gh secret set <NAME> --env release`:
 
 | Secret | Value |
 |---|---|
-| `DEVELOPER_ID_P12` | The Developer ID Application certificate with its private key, exported as .p12, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `DEVELOPER_ID_P12` | The Developer ID Application certificate with its private key, exported as .p12 and base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
 | `DEVELOPER_ID_P12_PASSWORD` | The .p12 export password |
-| `SPARKLE_PRIVATE_KEY` | Sparkle's private EdDSA key, as `generate_keys -x` exports it (see Updates below); without it releases ship no appcast |
+| `SPARKLE_PRIVATE_KEY` | Sparkle's private EdDSA key, in the format `generate_keys -x` exports. Set it with the command in [Updates](#updates-sparkle). Without it, releases ship no appcast |
 | `APPLE_API_KEY` | An App Store Connect API key (.p8, "Developer" role), base64-encoded |
-| `APPLE_API_KEY_ID` / `APPLE_API_ISSUER_ID` | Its key id and issuer id |
+| `APPLE_API_KEY_ID` / `APPLE_API_ISSUER_ID` | The key's id and issuer id |
+
+Without the certificate secrets, the workflow still runs. It is then a dry run, published as a draft prerelease.
+
+The entitlements file grants only calendar access (for call reminders) and microphone input (for listening). The hardened runtime needs both. Reading the selection (Accessibility) needs no entitlement.
 
 ### Updates (Sparkle)
 
-The downloaded app updates itself with [Sparkle](https://sparkle-project.org) 2, from SwiftPM (`Package.swift` pins the version). `bundle.sh` copies `Sparkle.framework` into `Contents/Frameworks` without its XPC services (they're for sandboxed apps), signs it inside out and, only when it's given `UPDATE_PUBLIC_KEY`, writes the feed and the key into Info.plist; a build without it never checks. `release.sh` passes the key from `scripts/sparkle-public-key` and makes the build version the marketing version, which Sparkle compares with the appcast.
+The downloaded app updates itself with [Sparkle](https://sparkle-project.org) 2, from SwiftPM. `Package.swift` pins the version.
 
-The feed is `appcast.xml` on the latest GitHub release. For a signed, notarized, non-prerelease tag the Release workflow runs `scripts/appcast.sh`, which signs the stapled DMG with the private EdDSA key (the `SPARKLE_PRIVATE_KEY` secret of the `release` environment, piped to Sparkle's `sign_update`, never written to disk), checks that signature against the public key in `scripts/sparkle-public-key` (with OpenSSL 3; a mismatched pair would ship an update no installed app accepts), writes the appcast (`scripts/make-appcast.py`: version, minimum macOS, the DMG's URL, length and signature) and signs the appcast too; `Publish` attaches it. The app requires the signed feed and checks the archive before unpacking it (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`). The EdDSA key is the trust root: whoever has the private key can ship an update, so it lives only in the `release` environment and the keychain it was made in; Sparkle's code-signing comparison is a further check, not a second key. Prereleases don't update themselves (they'd carry the final version's numbers) and get no appcast. What's new isn't in the feed: the update card links to the release page.
+What `bundle.sh` does:
 
-A known limit: Sparkle's feed has no expiry or version floor. Someone who can edit releases (a stolen token with `contents: write`) can't ship code without the private key, but can delete the newest release so apps behind it are offered an older, validly signed one. The release environment, the tag rulesets and signed tags keep that to the maintainer's account.
+- It copies `Sparkle.framework` into `Contents/Frameworks` without its XPC services (those are for sandboxed apps).
+- It signs the framework from the inside out.
+- Only when it gets `UPDATE_PUBLIC_KEY`, it writes the feed and the key into Info.plist. A build without the key never checks for updates.
 
-The key pair is made once with Sparkle's `generate_keys` (in `.build/artifacts/sparkle/Sparkle/bin` after a build), which keeps the private key in the login keychain and prints the public one for `scripts/sparkle-public-key`. The secret gets the private key straight from the keychain item `generate_keys` made, without a file (macOS asks to allow the access): `security find-generic-password -s "https://sparkle-project.org" -a ed25519 -w | gh secret set SPARKLE_PRIVATE_KEY --env release`. Not `generate_keys -x /dev/stdout`: it refuses a path that exists and prints the error where the key would go, which then becomes the secret.
+`release.sh` passes the key from `scripts/sparkle-public-key`. It also sets the build version to the marketing version, which Sparkle compares with the appcast.
 
-To try a whole update without a release, quit the pet and run `scripts/update-test.sh` (it removes its builds when stopped): it builds 0.2.1 and 0.2.2 with a throwaway key and a feed on 127.0.0.1 (a local feed gets an App Transport Security exception; releases never do), serves the newer DMG and a signed appcast, and starts the older build with `--update-check-now`, the daily background check right away. The box floats down, a click on the cube opens the card, Update and Restart relaunch into 0.2.2, which pops out of its box. Afterwards clear what Sparkle wrote into the app's defaults (`defaults read dev.pixelpet.PixelPet`), or a version skipped while testing stays skipped.
+The feed is `appcast.xml` on the latest GitHub release. For a signed, notarized tag without a prerelease suffix, the Release workflow runs `scripts/appcast.sh`. This script:
 
-Without the certificate secrets the workflow still runs, as a dry run published as a draft prerelease. The entitlements file grants only calendar access, which the hardened runtime needs for call reminders; reading the selection (Accessibility) needs no entitlement.
+1. Signs the stapled DMG with the private EdDSA key. The key is the `SPARKLE_PRIVATE_KEY` secret of the `release` environment. It is piped to Sparkle's `sign_update` and never written to disk.
+2. Checks that signature against the public key in `scripts/sparkle-public-key`, with OpenSSL 3. A key pair that does not match would ship an update that no installed app accepts.
+3. Writes the appcast with `scripts/make-appcast.py`: version, minimum macOS, and the DMG's URL, length and signature.
+4. Signs the appcast too.
+
+The `Publish` step attaches the appcast to the release.
+
+The app requires a signed feed and checks the archive before it unpacks it (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`).
+
+The EdDSA key is the trust root: anyone with the private key can ship an update. So it lives only in the `release` environment and in the keychain where it was created. Sparkle's code-signing comparison is an extra check, not a second key.
+
+Prereleases do not update themselves, because they carry the numbers of the final version. They get no appcast. The feed has no release notes: the update card links to the release page.
+
+A known limit: Sparkle's feed has no expiry date and no minimum version. Someone who can edit releases (a stolen token with `contents: write`) can't ship code without the private key. But they can delete the newest release, so that apps behind it are offered an older, validly signed one. The release environment, the tag rulesets and signed tags limit this to the maintainer's account.
+
+#### Creating the key pair
+
+Create the key pair once with Sparkle's `generate_keys`. After a build it is in `.build/artifacts/sparkle/Sparkle/bin`. It stores the private key in the login keychain and prints the public key. Put the public key in `scripts/sparkle-public-key`.
+
+Send the private key to the secret straight from the keychain item that `generate_keys` created, without a file. macOS asks you to allow the access:
+
+```bash
+security find-generic-password -s "https://sparkle-project.org" -a ed25519 -w | gh secret set SPARKLE_PRIVATE_KEY --env release
+```
+
+Do not use `generate_keys -x /dev/stdout`. It refuses a path that already exists and prints the error where the key would go. That error text then becomes the secret.
+
+#### Testing an update locally
+
+To test a full update without a release:
+
+1. Quit the pet.
+2. Run `scripts/update-test.sh`. It builds 0.2.1 and 0.2.2 with a throwaway key and a feed on 127.0.0.1 (`OLD_VERSION`, `NEW_VERSION` and `PORT` change this). It serves the newer DMG and a signed appcast, and starts the older build with `--update-check-now`.
+3. The box floats down. Click the cube to open the card.
+4. Click Update, then Restart. The app relaunches into 0.2.2, which comes out of its box.
+5. Press Ctrl-C to stop the server. The script then deletes the test build in `build/PixelPet.app`. Its other files stay in `build/update-test`.
+6. Clear what Sparkle wrote into the app's defaults (`defaults read dev.pixelpet.PixelPet` shows them). Otherwise a version you skipped while testing stays skipped.
+
+Only a build with a local feed and no `SIGN_IDENTITY` gets an App Transport Security exception for the plain-http feed. Release builds never get it.
 
 ## Known gaps and ideas
 
-- **Stable code signing.** Builds are signed ad-hoc until a "Pixel Pet Dev" certificate exists (see [Code signing](#code-signing)), so the Accessibility permission has to be granted again after each rebuild.
-- **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`); swapping in an Aseprite sprite sheet would only change what produces the canvases.
-- **FIDO2 touches.** The YubiKey hint covers GPG only; `sk-` SSH keys and passkeys show up as kernel HID messages in the system log instead.
-- **A ball to play with.** Started from the context menu ("Play"), not a double-click, which would delay every single click that opens the status panel. A small ball on the floor where the pet stands: it bounces, the pet chases and kicks it a few times, the user can flick it with the mouse (the throw physics already exist), and it rolls away after about 30 s. Stays near the pet rather than crossing the screen; no score.
-- **Codex waiting for approval.** Codex doesn't write approval prompts to its session files, so its blocks never turn amber; its hooks (`PermissionRequest`) could fill that in, if the desktop app runs them.
+- **Stable code signing.** Builds are signed ad-hoc until a "Pixel Pet Dev" certificate exists (see [Code signing](#code-signing)). So the Accessibility permission must be granted again after each rebuild.
+- **Aseprite sprites.** Frames are drawn in code (`SpriteFactory`). An Aseprite sprite sheet would only change what produces the canvases.
+- **FIDO2 touches.** The YubiKey hint covers GPG only. `sk-` SSH keys and passkeys appear as kernel HID messages in the system log instead.
+- **A ball to play with.** Started from the context menu ("Play"), not with a double-click: a double-click would delay every single click that opens the status panel. A small ball sits on the floor where the pet stands. It bounces, and the pet chases and kicks it a few times. The user can flick it with the mouse (the throw physics already exist). It rolls away after about 30 s. It stays near the pet and does not cross the screen. No score.
+- **Codex waiting for approval.** Codex does not write approval prompts to its session files, so its blocks never turn amber. Its hooks (`PermissionRequest`) could add this, if the desktop app runs them.
 
 ## Findings worth knowing
 
-Measured or found out while building; they explain choices that look odd otherwise.
+These were measured or found while building. They explain choices that otherwise look odd.
 
-- **Rendering cost.** SpriteKit idled at 2–8% CPU and about 125 MB (it keeps ticking even when paused); swapping `CGImage`s in a `CALayer` costs 0.1–0.2% and about 12 MB.
-- **Hook latency.** `sh` + `nc -U` to the socket takes about 10 ms per call (12 ms worst); `python3` alone takes about 20 ms to start, so the hook is a shell script.
-- **Socket path.** Unix socket paths are limited to about 104 bytes, which is why the socket lives at `~/.pixelpet/pet.sock` and not in a temporary folder.
-- **Hooks and desktop sessions.** Hooks fire for Claude desktop (Code tab) sessions too, and already open sessions start sending events as soon as `settings.json` changes, without a `SessionStart`. The statusline, on the other hand, never runs for desktop sessions: that is why limits come from `rate_limit_event` instead.
-- **`claude -p`.** `--bare` needs an API key and ignores the subscription, so it can't be used; `--setting-sources project` keeps user hooks out instead. With haiku the first token arrives after about 2.7 s, and `result` follows `message_stop` by about 1.4 s (the post-turn summary), which is why answers count as done at `message_stop`.
-- **Post-turn summary.** After each turn Claude Code runs a short internal subagent whose `SubagentStop` arrives without a `SubagentStart`; it is not one of the user's subagents.
+- **Rendering cost.** SpriteKit used 2–8% CPU and about 125 MB while idle (it keeps running even when paused). Swapping `CGImage`s in a `CALayer` costs 0.1–0.2% and about 12 MB.
+- **Hook latency.** `sh` + `nc -U` to the socket takes about 10 ms per call (12 ms at worst). `python3` alone takes about 20 ms to start. So the hook is a shell script.
+- **Socket path.** Unix socket paths are limited to about 104 bytes. So the socket is at `~/.pixelpet/pet.sock`, not in a temporary folder.
+- **Hooks and desktop sessions.** Hooks fire for Claude desktop (Code tab) sessions too. Sessions that are already open start sending events as soon as `settings.json` changes, without a `SessionStart`. The statusline never runs for desktop sessions, so the limits come from `rate_limit_event` instead.
+- **`claude -p`.** `--bare` needs an API key and ignores the subscription, so the app can't use it. `--setting-sources project` keeps user hooks out instead. With haiku, the first token arrives after about 2.7 s. `result` comes about 1.4 s after `message_stop` (the post-turn summary). So an answer counts as done at `message_stop`.
+- **Post-turn summary.** After each turn, Claude Code runs a short internal subagent. Its `SubagentStop` arrives without a `SubagentStart`. It is not one of the user's subagents.
 
 ## Conventions
 
-- **Branches.** Each piece of work gets a branch such as `feat/<topic>` or `fix/<topic>`, which is fast-forward merged into `main` once checked.
+- **Branches.** Each piece of work gets a branch such as `feat/<topic>` or `fix/<topic>`. It is fast-forward merged into `main` after it is checked.
 - **Commits.** Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `perf:`).
-- **Comments.** Comments explain *why*: constraints, platform quirks, measured numbers. Doc comments (`///`) go on types and non-obvious members.
-- **Main actor.** UI code is `@MainActor`. `EventServer` runs on its own serial queue and hands payloads to the main actor through one ordered `AsyncStream`.
-- **Performance budget.** Aim for under 1% CPU while idle and under 3% while animating, under 60 MB of RAM, and under 20 ms per hook call. Do not add fast polling: schedule a timer for the next known change instead. The only repeating timer is the slow 20 s idle check in `DesktopSensor`.
+- **Comments.** Comments explain *why*: constraints, platform quirks, measured numbers. Doc comments (`///`) go on types and on members that are not obvious.
+- **Main actor.** UI code is `@MainActor`. `EventServer` runs on its own serial queue. It passes payloads to the main actor through one ordered `AsyncStream`.
+- **Performance budget.** Aim for under 1% CPU while idle, under 3% while animating, under 60 MB of RAM, and under 20 ms per hook call. Do not add fast polling. Schedule a timer for the next known change instead. The only repeating timer is the slow 20 s idle check in `DesktopSensor`.
 - **Privacy.** Never store prompt text, tool input or window titles. New uses of the selection or the clipboard go through `SelectionDecision`.
-- **Strings.** The UI is English by default with Russian as an option (Settings → Language). Write every UI string as `L("English", "Русский")` (`Sources/PixelPet/Localization.swift`); tables of titles are computed (`static var`) so they follow a language change. SwiftUI views redraw on their own; the menu bar menu retitles itself each time it opens.
+- **Strings.** The UI is in English by default, with Russian as an option (Settings → Language). Write every UI string as `L("English", "Русский")` (`Sources/PixelPet/Localization.swift`). Tables of titles are computed (`static var`), so they follow a language change. SwiftUI views redraw by themselves. The menu bar menu updates its titles each time it opens.
 
 ### Adding a pet state
 
 1. Add the case to `PetState` (`Sources/PetCore/PetState.swift`), with its per-frame durations in `PetState.millis`. If it plays once, add it to the one-shots in `loops`.
-2. Decide its Reduce Motion behavior in `MotionPolicy`: a still frame, skip, or a held cue.
-3. Draw it in `SpriteFactory.draw`. Use `BodyStyle` for the body, so skins, accessories and blush come for free.
+2. Choose its Reduce Motion behavior in `MotionPolicy`: a still frame, skip, or a held cue.
+3. Draw it in `SpriteFactory.draw`. Use `BodyStyle` for the body, so skins, accessories and blush work without extra code.
 4. Give it a title in `StatusMenu.stateTitles`.
 5. Trigger it from `PetController` or `AgentMonitor`.
-6. Add tests. `SpriteFactoryTests.producesOneCanvasPerFrame` already covers every case. Add a test for whatever makes the new state distinctive.
+6. Add tests. `SpriteFactoryTests.producesOneCanvasPerFrame` already covers every case. Add a test for what makes the new state different.
 7. Check the result with `--export-sprites` and the State menu.
 
 ### Changing what the hooks send
 
-1. Add the event name to `HookSettings.events`. Existing installs pick it up the next time the user reconnects.
+1. Add the event name to `HookSettings.events`. Existing installs get it the next time the user reconnects.
 2. Map it in `AgentEvent.parse`.
 3. Handle it in `SessionRegistry.apply`, with tests. Keep only the metadata you need.

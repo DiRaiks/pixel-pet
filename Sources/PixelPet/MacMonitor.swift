@@ -140,10 +140,12 @@ final class MacMonitor {
         let now = Date()
         let output = Self.defaultDevice(kAudioHardwarePropertyDefaultOutputDevice)
         let input = Self.defaultDevice(kAudioHardwarePropertyDefaultInputDevice)
-        let playing = output.map(Self.isPlaying) ?? false
+        let clients = Self.audioClients()
+        let playing = output.map { Self.isRunning($0) && AudioClient.anyPlays(clients) } ?? false
         var next = MacState()
         next.headphones = output.map(Self.isHeadphones) ?? false
         next.music = sound.update(playing: playing, at: now)
+        next.callSound = AudioClient.anyCall(clients)
         next.onAir = (input.map { Self.isRunning($0) } ?? false) || camerasInUse()
         next.hot = [.serious, .critical].contains(ProcessInfo.processInfo.thermalState)
         next.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
@@ -215,8 +217,9 @@ final class MacMonitor {
         for l in processAudio { remove(l) }
         processAudio = []
         for process in Self.audioProcesses() ?? [] {
-            if let l = listen(process, kAudioProcessPropertyIsRunningOutput, { [weak self] in self?.refresh() }) {
-                processAudio.append(l)
+            // Input too: a player that starts recording is a call, not music.
+            for selector in [kAudioProcessPropertyIsRunningOutput, kAudioProcessPropertyIsRunningInput] {
+                if let l = listen(process, selector, { [weak self] in self?.refresh() }) { processAudio.append(l) }
             }
         }
         refresh()
@@ -239,12 +242,14 @@ final class MacMonitor {
         return Array(ids.prefix(Int(size) / MemoryLayout<AudioObjectID>.size))
     }
 
-    /// The processes with output running right now; nil when CoreAudio won't list them.
+    /// The processes with output running right now, and whether each records too; nil when CoreAudio won't
+    /// list them.
     private static func audioClients() -> [AudioClient]? {
         audioProcesses().map { processes in
             processes.filter { (uint32($0, kAudioProcessPropertyIsRunningOutput) ?? 0) != 0 }.map { process in
                 let pid = uint32(process, kAudioProcessPropertyPID).map { pid_t(bitPattern: $0) }
-                return AudioClient(bundleID: bundleID(process), path: pid.flatMap(executablePath))
+                return AudioClient(bundleID: bundleID(process), path: pid.flatMap(executablePath),
+                                   records: (uint32(process, kAudioProcessPropertyIsRunningInput) ?? 0) != 0)
             }
         }
     }

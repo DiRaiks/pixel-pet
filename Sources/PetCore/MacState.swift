@@ -8,17 +8,20 @@ public struct MacState: Equatable, Sendable {
     public var music = false
     /// A microphone or camera is in use by some app.
     public var onAir = false
+    /// A call's sound is playing (`AudioClient.isCall`): still a call while a muted mic is let go.
+    public var callSound = false
     /// The thermal state is serious or critical.
     public var hot = false
     public var lowPower = false
     /// No network path (debounced, see `OfflineDebounce`).
     public var offline = false
 
-    public init(headphones: Bool = false, music: Bool = false, onAir: Bool = false, hot: Bool = false,
-                lowPower: Bool = false, offline: Bool = false) {
+    public init(headphones: Bool = false, music: Bool = false, onAir: Bool = false, callSound: Bool = false,
+                hot: Bool = false, lowPower: Bool = false, offline: Bool = false) {
         self.headphones = headphones
         self.music = music
         self.onAir = onAir
+        self.callSound = callSound
         self.hot = hot
         self.lowPower = lowPower
         self.offline = offline
@@ -26,14 +29,18 @@ public struct MacState: Equatable, Sendable {
 
     /// What the pet does instead of plain idling. Only an idle pet changes: agents, alerts, sleep and calls
     /// keep their own states. A call (mic or camera) comes first, then heat, then the network, low power, and
-    /// music last: sound during a call is the call.
+    /// music last: sound during a call is the call, so music never shows during one (`inCall`), not even
+    /// with the call clicked away.
     /// `skipping` are states the user clicked away; the next one in line shows instead.
     public func rest(insteadOf rest: PetState, skipping dismissed: Set<PetState> = []) -> PetState {
         guard rest == .idle else { return rest }
-        return Self.priority.first { isActive($0) && !dismissed.contains($0) } ?? rest
+        return Self.priority.first { isActive($0) && !dismissed.contains($0) && !($0 == .music && inCall) } ?? rest
     }
 
     static let priority: [PetState] = [.onAir, .overheated, .offline, .lowPower, .music]
+
+    /// The mic or camera is on, or a call's sound plays.
+    public var inCall: Bool { onAir || callSound }
 
     /// Whether the condition behind one of these resting states is still on.
     public func isActive(_ state: PetState) -> Bool {
@@ -63,9 +70,10 @@ public struct MacDismissals: Sendable {
 
     public mutating func dismiss(_ state: PetState) { states.insert(state) }
 
-    /// Forget dismissals whose condition has ended.
+    /// Forget dismissals whose condition has ended. A call clicked away stays away while it goes on, even when
+    /// a muted mic is let go for a while.
     public mutating func update(with mac: MacState) {
-        states = states.filter { mac.isActive($0) }
+        states = states.filter { mac.isActive($0) || ($0 == .onAir && mac.inCall) }
     }
 }
 
@@ -74,10 +82,32 @@ public struct AudioClient: Equatable, Sendable {
     public var bundleID: String?
     /// The executable's path, for clients without a bundle (command-line players).
     public var path: String?
+    /// It has input running too: a voice going both ways.
+    public var records: Bool
 
-    public init(bundleID: String? = nil, path: String? = nil) {
+    public init(bundleID: String? = nil, path: String? = nil, records: Bool = false) {
         self.bundleID = bundleID
         self.path = path
+        self.records = records
+    }
+
+    /// Apps whose sound is people talking. With the mic muted, some let go of the input, so recording alone
+    /// doesn't tell. Their helpers (`<id>.helper…`) count too.
+    static let callApps: Set<String> = [
+        "us.zoom.xos", "com.microsoft.teams2", "com.microsoft.teams", "com.tinyspeck.slackmacgap",
+        "com.apple.FaceTime", "com.hnc.Discord", "ru.keepcoder.Telegram", "org.telegram.desktop",
+        "net.whatsapp.WhatsApp", "Cisco-Systems.Spark", "com.cisco.webexmeetingsapp", "com.skype.skype",
+        "org.whispersystems.signal-desktop",
+    ]
+    /// FaceTime and phone calls through the Mac play from this daemon.
+    static let callServices: Set<String> = ["avconferenced"]
+
+    /// The sound is a call: the same process records, or it's a call app.
+    public var isCall: Bool {
+        if records { return true }
+        if let bundleID, Self.callApps.contains(where: { bundleID == $0 || bundleID.hasPrefix($0 + ".") }) { return true }
+        guard let path else { return false }
+        return Self.callServices.contains((path as NSString).lastPathComponent)
     }
 
     /// macOS services that open the speakers for their own short sounds (the charger chime, Siri) and can
@@ -91,11 +121,16 @@ public struct AudioClient: Equatable, Sendable {
         return Self.systemServices.contains((path as NSString).lastPathComponent)
     }
 
-    /// Whether any of the clients plays something that may be music. `nil` means the list couldn't be read:
-    /// then the running device alone decides, as before.
+    /// Whether any of the clients plays something that may be music: not a system service, not a call.
+    /// `nil` means the list couldn't be read: then the running device alone decides, as before.
     public static func anyPlays(_ clients: [AudioClient]?) -> Bool {
         guard let clients else { return true }
-        return clients.contains { !$0.isSystemService }
+        return clients.contains { !$0.isSystemService && !$0.isCall }
+    }
+
+    /// Whether any of the clients plays a call.
+    public static func anyCall(_ clients: [AudioClient]?) -> Bool {
+        clients?.contains { !$0.isSystemService && $0.isCall } ?? false
     }
 }
 

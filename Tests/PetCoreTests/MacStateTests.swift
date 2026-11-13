@@ -22,22 +22,55 @@ import Testing
     /// A click puts the current state away; the next one in line shows, and the dismissed one only comes back
     /// once its condition has ended and started again.
     @Test func clickedAwayStatesStayAwayWhileTheyLast() {
-        var mac = MacState(music: true, onAir: true)
+        var mac = MacState(music: true, hot: true)
         var dismissed = MacDismissals()
-        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .onAir)
-        dismissed.dismiss(.onAir)
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .overheated)
+        dismissed.dismiss(.overheated)
         #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .music)
         dismissed.dismiss(.music)
         #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .idle)
-        // The call is still on: it stays away.
+        // Still hot: it stays away.
         dismissed.update(with: mac)
-        #expect(dismissed.states == [.onAir, .music])
-        // The call ends; the next one shows again.
-        mac.onAir = false
+        #expect(dismissed.states == [.overheated, .music])
+        // It cools down; the next time it shows again.
+        mac.hot = false
         dismissed.update(with: mac)
         #expect(dismissed.states == [.music])
+        mac.hot = true
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .overheated)
+    }
+
+    /// Sound during a call is the call: with the call clicked away the pet rests, it doesn't dance.
+    @Test func callClickedAwayDoesNotTurnIntoMusic() {
+        var mac = MacState(headphones: true, music: true, onAir: true)
+        var dismissed = MacDismissals()
+        dismissed.dismiss(.onAir)
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .idle)
+        // Low power still shows; music comes back once the call is over.
+        mac.lowPower = true
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .lowPower)
+        mac.lowPower = false
+        mac.onAir = false
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .music)
+    }
+
+    /// Muting lets some apps release the mic, but the call's sound goes on: the call stays clicked away and
+    /// still isn't music; once its sound stops too, the next call shows again.
+    @Test func mutedCallStaysClickedAway() {
+        var mac = MacState(onAir: true)
+        var dismissed = MacDismissals()
+        dismissed.dismiss(.onAir)
+        mac.onAir = false
+        mac.callSound = true
+        mac.music = true
+        dismissed.update(with: mac)
+        #expect(dismissed.states == [.onAir])
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .idle)
         mac.onAir = true
-        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .onAir)
+        #expect(mac.rest(insteadOf: .idle, skipping: dismissed.states) == .idle)
+        mac = MacState()
+        dismissed.update(with: mac)
+        #expect(dismissed.states.isEmpty)
     }
 
     @Test func headphonesComeAndGo() {
@@ -105,6 +138,24 @@ import Testing
         #expect(AudioClient.anyPlays([chime, chrome]))
         #expect(AudioClient.anyPlays([afplay]))
         #expect(AudioClient.anyPlays(nil))
+    }
+
+    /// A call's sound isn't music: an app that records as it plays (a call in the browser), or a call app
+    /// (its helpers too) even when it let go of a muted mic. Other apps that only play still count.
+    @Test func callsAreNotMusic() {
+        let meet = AudioClient(bundleID: "com.google.Chrome.helper", records: true)
+        let zoom = AudioClient(bundleID: "us.zoom.xos")
+        let slackHelper = AudioClient(bundleID: "com.tinyspeck.slackmacgap.helper")
+        let faceTime = AudioClient(path: "/usr/libexec/avconferenced")
+        let spotify = AudioClient(bundleID: "com.spotify.client")
+        let lookalike = AudioClient(bundleID: "us.zoom.xosnotreally")
+        #expect(meet.isCall && zoom.isCall && slackHelper.isCall && faceTime.isCall)
+        #expect(!spotify.isCall && !lookalike.isCall)
+        #expect(!AudioClient.anyPlays([meet, zoom, faceTime]))
+        #expect(AudioClient.anyPlays([zoom, spotify]))
+        #expect(AudioClient.anyCall([spotify, zoom]) && !AudioClient.anyCall([spotify]) && !AudioClient.anyCall(nil))
+        // A system service is never a call, even recording (Siri listening).
+        #expect(!AudioClient.anyCall([AudioClient(bundleID: "com.apple.corespeechd", records: true)]))
     }
 
     @Test func offlineOnlyAfterAFewSeconds() {

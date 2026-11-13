@@ -36,6 +36,12 @@ public struct PixelCanvas: Equatable, Sendable {
         pixels[y * width + x] = color
     }
 
+    /// Makes a pixel transparent again (rounded corners cut out of a fill).
+    mutating func clear(_ x: Int, _ y: Int) {
+        guard x >= 0, y >= 0, x < width, y < height else { return }
+        pixels[y * width + x] = nil
+    }
+
     /// Turned clockwise by `turns` quarter turns: lossless, unlike arbitrary angles (square canvases).
     func rotatedQuarter(_ turns: Int) -> PixelCanvas {
         let t = ((turns % 4) + 4) % 4

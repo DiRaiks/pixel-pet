@@ -7,7 +7,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
     public var origin: PetPoint?
     public var scale = 4
     public var isHidden = false
-    /// Opt-in debug log of hook events (ids and event names only) in ~/.pixelpet/events.log.
+    /// Opt-in debug log of hook events (ids, project and event names) in ~/.pixelpet/events.log.
     public var logEvents = false
     /// Last known limits, so the panel isn't blank right after a restart.
     public var lastLimits: UsageLimits?
@@ -67,6 +67,9 @@ public struct PetConfig: Codable, Equatable, Sendable {
     /// React to the Mac: headphones, music, mic or camera in use, heat, low power, the network, a full
     /// battery, screenshots, the system theme and Friday evening.
     public var macReactions = true
+    /// Notice what the user does while no agent works: Spaces, typing, the app in front, apps opening and
+    /// quitting, USB sticks, displays, the keyboard layout.
+    public var activityReactions = true
     /// Get ready for calls from the Mac's calendars (asks for calendar access when turned on).
     public var meetingAlerts = false
     /// Last known Codex limits, like `lastLimits` for Claude.
@@ -108,6 +111,7 @@ public struct PetConfig: Codable, Equatable, Sendable {
         recapShownFor = try c.decodeIfPresent(String.self, forKey: .recapShownFor)
         hookah = try c.decodeIfPresent(Bool.self, forKey: .hookah) ?? true
         macReactions = try c.decodeIfPresent(Bool.self, forKey: .macReactions) ?? true
+        activityReactions = try c.decodeIfPresent(Bool.self, forKey: .activityReactions) ?? true
         meetingAlerts = try c.decodeIfPresent(Bool.self, forKey: .meetingAlerts) ?? false
         lastCodexLimits = try? c.decodeIfPresent(UsageLimits.self, forKey: .lastCodexLimits)
         sleepAfterMinutes = min(max(try c.decodeIfPresent(Int.self, forKey: .sleepAfterMinutes) ?? 10, 0), 24 * 60)

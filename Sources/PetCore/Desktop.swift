@@ -31,10 +31,17 @@ public struct ReactionThrottle: Sendable {
     }
 
     public mutating func take(at now: Date) -> Bool {
-        if let last, now.timeIntervalSince(last) < interval { return false }
+        guard allows(at: now) else { return false }
         last = now
         return true
     }
+
+    /// Whether `take` would succeed, without using it up: for reactions that may not get to play.
+    public func allows(at now: Date) -> Bool {
+        last.map { now.timeIntervalSince($0) >= interval } ?? true
+    }
+
+    public mutating func mark(at now: Date) { last = now }
 }
 
 public enum Fullscreen {

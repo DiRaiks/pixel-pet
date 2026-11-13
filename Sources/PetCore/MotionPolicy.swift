@@ -21,6 +21,8 @@ public enum MotionPolicy {
         case .breakHint: 0    // the mug in its bubble
         case .catchOpen: 0    // mouth open, looking up
         case .listening: 0    // the mic held out, a wave coming in
+        case .typingAlong: 1  // a key with a letter over the head
+        case .gamepad, .popcorn, .coding: 0   // the gamepad, the bucket, the glasses and terminal
         default: nil
         }
     }
@@ -33,7 +35,8 @@ public enum MotionPolicy {
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud,
-             .listenIn, .listenOut: false
+             .listenIn, .listenOut,
+             .appLaunched, .appQuit, .usbIn, .usbOut, .newDisplay, .layoutSwitch: false
         default: true
         }
     }
@@ -54,6 +57,10 @@ public enum MotionPolicy {
         case .refill: Cue(state: .refill, frame: 10)         // full again, stretching
         case .plugIn: Cue(state: .plugIn, frame: 5)          // lightning bolt, happy
         case .dizzy: Cue(state: .dizzy, frame: 8)            // spiral eyes, stars
+        case .usbIn: Cue(state: .usbIn, frame: 4)            // the stick held up, sparkles
+        case .usbOut: Cue(state: .usbOut, frame: 2)          // the eject sign
+        case .newDisplay: Cue(state: .newDisplay, frame: 6)  // the new screen with a copy on it
+        case .layoutSwitch: Cue(state: .layoutSwitch, frame: 7) // the new layout's badge
         default: nil
         }
     }

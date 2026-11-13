@@ -56,7 +56,9 @@ final class SpriteLibrary {
         let base = list[i]
         let gaze = state == .idle ? gaze : nil
         // Desk props at the desk; holiday props stand by the pet wherever it's on the floor.
-        let props = state.isAtDesk ? props
+        // The layout badge carries its codes in the props.
+        let props = state.isAtDesk ? props.subtracting(.layoutBits)
+            : state == .layoutSwitch ? props.intersection(.layoutBits)
             : SpriteFactory.showsFloorProps(state) ? props.intersection(.holiday) : []
         guard drain > 0 || gaze != nil || !props.isEmpty else { return base }
         let key = VariantKey(state: state, index: i, rows: drain, gaze: gaze, props: props.rawValue)

@@ -59,6 +59,11 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
     /// A new version: a box with the update arrow floats down on a balloon, waits by the pet until clicked,
     /// is unpacked while the update downloads and installs, and after the restart the pet pops out of one.
     case updateArrive, updateWait, updateUnpack, updateDone
+    /// What the user does on the Mac while no agent works: typing along, the app in front
+    /// (a game, a video, code), an app opening or quitting after long use, a USB stick in and out, a new
+    /// display, the keyboard layout switching.
+    case typingAlong, gamepad, popcorn, coding, appLaunched, appQuit, usbIn, usbOut, newDisplay,
+         layoutSwitch
 
     /// Seconds per frame. Built once: the frame clock reads it on every tick.
     public var durations: [Double] { Self.table[self]! }
@@ -145,6 +150,16 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
         case .updateWait: Self.repeating(16, 250)
         case .updateUnpack: Self.repeating(12, 120)
         case .updateDone: [220, 220, 220, 300, 110, 110, 110, 110, 110, 110, 160, 150, 150, 120, 120, 200, 400, 900]
+        case .typingAlong: Self.repeating(12, 140)
+        case .gamepad: [160, 160, 160, 160, 160, 450, 160, 200]
+        case .popcorn: [400, 400, 250, 150, 150, 250, 200, 400]
+        case .coding: [400, 400, 400, 400, 120, 400]
+        case .appLaunched: Self.repeating(10, 70) + [120, 150, 200, 300]
+        case .appQuit: [250, 200, 150, 150, 120, 120, 150, 150, 150, 300]
+        case .usbIn: [60, 60, 90, 120, 150, 150, 150, 150, 200, 300]
+        case .usbOut: [200, 250, 250, 90, 70, 70, 150, 150, 150, 300]
+        case .newDisplay: [70, 70, 90, 200, 150, 250, 250, 150, 150, 150, 150, 300]
+        case .layoutSwitch: [250, 200, 200, 60, 60, 60, 200, 200, 200, 300]
         }
     }
 
@@ -168,7 +183,8 @@ public enum PetState: String, CaseIterable, Codable, Sendable {
              .darkMode, .lightMode,
              .workSip, .workStretch, .workThink, .workRush, .glanceLeft, .glanceRight, .touchDone,
              .refill, .spawn, .recall, .spawnDesk, .recallDesk, .compact, .plugIn, .thrown, .dizzy, .splatLeft, .splatRight, .hookah, .hookahCloud, .newspaperOpen,
-             .swallow, .shakeHead, .listenIn, .listenOut, .updateArrive, .updateDone: false
+             .swallow, .shakeHead, .listenIn, .listenOut, .updateArrive, .updateDone,
+             .appLaunched, .appQuit, .usbIn, .usbOut, .newDisplay, .layoutSwitch: false
         default: true
         }
     }

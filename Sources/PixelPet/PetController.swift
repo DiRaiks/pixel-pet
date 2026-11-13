@@ -46,6 +46,11 @@ final class PetController {
     private var mac = MacState()
     /// Mac states the user clicked away, until they end.
     private var macDismissed = MacDismissals()
+    /// What the user is up to (`ActivitySensor`), and the activity rests clicked away.
+    private var activity = ActivityState()
+    private var activityDismissed = ActivityDismissals()
+    /// The codes the layout badge flips between, carried to its frames in the props.
+    private var layoutProps: WorkProps = []
     private var fullCelebrated = false
     /// Redraws the desk when the night light goes on, off, or burns down.
     private var nightCheck: DispatchWorkItem?
@@ -336,7 +341,11 @@ final class PetController {
         // So does a new version.
         if parcel == .waiting, rest == .idle, !config.doNotDisturb { return .updateWait }
         // Idle on a nearly flat battery: droopy instead. Otherwise the Mac may give it something to do.
-        return rest == .idle && power?.isLow == true ? .tired : mac.rest(insteadOf: rest, skipping: macDismissed.states)
+        if rest == .idle && power?.isLow == true { return .tired }
+        // Then what the user is doing (a game, typing, code): only over plain idling.
+        let macRest = mac.rest(insteadOf: rest, skipping: macDismissed.states)
+        guard config.activityReactions else { return macRest }
+        return activity.rest(insteadOf: macRest, skipping: activityDismissed.states)
     }
 
     // MARK: Desktop reactions
@@ -596,6 +605,7 @@ final class PetController {
         case .headband: props = [.mug, .headband]
         }
         props.formUnion(.strain(PetBrain.strain(agents + codexAgents)))
+        props.formUnion(layoutProps)
         let now = Date()
         if NightDesk.isLate(at: now) {
             props.insert(.tea)
@@ -767,6 +777,31 @@ final class PetController {
 
     func screenshotTaken() { moment(.screenshot) }
 
+    /// What the user does changed (`ActivitySensor`).
+    func setActivity(_ next: ActivityState) {
+        guard next != activity else { return }
+        activity = next
+        activityDismissed.update(with: next, at: Date())
+        applyRest()
+    }
+
+    /// A one-off about what the user does: only while no agent works (and the setting is on), like other
+    /// moments otherwise.
+    @discardableResult
+    func activityMoment(_ state: PetState) -> Bool {
+        guard config.activityReactions, mood == .idle, !config.doNotDisturb else { return false }
+        return moment(state)
+    }
+
+    /// The keyboard layout switched: the badge flips from one code to the other. Returns whether it played.
+    @discardableResult
+    func layoutChanged(from old: String, to new: String) -> Bool {
+        layoutProps = .layout(from: old, to: new)
+        let shown = activityMoment(.layoutSwitch)
+        if !shown { layoutProps = [] }
+        return shown
+    }
+
     func themeChanged(dark: Bool) { moment(dark ? .darkMode : .lightMode) }
 
     /// The "React to the Mac" setting changed: the party hat may come or go.
@@ -796,7 +831,8 @@ final class PetController {
     func moment(_ state: PetState) -> Bool {
         guard !config.isHome, player.state != .dragged,
               [.idle, .working, .tired, .question].contains(restingState)
-                || Self.macRests.subtracting([.onAir]).contains(restingState),
+                || Self.macRests.subtracting([.onAir]).contains(restingState)
+                || ActivityState.rests.contains(restingState),
               player.state == restingState else { return false }
         return react(state.atDesk(over: restingState))
     }
@@ -853,7 +889,7 @@ final class PetController {
 
     private func currentLook() -> Look { Self.look(from: config, headphones: headphonesWorn) }
 
-    /// With "every day new", the look changes at midnight; the party hat goes on at 17:00 on Fridays.
+    /// With "New every day", the look changes at midnight; the party hat goes on at 17:00 on Fridays.
     private var dayChange: DispatchWorkItem?
 
     private func scheduleDayChange() {
@@ -1076,6 +1112,13 @@ final class PetController {
             if Self.macRests.contains(restingState), !config.isHome {
                 // "Got it": back to idling (or the next thing in line) until this one ends.
                 macDismissed.dismiss(restingState)
+                applyRest()
+                react(.hop)
+                return
+            }
+            if ActivityState.rests.contains(restingState), !config.isHome {
+                // The same for the gamepad, the popcorn, the glasses and the keys: away while it lasts.
+                activityDismissed.dismiss(restingState)
                 applyRest()
                 react(.hop)
                 return

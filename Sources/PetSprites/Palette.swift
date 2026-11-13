@@ -311,4 +311,27 @@ public struct WorkProps: OptionSet, Hashable, Sendable {
     }
 
     var strain: Int { (rawValue & Self.strainBits.rawValue) >> 13 }
+
+    /// The keyboard layout badge's codes for `layoutSwitch`: two letters each, A–Z, five bits a letter from
+    /// bit 20. Codes that aren't two letters A–Z leave it out.
+    public static let layoutBits = WorkProps(rawValue: ((1 << 20) - 1) << 20)
+
+    public static func layout(from old: String, to new: String) -> WorkProps {
+        guard let a = letters(old), let b = letters(new) else { return [] }
+        let value = (a + b).enumerated().reduce(0) { $0 | ($1.element << (20 + 5 * $1.offset)) }
+        return WorkProps(rawValue: value)
+    }
+
+    var layoutCodes: (from: String, to: String)? {
+        let values = (0..<4).map { (rawValue >> (20 + 5 * $0)) & 31 }
+        guard values.allSatisfy({ (1...26).contains($0) }) else { return nil }
+        let text = String(values.map { Character(UnicodeScalar(UInt8(64 + $0))) })
+        return (String(text.prefix(2)), String(text.suffix(2)))
+    }
+
+    private static func letters(_ code: String) -> [Int]? {
+        let values = code.unicodeScalars.map { Int($0.value) - 64 }
+        guard values.count == 2, values.allSatisfy({ (1...26).contains($0) }) else { return nil }
+        return values
+    }
 }

@@ -66,6 +66,14 @@ final class SettingsModel {
         }
     }
     @ObservationIgnored var onMacReactions: ((Bool) -> Void)?
+    var activityReactions = true {
+        didSet {
+            guard !loading, activityReactions != oldValue else { return }
+            update { $0.activityReactions = activityReactions }
+            onActivityReactions?(activityReactions)
+        }
+    }
+    @ObservationIgnored var onActivityReactions: ((Bool) -> Void)?
     var meetingAlerts = false {
         didSet {
             guard !loading, meetingAlerts != oldValue else { return }
@@ -188,6 +196,7 @@ final class SettingsModel {
         breakMinutes = c.breakMinutes
         hookah = c.hookah
         macReactions = c.macReactions
+        activityReactions = c.activityReactions
         meetingAlerts = c.meetingAlerts
         listening = c.listening
         onRefresh?()
@@ -304,6 +313,9 @@ struct SettingsView: View {
                 Toggle(L("React to the Mac", "Реагировать на Mac"), isOn: $model.macReactions)
                     .help(L("Headphones, music, mic or camera in use, heat, low power, the network, a full battery, screenshots, the theme, Friday evening. Only on/off signals, no content",
                              "Наушники, музыка, занятый микрофон или камера, перегрев, энергосбережение, сеть, полная батарея, скриншоты, тема, вечер пятницы. Только сигналы вкл/выкл, без содержимого"))
+                Toggle(L("Notice what I'm doing", "Замечать, чем я занят"), isOn: $model.activityReactions)
+                    .help(L("While no agent works: Spaces, typing, games, videos and code in front, apps opening and quitting, USB sticks, a new display, the keyboard layout. Only the time since the last key press is read, never the keys",
+                             "Пока агенты стоят: рабочие столы, набор текста, игры, видео и код на переднем плане, запуск и закрытие программ, флешки, новый монитор, раскладка. Читается только время с последнего нажатия, не сами клавиши"))
                 Toggle(L("Hookah breaks", "Кальян на перерывах"), isOn: $model.hookah)
                     .help(L("Now and then, when idle or after a big task, the cube smokes a hookah",
                              "Иногда в покое и после больших задач кубик курит кальян"))

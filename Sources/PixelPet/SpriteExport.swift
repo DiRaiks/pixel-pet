@@ -270,6 +270,23 @@ enum ReadmeExport {
         for (name, clips) in macClips {
             write(render(clips, scale: 6), to: directory.appendingPathComponent("\(name).png"))
         }
+        // What the user does while no agent works.
+        let activityClips: [(String, [Clip])] = [
+            ("activity-space", [still, Clip(state: .dizzy), still]),
+            ("activity-typing", [Clip(state: .typingAlong, seconds: 3.4)]),
+            ("activity-game", [Clip(state: .gamepad, seconds: 2.6)]),
+            ("activity-video", [Clip(state: .popcorn, seconds: 2.4)]),
+            ("activity-code", [Clip(state: .coding, seconds: 2.0)]),
+            ("activity-app-open", [still, Clip(state: .appLaunched), still]),
+            ("activity-app-quit", [still, Clip(state: .appQuit), still]),
+            ("activity-usb-in", [still, Clip(state: .usbIn), still]),
+            ("activity-usb-out", [still, Clip(state: .usbOut), still]),
+            ("activity-display", [still, Clip(state: .newDisplay), still]),
+            ("activity-layout", [still, Clip(state: .layoutSwitch), still]),
+        ]
+        for (name, clips) in activityClips {
+            write(render(clips, scale: 6), to: directory.appendingPathComponent("\(name).png"))
+        }
         // LM's idle fidgets, in place of the cube's roll.
         for state in [PetState.drip, .melt] {
             let clips = [Clip(state: .idle, seconds: 0.8, look: lm), Clip(state: state, look: lm),

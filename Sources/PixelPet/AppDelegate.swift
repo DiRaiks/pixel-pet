@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var power: PowerMonitor?
     private var meetings: MeetingMonitor?
     private var mac: MacMonitor?
+    private var activity: ActivitySensor?
     private var permissions: PermissionDesk?
     private let notifier = Notifier()
     private var settingsModel: SettingsModel?
@@ -350,6 +351,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             mac?.setRunning(on)
             pet?.macReactionsChanged()
         }
+        // What the user does while no agent works: Spaces, typing, the app in front, devices, the layout.
+        let activity = ActivitySensor(pet: pet)
+        activity.setRunning(pet.config.activityReactions)
+        self.activity = activity
+        settingsModel.onActivityReactions = { [weak activity] on in activity?.setRunning(on) }
         settingsModel.calendarCountProvider = { [weak self] in self?.meetings?.calendarCount ?? 0 }
         settingsModel.onMeetingAlerts = { [weak self, weak settingsModel] on in
             self?.setMeetingAlerts(on, askForAccess: true)

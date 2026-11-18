@@ -39,7 +39,12 @@ public enum NightDesk {
     public static func light(at date: Date, calendar: Calendar = .autoupdatingCurrent) -> Light {
         let hour = calendar.component(.hour, from: date)
         let evening = hour < endHour ? calendar.date(byAdding: .day, value: -1, to: date) ?? date : date
-        let day = calendar.ordinality(of: .day, in: .era, for: evening) ?? 0
+        // Count whole days between local midnights. `ordinality(of: .day, in: .era)` is no good here: its
+        // day turns over at UTC midnight-ish, not local midnight (03:00 in Moscow), so a night flipped from
+        // candle to lamp and back.
+        let epoch = calendar.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
+        let day = calendar.dateComponents([.day], from: calendar.startOfDay(for: epoch),
+                                          to: calendar.startOfDay(for: evening)).day ?? 0
         return day % 3 == 0 ? .candle : .lamp
     }
 

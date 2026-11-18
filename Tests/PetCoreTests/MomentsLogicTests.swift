@@ -187,6 +187,22 @@ import Testing
         for k in 0..<9 { #expect(NightDesk.light(at: night(k + 1, 3)) == lights[k], "night \(k)") }
     }
 
+    /// The light holds all night, every hour from 22:00 to 04:59, wherever the Mac is: the day count used
+    /// to turn over at 03:00 in Moscow, so the candle went out after midnight and came back at three.
+    @Test(arguments: ["Europe/Moscow", "Pacific/Honolulu", "Asia/Tokyo", "America/New_York", "UTC"])
+    func lightHoldsAllNight(zone: String) {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: zone)!
+        for offset in 0..<6 {
+            let evening = cal.date(from: DateComponents(year: 2026, month: 11, day: 15 + offset, hour: 22))!
+            let light = NightDesk.light(at: evening, calendar: cal)
+            for h in 1..<7 {
+                let later = evening.addingTimeInterval(Double(h) * 3600)
+                #expect(NightDesk.light(at: later, calendar: cal) == light, "\(zone) night \(offset) +\(h)h")
+            }
+        }
+    }
+
     /// The candle burns down through the night; the desk is redrawn every hour while it does.
     @Test func candleMeltsAndTheDeskRedrawsHourly() {
         #expect([22, 23, 0, 1, 2, 3, 4].map { NightDesk.candleMelt(at: date($0)) } == [0, 0, 1, 1, 2, 2, 3])

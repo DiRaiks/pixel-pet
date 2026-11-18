@@ -110,9 +110,10 @@ public struct AudioClient: Equatable, Sendable {
         return Self.callServices.contains((path as NSString).lastPathComponent)
     }
 
-    /// macOS services that open the speakers for their own short sounds (the charger chime, Siri) and can
-    /// leave the stream running for hours afterwards: the device looks busy while nothing plays.
-    static let systemServices: Set<String> = ["PowerChime", "corespeechd", "corespeechd_system"]
+    /// macOS services that open the speakers for their own short sounds (the charger chime, Siri, a booted
+    /// iOS Simulator's system sounds) and can leave the stream running for hours afterwards: the device
+    /// looks busy while nothing plays. An app playing inside the simulator is its own process and counts.
+    static let systemServices: Set<String> = ["PowerChime", "corespeechd", "corespeechd_system", "systemsoundserver-simd"]
     static let systemBundles: Set<String> = ["com.apple.PowerChime", "com.apple.corespeechd"]
 
     public var isSystemService: Bool {

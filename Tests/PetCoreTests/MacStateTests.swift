@@ -129,11 +129,13 @@ import Testing
     @Test func systemServicesHoldingTheSpeakersAreNotMusic() {
         let chime = AudioClient(bundleID: "com.apple.PowerChime")
         let siri = AudioClient(path: "/System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd")
+        // A booted iOS Simulator's sound server (no bundle ID, a path inside the simulator runtime).
+        let simulator = AudioClient(path: "/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS.simruntime/Contents/Resources/RuntimeRoot/System/Library/Frameworks/AudioToolbox.framework/systemsoundserver-simd")
         let chrome = AudioClient(bundleID: "com.google.Chrome.helper")
         let afplay = AudioClient(path: "/usr/bin/afplay")
-        #expect(chime.isSystemService && siri.isSystemService)
+        #expect(chime.isSystemService && siri.isSystemService && simulator.isSystemService)
         #expect(!chrome.isSystemService && !afplay.isSystemService && !AudioClient().isSystemService)
-        #expect(!AudioClient.anyPlays([chime, siri]))
+        #expect(!AudioClient.anyPlays([chime, siri, simulator]))
         #expect(!AudioClient.anyPlays([]))
         #expect(AudioClient.anyPlays([chime, chrome]))
         #expect(AudioClient.anyPlays([afplay]))
